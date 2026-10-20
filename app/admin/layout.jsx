@@ -121,16 +121,11 @@ export default function AdminLayout({ children }) {
                 return;
             }
 
-            // Shortcut for Sign Out:
-            // 1. Ctrl+L (control key on Mac/Windows)
-            // 2. ⌘+Shift+L / Ctrl+Shift+L
-            // 3. Alt+L / ⌥L (Option+L on Mac)
+            // Safe shortcut: only ⌘+Shift+L / Ctrl+Shift+L with confirmation
             const isL = e.key.toLowerCase() === "l" || e.code === "KeyL";
-            const isCtrlL = e.ctrlKey && isL;
             const isCmdShiftL = (e.metaKey || e.ctrlKey) && e.shiftKey && isL;
-            const isAltL = e.altKey && isL;
 
-            if (isCtrlL || isCmdShiftL || isAltL) {
+            if (isCmdShiftL) {
                 e.preventDefault();
                 e.stopPropagation();
                 handleSignOut();
@@ -178,6 +173,8 @@ export default function AdminLayout({ children }) {
 
     const [liveFeatures, setLiveFeatures] = useState(null);
 
+    const [liveStructure, setLiveStructure] = useState(null);
+
     useEffect(() => {
         if (session?.user?.institute?.id) {
             fetch("/api/v1/institute")
@@ -186,15 +183,19 @@ export default function AdminLayout({ children }) {
                     if (data?.institute?.settings?.features) {
                         setLiveFeatures(data.institute.settings.features);
                     }
+                    if (data?.institute?.settings?.structure) {
+                        setLiveStructure(data.institute.settings.structure);
+                    }
                 })
                 .catch(err => console.error("Failed to load live features in layout", err));
         }
     }, [session?.user?.institute?.id, pathname]);
 
     const features = liveFeatures || session?.user?.institute?.features || {};
+    const activeStructure = liveStructure || session?.user?.institute?.structure;
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || 
                      session?.user?.institute?.code === 'QUANTECH' ||
-                     (session?.user?.institute?.type === 'COLLEGE' && session?.user?.institute?.structure === 'CLASS_BASED');
+                     (session?.user?.institute?.type === 'COLLEGE' && activeStructure === 'CLASS_BASED');
     const isTransportEnabled = !!features.transport;
     const isHostelEnabled = !!features.hostel;
     const rawMenuGroups = [
@@ -436,7 +437,6 @@ export default function AdminLayout({ children }) {
                     return pathname === actualHref || pathname.startsWith(actualHref + "/");
                 })
             );
-            // eslint-disable-next-line react-hooks/set-state-in-effect
             if (activeGroup) setExpandedGroup(activeGroup.label);
         }
     }, [pathname, expandedGroup, menuGroups]);
@@ -519,7 +519,7 @@ export default function AdminLayout({ children }) {
             )}>
                 {/* Logo Area */}
                 <div className={cn(
-                    "border-b border-slate-200/80 mb-3 shrink-0 transition-all duration-200 flex items-center",
+                    "border-b border-slate-200/80 mb-3 shrink-0 transition-all duration-200 flex items-center relative z-30",
                     isSidebarCollapsed ? "p-2.5 justify-center" : "p-3"
                 )}>
                     <div className="w-full min-w-0">
@@ -538,19 +538,20 @@ export default function AdminLayout({ children }) {
                          onClick={() => setIsSidebarOpen(false)}
                          title={isSidebarCollapsed ? "Dashboard" : undefined}
                          className={cn(
-                            "flex items-center rounded-xl transition-all duration-150 group text-[13px] font-semibold relative active:scale-[0.98]",
-                            isSidebarCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2.5 gap-3" : "gap-3 px-3 py-2",
-                            isDashboard ? "bg-white text-blue-600 shadow-xs border border-slate-200/60 font-bold" : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                            "flex items-center rounded-lg transition-colors duration-120 group text-[13px] relative active:scale-[0.98]",
+                            isSidebarCollapsed ? "lg:justify-center lg:px-0 lg:py-2 px-3 py-2 gap-2.5" : "gap-2.5 px-3 py-1.5",
+                            isDashboard 
+                                ? "bg-[#F2F3F5] text-[#14161A] font-semibold" 
+                                : "text-[#5F6673] hover:text-[#14161A] hover:bg-[#F7F8FA] font-normal"
                          )}
                      >
-                         <span className={cn("absolute left-0 top-1 bottom-1 w-1 rounded-r transition-all duration-150", isDashboard ? "bg-blue-500" : "opacity-0")} />
-                         <LayoutDashboard size={18} className={cn("shrink-0 transition-transform duration-150 group-hover:scale-105", isDashboard ? "text-blue-600" : "text-blue-500")} />
-                         <span className={cn("truncate whitespace-nowrap transition-opacity duration-200", isSidebarCollapsed && "lg:hidden")}>Dashboard</span>
+                         <LayoutDashboard size={16} strokeWidth={1.5} className={cn("shrink-0 transition-colors duration-120", isDashboard ? "text-blue-600" : "text-blue-500")} />
+                         <span className={cn("truncate whitespace-nowrap", isSidebarCollapsed && "lg:hidden")}>Dashboard</span>
                      </Link>
 
                      {/* Thin separator below Dashboard in collapsed mode */}
                      {isSidebarCollapsed && (
-                         <div className="hidden lg:block border-t border-slate-300/70 my-2 mx-3" />
+                         <div className="hidden lg:block border-t border-slate-200/60 my-1.5 mx-3" />
                      )}
 
                      {/* Groups */}
@@ -563,10 +564,10 @@ export default function AdminLayout({ children }) {
                          const GroupIcon = group.icon || BookOpen;
                          
                          return (
-                         <div key={group.label} className="space-y-1">
+                         <div key={group.label} className="space-y-0.5">
                              {/* Thin separator between groups in collapsed desktop mode */}
                              {isSidebarCollapsed && groupIndex > 0 && (
-                                 <div className="hidden lg:block border-t border-slate-300/50 my-1.5 mx-3" />
+                                 <div className="hidden lg:block border-t border-slate-200/60 my-1.5 mx-3" />
                              )}
 
                              {/* Group Header Button */}
@@ -574,31 +575,31 @@ export default function AdminLayout({ children }) {
                                  onClick={() => toggleGroup(group.label)}
                                  title={group.label}
                                  className={cn(
-                                     "w-full flex items-center transition-colors font-bold uppercase tracking-wider group cursor-pointer active:scale-[0.98]",
+                                     "w-full flex items-center transition-colors font-semibold group cursor-pointer active:scale-[0.98]",
                                      isSidebarCollapsed 
                                          ? "justify-between lg:justify-center px-3 py-1.5 lg:px-0 lg:py-1" 
-                                         : "justify-between px-3 py-1.5 text-[11px] text-[#9ca3af] hover:text-[#374151]"
+                                         : "justify-between px-3 py-1.5 text-[12px] hover:opacity-80"
                                  )}
                              >
                                  {isSidebarCollapsed ? (
                                      <>
                                          {/* Desktop Collapsed View: group icon badge */}
                                          <div className={cn(
-                                             "hidden lg:flex w-9 h-9 rounded-xl items-center justify-center transition-all duration-150",
-                                             isExpanded ? "bg-slate-300/80 shadow-xs ring-1 ring-slate-400/30" : "hover:bg-slate-200/60"
+                                             "hidden lg:flex w-9 h-9 rounded-lg items-center justify-center transition-all duration-150",
+                                             isExpanded ? "bg-[#F2F3F5] text-slate-900" : "hover:bg-[#F2F3F5]"
                                          )}>
-                                             <GroupIcon size={17} className={cn(groupColor, "transition-transform duration-200", isExpanded && "scale-105")} />
+                                             <GroupIcon size={16} strokeWidth={1.5} className={cn("transition-transform duration-200", groupColor)} />
                                          </div>
                                          {/* Mobile Drawer View */}
-                                         <div className="flex lg:hidden items-center justify-between w-full text-[11px] text-[#9ca3af] hover:text-[#374151]">
+                                         <div className="flex lg:hidden items-center justify-between w-full text-[12px]">
                                              <span className={groupColor}>{group.label}</span>
-                                             <ChevronRight size={14} className={cn("transition-transform duration-200 text-[#9ca3af]", isExpanded && "rotate-90")} />
+                                             <ChevronRight size={14} className={cn("transition-transform duration-200 text-slate-400", isExpanded && "rotate-90")} />
                                          </div>
                                      </>
                                  ) : (
                                      <>
                                          <span className={groupColor}>{group.label}</span>
-                                         <ChevronRight size={14} className={cn("transition-transform duration-200 text-[#9ca3af]", isExpanded && "rotate-90")} />
+                                         <ChevronRight size={14} className={cn("transition-transform duration-200 text-slate-400", isExpanded && "rotate-90")} />
                                      </>
                                  )}
                              </button>
@@ -611,11 +612,11 @@ export default function AdminLayout({ children }) {
                                          initial={{ opacity: 0, height: 0 }}
                                          animate={{ opacity: 1, height: "auto" }}
                                          exit={{ opacity: 0, height: 0 }}
-                                         transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                                         transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
                                          className={cn(
-                                             "overflow-hidden space-y-1",
+                                             "overflow-hidden space-y-0.5",
                                              !isSidebarCollapsed && "pl-2",
-                                             isSidebarCollapsed && "lg:my-1.5 lg:py-1.5 lg:border-y lg:border-slate-300/80 lg:bg-slate-200/50 lg:rounded-2xl"
+                                             isSidebarCollapsed && "lg:my-1 lg:py-1 lg:border-y lg:border-slate-200 lg:bg-slate-50 lg:rounded-xl"
                                          )}
                                      >
                                          {group.items.map((item) => {
@@ -632,16 +633,15 @@ export default function AdminLayout({ children }) {
                                                      onClick={() => setIsSidebarOpen(false)}
                                                      title={item.label}
                                                      className={cn(
-                                                         "flex items-center rounded-xl transition-all duration-150 group text-[13px] font-semibold relative active:scale-[0.98]",
-                                                         isSidebarCollapsed ? "lg:justify-center lg:px-0 lg:py-2.5 px-3 py-2 gap-3" : "gap-3 px-3 py-2",
+                                                         "flex items-center rounded-lg transition-colors duration-120 group text-[13px] relative active:scale-[0.98]",
+                                                         isSidebarCollapsed ? "lg:justify-center lg:px-0 lg:py-2 px-3 py-2 gap-2.5" : "gap-2.5 px-3 py-1.5",
                                                          isActive 
-                                                             ? "bg-white text-blue-600 shadow-xs border border-slate-200/60 font-bold" 
-                                                             : "text-slate-600 hover:text-slate-900 hover:bg-slate-200/50"
+                                                             ? "bg-[#F2F3F5] text-slate-900 font-semibold" 
+                                                             : "text-slate-600 hover:text-slate-900 hover:bg-[#F7F8FA] font-normal"
                                                      )}
                                                  >
-                                                     <span className={cn("absolute left-0 top-1 bottom-1 w-1 rounded-r transition-all duration-150", isActive ? "bg-blue-500" : "opacity-0")} />
-                                                     <Icon size={17} className={cn("shrink-0 transition-transform duration-150 group-hover:scale-105", isActive ? "text-blue-600" : itemColor)} />
-                                                     <span className={cn("truncate whitespace-nowrap transition-opacity duration-200", isSidebarCollapsed && "lg:hidden")}>{item.label}</span>
+                                                     <Icon size={16} strokeWidth={1.5} className={cn("shrink-0 transition-colors duration-120", isActive ? "text-blue-600" : itemColor)} />
+                                                     <span className={cn("truncate whitespace-nowrap", isSidebarCollapsed && "lg:hidden")}>{item.label}</span>
                                                  </Link>
                                              );
                                          })}
@@ -652,48 +652,6 @@ export default function AdminLayout({ children }) {
                      );
                      })}
                 </nav>
-
-                {/* Footer User Info */}
-                <div className={cn(
-                    "border-t border-slate-200/80 bg-slate-100/90 shrink-0 transition-all duration-200",
-                    isSidebarCollapsed ? "p-2" : "p-3"
-                )}>
-                    <div className={cn(
-                        "flex items-center gap-2.5 mb-2.5",
-                        isSidebarCollapsed ? "justify-center" : "px-1"
-                    )}>
-                        <div 
-                            className="w-8 h-8 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0 ring-1 ring-slate-300/50"
-                            title={`${session?.user?.name || "User"} (${session?.user?.role || "Admin"})`}
-                        >
-                            {session?.user?.name?.[0]?.toUpperCase() || "A"}
-                        </div>
-                        {!isSidebarCollapsed && (
-                            <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-slate-800 truncate leading-tight">{session?.user?.name || "User"}</p>
-                                <p className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold truncate mt-0.5">{session?.user?.role || "Admin"}</p>
-                            </div>
-                        )}
-                    </div>
-                    <button
-                        onClick={handleSignOut}
-                        title="Sign Out (Ctrl+L / ⌥L)"
-                        className={cn(
-                            "w-full flex items-center gap-2 rounded-xl text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50/80 border border-transparent hover:border-rose-200/60 active:scale-[0.98] transition-all duration-150 cursor-pointer",
-                            isSidebarCollapsed ? "p-2 justify-center" : "px-2.5 py-1.5 justify-between"
-                        )}
-                    >
-                        <div className="flex items-center gap-2">
-                            <LogOut size={14} className="shrink-0" />
-                            {!isSidebarCollapsed && <span>Sign Out</span>}
-                        </div>
-                        {!isSidebarCollapsed && (
-                            <span className="text-[10px] font-mono text-rose-500 bg-rose-100/70 px-1.5 py-0.5 rounded-md font-semibold">
-                                Ctrl+L
-                            </span>
-                        )}
-                    </button>
-                </div>
             </aside>
 
             {/* Main Area */}
@@ -728,7 +686,13 @@ export default function AdminLayout({ children }) {
                             )}
                         </button>
                         <div>
-                            {pathname === "/admin/hr/attendance" ? (
+                            {pathname.startsWith("/admin/reports/attendance") ? (
+                                <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[13px] text-[#5F6673]">
+                                    <span>Reports</span>
+                                    <span className="text-slate-300">›</span>
+                                    <span className="font-medium text-[#14161A]">Attendance</span>
+                                </nav>
+                            ) : pathname === "/admin/hr/attendance" ? (
                                 <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[13px] text-[#5F6673]">
                                     <span>Human resources</span>
                                     <span className="text-slate-300">›</span>
@@ -779,15 +743,15 @@ export default function AdminLayout({ children }) {
                             <StudentSearch />
                         </div>
 
-                        <div className="hidden lg:flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-full px-3 py-1.5 hover:bg-white transition-all shadow-sm shrink-0">
-                            <Calendar size={12} className="text-blue-500" />
+                        <div className="hidden lg:flex items-center gap-2 bg-[#F2F3F5] rounded-lg px-2.5 py-1.5 hover:bg-[#E6E8EC] transition-colors shrink-0">
+                            <Calendar size={13} className="text-[#5F6673]" />
                             {sessionsLoading ? (
-                                <Loader2 size={12} className="animate-spin text-slate-400" />
+                                <Loader2 size={12} className="animate-spin text-[#5F6673]" />
                             ) : (
                                 <select 
                                     value={selectedSessionId || ""} 
                                     onChange={(e) => changeSession(e.target.value)}
-                                    className="bg-transparent border-none text-[11px] font-bold text-slate-700 outline-none cursor-pointer min-w-[80px]"
+                                    className="bg-transparent border-none text-[12px] font-medium text-[#14161A] outline-none cursor-pointer min-w-[80px]"
                                 >
                                     {sessions.map(s => (
                                         <option key={s._id} value={s._id}>
@@ -880,7 +844,7 @@ export default function AdminLayout({ children }) {
                         <div className={cn(
                             "animate-fade-in h-full w-full",
                             (pathname === "/admin/chat" || pathname === "/admin/website") ? "w-full h-full" : "mx-auto space-y-8",
-                            "w-full max-w-[1600px]"
+                            "w-full max-w-[1760px]"
                         )}>
                             {isRouteDenied ? (
                                 <div className="flex-1 flex flex-col items-center justify-center min-h-[50vh] text-center p-6 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-xs max-w-lg mx-auto my-12">

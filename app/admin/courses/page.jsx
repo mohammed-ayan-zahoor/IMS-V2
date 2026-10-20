@@ -64,10 +64,21 @@ export default function CoursesPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [institutes, setInstitutes] = useState([]);
     const [selectedInstitute, setSelectedInstitute] = useState("");
+    const [liveInstitute, setLiveInstitute] = useState(null);
+
+    useEffect(() => {
+        fetch("/api/v1/institute")
+            .then(res => res.json())
+            .then(data => { if (data?.institute) setLiveInstitute(data.institute); })
+            .catch(() => {});
+    }, []);
+
     const activeInstitute = institutes.find(i => (i._id || i.id) === selectedInstitute);
-    const activeInstituteType = activeInstitute?.type || session?.user?.institute?.type;
-    const isSchool = activeInstituteType === 'SCHOOL' || (activeInstitute?.code || session?.user?.institute?.code) === 'QUANTECH';
-    const isCollege = activeInstituteType === 'COLLEGE';
+    const activeInstituteType = liveInstitute?.type || activeInstitute?.type || session?.user?.institute?.type;
+    const activeStructure = liveInstitute?.settings?.structure || activeInstitute?.settings?.structure || session?.user?.institute?.structure;
+    const isClassBasedCollege = activeInstituteType === 'COLLEGE' && activeStructure === 'CLASS_BASED';
+    const isSchool = activeInstituteType === 'SCHOOL' || (activeInstitute?.code || session?.user?.institute?.code) === 'QUANTECH' || isClassBasedCollege;
+    const isCollege = activeInstituteType === 'COLLEGE' && !isClassBasedCollege;
     const isVocational = activeInstituteType === 'VOCATIONAL';
     const [editingCourse, setEditingCourse] = useState(null);
     const [deletingCourse, setDeletingCourse] = useState(null);

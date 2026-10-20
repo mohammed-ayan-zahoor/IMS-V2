@@ -55,11 +55,22 @@ export default function BatchesPage() {
     const { selectedSessionId, sessions } = useAcademicSession();
     const [institutes, setInstitutes] = useState([]);
     const [selectedInstitute, setSelectedInstitute] = useState("");
+    const [liveInstitute, setLiveInstitute] = useState(null);
+
+    useEffect(() => {
+        fetch("/api/v1/institute")
+            .then(res => res.json())
+            .then(data => { if (data?.institute) setLiveInstitute(data.institute); })
+            .catch(() => {});
+    }, []);
+
     const activeInstitute = institutes.find(i => (i._id || i.id) === selectedInstitute);
-    const activeInstituteType = activeInstitute?.type || session?.user?.institute?.type;
-    const isSchool = activeInstituteType === 'SCHOOL' || (activeInstitute?.code || session?.user?.institute?.code) === 'QUANTECH';
+    const activeInstituteType = liveInstitute?.type || activeInstitute?.type || session?.user?.institute?.type;
+    const activeStructure = liveInstitute?.settings?.structure || activeInstitute?.settings?.structure || session?.user?.institute?.structure;
+    const isClassBasedCollege = activeInstituteType === 'COLLEGE' && activeStructure === 'CLASS_BASED';
+    const isSchool = activeInstituteType === 'SCHOOL' || (activeInstitute?.code || session?.user?.institute?.code) === 'QUANTECH' || isClassBasedCollege;
     const isVocational = activeInstituteType === 'VOCATIONAL';
-    const isCollege = activeInstituteType === 'COLLEGE';
+    const isCollege = activeInstituteType === 'COLLEGE' && !isClassBasedCollege;
     const [departments, setDepartments] = useState([]);
     const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState("");
     const [expandedCourses, setExpandedCourses] = useState({});

@@ -41,20 +41,50 @@ export async function GET(req) {
             ];
         }
 
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
+
         if (dateRange === 'today') {
-            const start = new Date();
-            start.setHours(0, 0, 0, 0);
-            const end = new Date();
-            end.setHours(23, 59, 59, 999);
-            query.checkIn = { $gte: start, $lte: end };
-        } else if (dateRange === 'week') {
-            const start = new Date();
-            start.setDate(start.getDate() - 7);
-            query.checkIn = { $gte: start };
+            query.checkIn = { $gte: todayStart, $lte: todayEnd };
+        } else if (dateRange === 'yesterday') {
+            const yStart = new Date();
+            yStart.setDate(yStart.getDate() - 1);
+            yStart.setHours(0, 0, 0, 0);
+            const yEnd = new Date();
+            yEnd.setDate(yEnd.getDate() - 1);
+            yEnd.setHours(23, 59, 59, 999);
+            query.checkIn = { $gte: yStart, $lte: yEnd };
+        } else if (dateRange === 'week' || dateRange === '7days') {
+            const wStart = new Date();
+            wStart.setDate(wStart.getDate() - 7);
+            wStart.setHours(0, 0, 0, 0);
+            query.checkIn = { $gte: wStart };
+        } else if (dateRange === 'month') {
+            const mStart = new Date();
+            mStart.setDate(1);
+            mStart.setHours(0, 0, 0, 0);
+            query.checkIn = { $gte: mStart };
         }
 
-        const visitors = await Visitor.find(query).sort({ checkIn: -1 });
-        return NextResponse.json({ visitors });
+        const [visitors, insideCount, checkedOutCount, totalToday, totalAllTime] = await Promise.all([
+            Visitor.find(query).sort({ checkIn: -1 }).lean(),
+            Visitor.countDocuments({ institute: scope.instituteId, deletedAt: null, status: 'inside' }),
+            Visitor.countDocuments({ institute: scope.instituteId, deletedAt: null, status: 'left', checkIn: { $gte: todayStart, $lte: todayEnd } }),
+            Visitor.countDocuments({ institute: scope.instituteId, deletedAt: null, checkIn: { $gte: todayStart, $lte: todayEnd } }),
+            Visitor.countDocuments({ institute: scope.instituteId, deletedAt: null })
+        ]);
+
+        return NextResponse.json({
+            visitors,
+            stats: {
+                insideCount,
+                checkedOutCount,
+                totalToday,
+                totalAllTime
+            }
+        });
     } catch (error) {
         console.error('API Error [Visitors GET]:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

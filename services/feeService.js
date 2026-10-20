@@ -963,7 +963,34 @@ export class FeeService {
         }
 
         // Save triggers the pre-save hook to recalculate totals/status
-        await fee.save();
+        try {
+            await fee.save();
+        } catch (saveErr) {
+            if (saveErr.name === 'VersionError') {
+                console.warn(`[FeeService] VersionError for fee ${feeId}. Checking if payment was already recorded concurrently...`);
+                const freshFee = await FeeDb.findById(feeId).populate('student');
+                if (freshFee) {
+                    if (installmentId) {
+                        const freshInst = freshFee.installments?.id?.(installmentId) || 
+                                          freshFee.installments?.find(i => String(i._id) === String(installmentId));
+                        if (freshInst && freshInst.status === 'paid') {
+                            return freshFee;
+                        }
+                    } else {
+                        const recentlyPaid = freshFee.installments?.some(i => 
+                            i.status === 'paid' && 
+                            Math.abs(i.amount - savedAmount) < 0.01 && 
+                            i.paymentMethod === paymentDetails.method &&
+                            (new Date() - new Date(i.paidDate)) < 15000
+                        );
+                        if (recentlyPaid) {
+                            return freshFee;
+                        }
+                    }
+                }
+            }
+            throw saveErr;
+        }
 
         // 4. Update Collector Balance (if Person)
         if (paymentDetails.collectedBy) {

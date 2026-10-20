@@ -262,7 +262,7 @@ export default function HolisticReportPage() {
                 </div>
             </div>
 
-            <div className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+            <div className="w-full px-4 py-6 space-y-6">
                 {/* ── Student Hero Card ─────────────────────────────────── */}
                 <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-700 rounded-2xl text-white shadow-xl overflow-hidden">
                     <div className="px-8 py-6 flex items-center gap-6">

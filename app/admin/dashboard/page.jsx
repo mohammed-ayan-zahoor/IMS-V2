@@ -34,18 +34,18 @@ import InstructorMobileDashboard from "@/components/instructor/InstructorMobileD
 import ActivityFeed from "@/components/admin/ActivityFeed";
 
 const StatCard = ({ title, value, icon: Icon, trend, trendType = "up", colorClass, iconColorClass, loading, style }) => (
-    <div className={cn("rounded-lg border p-5 transition-colors stat-card-enter", colorClass)} style={style}>
+    <div className={cn("rounded-xl border p-5 transition-all duration-150 stat-card-enter shadow-xs", colorClass)} style={style}>
         <div className="flex justify-between items-start mb-3">
-            <span className="section-label">{title}</span>
-            <div className={iconColorClass}>
-                <Icon size={20} />
+            <span className="text-[11px] font-bold tracking-wider text-slate-700 uppercase">{title}</span>
+            <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center bg-white shadow-xs border", iconColorClass)}>
+                <Icon size={18} strokeWidth={2} />
             </div>
         </div>
         <div className="flex flex-col gap-1">
             {loading ? (
                 <div className="h-8 w-24 bg-black/[0.07] animate-pulse rounded mt-1" />
             ) : (
-                <h2 className="metric-value text-slate-900 leading-none">{value}</h2>
+                <h2 className="text-[28px] font-bold text-slate-900 leading-none tracking-tight">{value}</h2>
             )}
             <div className="flex items-center gap-1.5 mt-2 min-h-[22px]">
                 {loading ? (
@@ -53,13 +53,13 @@ const StatCard = ({ title, value, icon: Icon, trend, trendType = "up", colorClas
                 ) : (
                     <>
                         <span className={cn(
-                            "px-2 py-0.5 rounded text-[11px] font-bold flex items-center gap-1",
-                            trendType === "up" ? "bg-emerald-50 text-emerald-700" : trendType === "down" ? "bg-rose-50 text-rose-700" : "bg-slate-100 text-slate-600"
+                            "px-2 py-0.5 rounded text-[11px] font-bold flex items-center gap-1 border",
+                            trendType === "up" ? "bg-emerald-100/90 border-emerald-300 text-emerald-800" : trendType === "down" ? "bg-rose-100/90 border-rose-300 text-rose-800" : "bg-slate-100 border-slate-200 text-slate-700"
                         )}>
                             {trendType === "up" ? <TrendingUp size={11} /> : trendType === "down" ? <TrendingUp size={11} className="rotate-180" /> : <Clock size={11} />}
                             {trend}
                         </span>
-                        <span className="text-[11px] text-slate-400 font-medium">
+                        <span className="text-[11px] text-slate-500 font-medium">
                             {trend.includes('%') ? 'vs last month' : 'summary'}
                         </span>
                     </>
@@ -237,8 +237,8 @@ export default function AdminDashboard() {
             icon: Users, 
             trend: `${dashboardData?.trends?.student >= 0 ? '+' : ''}${dashboardData?.trends?.student || 0}%`, 
             trendType: (dashboardData?.trends?.student || 0) >= 0 ? "up" : "down",
-            colorClass: "bg-blue-50/70 border-blue-100",
-            iconColorClass: "text-blue-600"
+            colorClass: "bg-blue-100/70 border-blue-300 hover:border-blue-400",
+            iconColorClass: "text-blue-700 border-blue-300"
         },
         { 
             title: isSchool ? "CLASSES ENROLLED" : isCollege ? "PROGRAMS ENROLLED" : "COURSES ENROLLED", 
@@ -246,8 +246,8 @@ export default function AdminDashboard() {
             icon: BookOpen, 
             trend: `${dashboardData?.trends?.enrollment >= 0 ? '+' : ''}${dashboardData?.trends?.enrollment || 0}%`, 
             trendType: (dashboardData?.trends?.enrollment || 0) >= 0 ? "up" : "down",
-            colorClass: "bg-orange-50/70 border-orange-100",
-            iconColorClass: "text-orange-600"
+            colorClass: "bg-orange-100/70 border-orange-300 hover:border-orange-400",
+            iconColorClass: "text-orange-700 border-orange-300"
         },
         { 
             title: "ENQUIRIES", 
@@ -255,8 +255,8 @@ export default function AdminDashboard() {
             icon: MessageSquare, 
             trend: `${dashboardData?.trends?.enquiry >= 0 ? '+' : ''}${dashboardData?.trends?.enquiry || 0}%`, 
             trendType: (dashboardData?.trends?.enquiry || 0) >= 0 ? "up" : "down",
-            colorClass: "bg-cyan-50/70 border-cyan-100",
-            iconColorClass: "text-cyan-600"
+            colorClass: "bg-cyan-100/70 border-cyan-300 hover:border-cyan-400",
+            iconColorClass: "text-cyan-700 border-cyan-300"
         },
         { 
             title: isCollege ? "FACULTY & STAFF" : "STAFF", 
@@ -264,8 +264,8 @@ export default function AdminDashboard() {
             icon: Layers3, 
             trend: "Stable", 
             trendType: "neutral",
-            colorClass: "bg-amber-50/70 border-amber-100",
-            iconColorClass: "text-amber-600"
+            colorClass: "bg-amber-100/70 border-amber-300 hover:border-amber-400",
+            iconColorClass: "text-amber-700 border-amber-300"
         }
     ] : [
         { 
@@ -274,8 +274,8 @@ export default function AdminDashboard() {
             icon: Users, 
             trend: `${dashboardData?.trends?.student >= 0 ? '+' : ''}${dashboardData?.trends?.student || 0}%`, 
             trendType: (dashboardData?.trends?.student || 0) >= 0 ? "up" : "down",
-            colorClass: "bg-blue-50/70 border-blue-100",
-            iconColorClass: "text-blue-600"
+            colorClass: "bg-blue-100/70 border-blue-300 hover:border-blue-400",
+            iconColorClass: "text-blue-700 border-blue-300"
         },
         { 
             title: "COMPLETED", 
@@ -285,8 +285,8 @@ export default function AdminDashboard() {
                 ? `${Math.round((dashboardData.counts.completedStudents / dashboardData.counts.totalStudents) * 100)}%`
                 : "0%",
             trendType: "neutral",
-            colorClass: "bg-teal-50/70 border-teal-100",
-            iconColorClass: "text-teal-600"
+            colorClass: "bg-teal-100/70 border-teal-300 hover:border-teal-400",
+            iconColorClass: "text-teal-700 border-teal-300"
         },
         { 
             title: "DROPPED", 
@@ -296,8 +296,8 @@ export default function AdminDashboard() {
                 ? `${Math.round((dashboardData.counts.droppedStudents / dashboardData.counts.totalStudents) * 100)}%`
                 : "0%",
             trendType: "neutral",
-            colorClass: "bg-rose-50/70 border-rose-100",
-            iconColorClass: "text-rose-600"
+            colorClass: "bg-rose-100/70 border-rose-300 hover:border-rose-400",
+            iconColorClass: "text-rose-700 border-rose-300"
         },
         { 
             title: "ENROLLMENTS", 
@@ -305,8 +305,8 @@ export default function AdminDashboard() {
             icon: BookOpen, 
             trend: `${dashboardData?.trends?.enrollment >= 0 ? '+' : ''}${dashboardData?.trends?.enrollment || 0}%`, 
             trendType: (dashboardData?.trends?.enrollment || 0) >= 0 ? "up" : "down",
-            colorClass: "bg-orange-50/70 border-orange-100",
-            iconColorClass: "text-orange-600"
+            colorClass: "bg-orange-100/70 border-orange-300 hover:border-orange-400",
+            iconColorClass: "text-orange-700 border-orange-300"
         },
         { 
             title: "ENQUIRIES", 
@@ -314,8 +314,8 @@ export default function AdminDashboard() {
             icon: MessageSquare, 
             trend: `${dashboardData?.trends?.enquiry >= 0 ? '+' : ''}${dashboardData?.trends?.enquiry || 0}%`, 
             trendType: (dashboardData?.trends?.enquiry || 0) >= 0 ? "up" : "down",
-            colorClass: "bg-cyan-50/70 border-cyan-100",
-            iconColorClass: "text-cyan-600"
+            colorClass: "bg-cyan-100/70 border-cyan-300 hover:border-cyan-400",
+            iconColorClass: "text-cyan-700 border-cyan-300"
         },
         { 
             title: "STAFF", 
@@ -323,8 +323,8 @@ export default function AdminDashboard() {
             icon: Layers3, 
             trend: "Stable", 
             trendType: "neutral",
-            colorClass: "bg-amber-50/70 border-amber-100",
-            iconColorClass: "text-amber-600"
+            colorClass: "bg-amber-100/70 border-amber-300 hover:border-amber-400",
+            iconColorClass: "text-amber-700 border-amber-300"
         }
     ];
 

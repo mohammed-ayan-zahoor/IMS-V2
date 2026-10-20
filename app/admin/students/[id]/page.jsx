@@ -1246,7 +1246,7 @@ export default function StudentDetailsPage({ params }) {
 
     const handleRecordPayment = async (e) => {
         e.preventDefault();
-        if (!selectedFee) return;
+        if (!selectedFee || isRecordingPayment) return;
 
         if (!paymentData.collectedBy) {
             toast.warning("Please select a collector before recording the payment");
@@ -1483,7 +1483,7 @@ export default function StudentDetailsPage({ params }) {
     const { student, batches, fees } = studentData;
 
     return (
-        <div className="space-y-6 max-w-6xl mx-auto">
+        <div className="space-y-6 w-full">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                 <Button variant="ghost" size="sm" onClick={() => router.back()} className="text-slate-400 hover:text-slate-600 -ml-2 self-start">
@@ -2213,7 +2213,7 @@ export default function StudentDetailsPage({ params }) {
                                         <Card key={batch._id}>
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
+                                                    <div className="p-3 rounded-xl bg-emerald-100/80 text-emerald-700 border border-emerald-200">
                                                         <CreditCard size={20} />
                                                     </div>
                                                     <div>
@@ -2355,36 +2355,44 @@ export default function StudentDetailsPage({ params }) {
                                                             return (
                                                                 <div 
                                                                     key={inst._id || index}
-                                                                    className={`p-2 rounded-xl border flex flex-col justify-between shadow-sm relative overflow-hidden transition-all ${
+                                                                    className={`p-2.5 rounded-xl border flex flex-col justify-between shadow-xs relative overflow-hidden transition-all ${
                                                                         isInstPaid 
-                                                                            ? 'bg-emerald-50/50 border-emerald-100 text-emerald-800' 
+                                                                            ? 'bg-emerald-100/70 border-emerald-300 text-emerald-950' 
                                                                             : isOverdue
-                                                                                ? 'bg-rose-50/50 border-rose-100 text-rose-800 animate-pulse'
-                                                                                : 'bg-slate-50/50 border-slate-100 text-slate-700'
+                                                                                ? 'bg-rose-100/70 border-rose-300 text-rose-950 animate-pulse'
+                                                                                : 'bg-slate-100/80 border-slate-300/80 text-slate-800'
                                                                     }`}
                                                                 >
                                                                     <div className="flex justify-between items-center">
-                                                                        <span className="text-[9px] font-bold uppercase tracking-wider bg-white/80 px-1.5 py-0.5 rounded-full border shadow-sm">
+                                                                        <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md border shadow-2xs ${
+                                                                            isInstPaid
+                                                                                ? 'bg-white border-emerald-300 text-emerald-800'
+                                                                                : isOverdue
+                                                                                    ? 'bg-white border-rose-300 text-rose-800'
+                                                                                    : 'bg-white border-slate-300 text-slate-700'
+                                                                        }`}>
                                                                             #{index + 1}
                                                                         </span>
-                                                                        <span className={`w-1.5 h-1.5 rounded-full ${
+                                                                        <span className={`w-2 h-2 rounded-full ${
                                                                             isInstPaid 
-                                                                                ? 'bg-emerald-500' 
+                                                                                ? 'bg-emerald-500 ring-2 ring-emerald-200' 
                                                                                 : isOverdue 
-                                                                                    ? 'bg-rose-500 animate-pulse' 
-                                                                                    : 'bg-slate-400'
+                                                                                    ? 'bg-rose-500 ring-2 ring-rose-200 animate-pulse' 
+                                                                                    : 'bg-slate-400 ring-2 ring-slate-200'
                                                                         }`} />
                                                                     </div>
-                                                                    <div className="mt-2 flex justify-between items-baseline gap-1">
-                                                                        <span className="text-xs font-black">₹{inst.amount.toLocaleString()}</span>
-                                                                        <span className="text-[9px] font-medium text-slate-400">
+                                                                    <div className="mt-2.5 flex justify-between items-baseline gap-1">
+                                                                        <span className={`text-xs font-black ${isInstPaid ? 'text-emerald-950' : isOverdue ? 'text-rose-950' : 'text-slate-900'}`}>
+                                                                            ₹{inst.amount.toLocaleString()}
+                                                                        </span>
+                                                                        <span className={`text-[10px] font-medium ${isInstPaid ? 'text-emerald-700 font-semibold' : isOverdue ? 'text-rose-700 font-semibold' : 'text-slate-500'}`}>
                                                                             {format(new Date(inst.dueDate), "MMM d")}
                                                                         </span>
                                                                     </div>
                                                                     {(inst.penaltyAmount > 0 || inst.penaltyPaid > 0) && (
-                                                                        <div className="mt-2 pt-1 border-t border-slate-100/60 flex justify-between items-center text-[9px] font-bold">
-                                                                            <span className="text-rose-600 uppercase tracking-wider">Penalty: ₹{(inst.penaltyPaid || inst.penaltyAmount).toLocaleString()}</span>
-                                                                            <span className={inst.penaltyStatus === 'paid' ? 'text-emerald-600' : 'text-rose-500 animate-pulse'}>
+                                                                        <div className="mt-2 pt-1 border-t border-slate-200/60 flex justify-between items-center text-[9px] font-bold">
+                                                                            <span className="text-rose-700 uppercase tracking-wider">Penalty: ₹{(inst.penaltyPaid || inst.penaltyAmount).toLocaleString()}</span>
+                                                                            <span className={inst.penaltyStatus === 'paid' ? 'text-emerald-700' : 'text-rose-600 animate-pulse'}>
                                                                                 {inst.penaltyStatus === 'paid' ? 'Paid' : 'Unpaid'}
                                                                             </span>
                                                                         </div>
@@ -3772,7 +3780,9 @@ export default function StudentDetailsPage({ params }) {
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-50">
                         <Button type="button" variant="ghost" onClick={() => setIsPayModalOpen(false)}>Cancel</Button>
-                        <Button type="submit">Record Payment</Button>
+                        <Button type="submit" disabled={isRecordingPayment}>
+                            {isRecordingPayment ? "Recording..." : "Record Payment"}
+                        </Button>
                     </div>
                 </form>
             </Modal>

@@ -51,9 +51,21 @@ import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 export default function StudentsPage() {
     const toast = useToast();
     const { data: session } = useSession();
-    const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
-    const isCollege = session?.user?.institute?.type === 'COLLEGE';
-    const isSchool = session?.user?.institute?.type === 'SCHOOL' || (!isVocational && !isCollege && session?.user?.institute?.code === 'QUANTECH');
+    const [liveInstitute, setLiveInstitute] = useState(null);
+
+    useEffect(() => {
+        fetch("/api/v1/institute")
+            .then(res => res.json())
+            .then(data => { if (data?.institute) setLiveInstitute(data.institute); })
+            .catch(() => {});
+    }, []);
+
+    const activeInstituteType = liveInstitute?.type || session?.user?.institute?.type;
+    const activeStructure = liveInstitute?.settings?.structure || session?.user?.institute?.structure;
+    const isClassBasedCollege = activeInstituteType === 'COLLEGE' && activeStructure === 'CLASS_BASED';
+    const isVocational = activeInstituteType === 'VOCATIONAL';
+    const isCollege = activeInstituteType === 'COLLEGE' && !isClassBasedCollege;
+    const isSchool = activeInstituteType === 'SCHOOL' || (!isVocational && !isCollege && session?.user?.institute?.code === 'QUANTECH') || isClassBasedCollege;
     const [courseBundles, setCourseBundles] = useState([]);
     const [transportRoutes, setTransportRoutes] = useState([]);
     const [transportVehicles, setTransportVehicles] = useState([]);

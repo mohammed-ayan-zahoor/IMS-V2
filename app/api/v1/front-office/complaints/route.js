@@ -21,6 +21,7 @@ export async function GET(req) {
         const status = searchParams.get('status');
         const category = searchParams.get('category');
         const search = searchParams.get('search');
+        const dateRange = searchParams.get('dateRange'); // 'today', 'yesterday', 'week', 'month', 'all'
 
         await connectDB();
 
@@ -46,12 +47,56 @@ export async function GET(req) {
             ];
         }
 
-        const complaints = await Complaint.find(query)
-            .populate('relatedStudent', 'fullName profile.firstName profile.lastName')
-            .populate('assignedTo', 'fullName profile.firstName profile.lastName')
-            .sort({ createdAt: -1 });
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
 
-        return NextResponse.json({ complaints });
+        if (dateRange === 'today') {
+            query.createdAt = { $gte: todayStart, $lte: todayEnd };
+        } else if (dateRange === 'yesterday') {
+            const yStart = new Date();
+            yStart.setDate(yStart.getDate() - 1);
+            yStart.setHours(0, 0, 0, 0);
+            const yEnd = new Date();
+            yEnd.setDate(yEnd.getDate() - 1);
+            yEnd.setHours(23, 59, 59, 999);
+            query.createdAt = { $gte: yStart, $lte: yEnd };
+        } else if (dateRange === 'week' || dateRange === '7days') {
+            const wStart = new Date();
+            wStart.setDate(wStart.getDate() - 7);
+            wStart.setHours(0, 0, 0, 0);
+            query.createdAt = { $gte: wStart };
+        } else if (dateRange === 'month') {
+            const mStart = new Date();
+            mStart.setDate(1);
+            mStart.setHours(0, 0, 0, 0);
+            query.createdAt = { $gte: mStart };
+        }
+
+        const [complaints, openCount, inProgressCount, resolvedCount, totalToday, totalAllTime] = await Promise.all([
+            Complaint.find(query)
+                .populate('relatedStudent', 'fullName profile.firstName profile.lastName')
+                .populate('assignedTo', 'fullName profile.firstName profile.lastName')
+                .sort({ createdAt: -1 })
+                .lean(),
+            Complaint.countDocuments({ institute: scope.instituteId, deletedAt: null, status: 'open' }),
+            Complaint.countDocuments({ institute: scope.instituteId, deletedAt: null, status: 'in_progress' }),
+            Complaint.countDocuments({ institute: scope.instituteId, deletedAt: null, status: 'resolved' }),
+            Complaint.countDocuments({ institute: scope.instituteId, deletedAt: null, createdAt: { $gte: todayStart, $lte: todayEnd } }),
+            Complaint.countDocuments({ institute: scope.instituteId, deletedAt: null })
+        ]);
+
+        return NextResponse.json({
+            complaints,
+            stats: {
+                openCount,
+                inProgressCount,
+                resolvedCount,
+                totalToday,
+                totalAllTime
+            }
+        });
     } catch (error) {
         console.error('API Error [Complaints GET]:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

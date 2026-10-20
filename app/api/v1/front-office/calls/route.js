@@ -20,6 +20,7 @@ export async function GET(req) {
         const type = searchParams.get('type'); // inbound, outbound
         const search = searchParams.get('search');
         const followUpRequired = searchParams.get('followUpRequired');
+        const dateRange = searchParams.get('dateRange'); // 'today', 'yesterday', 'week', 'month', 'all'
 
         await connectDB();
 
@@ -45,8 +46,52 @@ export async function GET(req) {
             ];
         }
 
-        const calls = await PhoneCallLog.find(query).sort({ date: -1 });
-        return NextResponse.json({ calls });
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date();
+        todayEnd.setHours(23, 59, 59, 999);
+
+        if (dateRange === 'today') {
+            query.date = { $gte: todayStart, $lte: todayEnd };
+        } else if (dateRange === 'yesterday') {
+            const yStart = new Date();
+            yStart.setDate(yStart.getDate() - 1);
+            yStart.setHours(0, 0, 0, 0);
+            const yEnd = new Date();
+            yEnd.setDate(yEnd.getDate() - 1);
+            yEnd.setHours(23, 59, 59, 999);
+            query.date = { $gte: yStart, $lte: yEnd };
+        } else if (dateRange === 'week' || dateRange === '7days') {
+            const wStart = new Date();
+            wStart.setDate(wStart.getDate() - 7);
+            wStart.setHours(0, 0, 0, 0);
+            query.date = { $gte: wStart };
+        } else if (dateRange === 'month') {
+            const mStart = new Date();
+            mStart.setDate(1);
+            mStart.setHours(0, 0, 0, 0);
+            query.date = { $gte: mStart };
+        }
+
+        const [calls, inboundCount, outboundCount, followUpCount, totalToday, totalAllTime] = await Promise.all([
+            PhoneCallLog.find(query).sort({ date: -1 }).lean(),
+            PhoneCallLog.countDocuments({ institute: scope.instituteId, deletedAt: null, type: 'inbound', date: { $gte: todayStart, $lte: todayEnd } }),
+            PhoneCallLog.countDocuments({ institute: scope.instituteId, deletedAt: null, type: 'outbound', date: { $gte: todayStart, $lte: todayEnd } }),
+            PhoneCallLog.countDocuments({ institute: scope.instituteId, deletedAt: null, followUpRequired: true }),
+            PhoneCallLog.countDocuments({ institute: scope.instituteId, deletedAt: null, date: { $gte: todayStart, $lte: todayEnd } }),
+            PhoneCallLog.countDocuments({ institute: scope.instituteId, deletedAt: null })
+        ]);
+
+        return NextResponse.json({
+            calls,
+            stats: {
+                inboundCount,
+                outboundCount,
+                followUpCount,
+                totalToday,
+                totalAllTime
+            }
+        });
     } catch (error) {
         console.error('API Error [Calls GET]:', error);
         return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
