@@ -584,8 +584,8 @@ export default function CoursesPage() {
 
             {activeTab === "courses" ? (
                 <div className="space-y-4">
-                    {/* Quick Add Classes Bar for Schools */}
-                    {isSchool && session?.user?.role !== 'instructor' && (
+                    {/* Quick Add Classes Bar for Schools (hidden for PU Colleges) */}
+                    {isSchool && !isClassBasedCollege && session?.user?.role !== 'instructor' && (
                         <div className="bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-slate-50 border border-blue-100/90 rounded-xl p-3 sm:p-3.5 shadow-2xs space-y-2">
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
                                 <div className="flex items-center gap-1.5 text-xs font-bold text-slate-800">
@@ -1277,7 +1277,7 @@ export default function CoursesPage() {
                     ) : (
                         /* School / Vocational: 2-Column Responsive Layout */
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {isSchool && !editingCourse && (
+                            {isSchool && !isClassBasedCollege && !editingCourse && (
                                 <div className="md:col-span-2 p-3 bg-slate-50 border border-slate-200/80 rounded-xl space-y-2">
                                     <div className="flex items-center justify-between">
                                         <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
@@ -1320,7 +1320,7 @@ export default function CoursesPage() {
                                 <Input
                                     id="name"
                                     label={`${isSchool ? "Class" : "Course"} Name`}
-                                    placeholder={`e.g. ${isSchool ? "10th Standard" : "Graphic Design"}`}
+                                    placeholder={isClassBasedCollege ? "e.g. I PUC EBACS" : `e.g. ${isSchool ? "10th Standard" : "Graphic Design"}`}
                                     value={formData.name}
                                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                     required
@@ -1328,15 +1328,29 @@ export default function CoursesPage() {
                                 <Input
                                     id="code"
                                     label={`${isSchool ? "Class" : "Course"} Code`}
-                                    placeholder={`e.g. ${isSchool ? "STD-10" : "GD-101"}`}
+                                    placeholder={isClassBasedCollege ? "e.g. 1EBACS" : `e.g. ${isSchool ? "STD-10" : "GD-101"}`}
                                     value={formData.code}
                                     onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                                     required
                                 />
+                                {departments.length > 0 && (
+                                    <div className="space-y-1.5">
+                                        <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Academic Department</label>
+                                        <Select
+                                            value={formData.department || ""}
+                                            onChange={(val) => setFormData({ ...formData, department: val || null })}
+                                            placeholder="Select Department..."
+                                            options={[
+                                                { label: "No Department (General)", value: "" },
+                                                ...departments.map(d => ({ label: `${d.name} (${d.code})`, value: d._id }))
+                                            ]}
+                                        />
+                                    </div>
+                                )}
                                 <div className="space-y-1.5">
                                     <label className="text-xs font-semibold uppercase tracking-wider text-foreground/70 ml-1">Description</label>
                                     <textarea
-                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10 min-h-[120px] text-sm text-slate-700 placeholder:text-slate-400 transition-all resize-none"
+                                        className="w-full bg-slate-50 border border-slate-200 rounded-lg px-4 py-2.5 outline-none focus:border-premium-blue/50 focus:ring-4 focus:ring-premium-blue/10 min-h-[100px] text-sm text-slate-700 placeholder:text-slate-400 transition-all resize-none"
                                         placeholder={`Brief description of the ${isSchool ? "class" : "course"}...`}
                                         value={formData.description}
                                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -1350,7 +1364,7 @@ export default function CoursesPage() {
                                         id="durationValue"
                                         label="Duration"
                                         type="number"
-                                        placeholder="e.g. 3"
+                                        placeholder="e.g. 12"
                                         value={formData.duration.value || ""}
                                         onChange={(e) => setFormData({ ...formData, duration: { ...formData.duration, value: e.target.value } })}
                                         required

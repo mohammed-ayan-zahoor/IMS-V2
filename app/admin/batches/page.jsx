@@ -796,48 +796,50 @@ export default function BatchesPage() {
                                                             </div>
                                                             {session?.user?.role !== 'instructor' && (
                                                                 <div className="flex items-center gap-2">
-                                                                    <div className="hidden sm:flex items-center gap-1.5 mr-1">
-                                                                        <span className="text-[11px] font-semibold text-slate-500">Quick Add:</span>
-                                                                        {SCHOOL_SECTION_PRESETS.map((secPreset) => {
-                                                                            const added = Boolean(findMatchingSection(secPreset.name, courseBatches));
-                                                                            const isAdding = quickAddingSectionKey === `${course._id}_${secPreset.name}`;
-                                                                            return (
-                                                                                <button
-                                                                                    key={secPreset.name}
-                                                                                    type="button"
-                                                                                    disabled={added || isAdding}
-                                                                                    onClick={(e) => {
-                                                                                        e.stopPropagation();
-                                                                                        handleQuickAddSection(course, secPreset);
-                                                                                    }}
-                                                                                    title={added ? `${secPreset.label} already exists` : `Quick add ${secPreset.label} in one click`}
-                                                                                    className={cn(
-                                                                                        "px-2 py-0.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1",
-                                                                                        added
-                                                                                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80 cursor-default opacity-85 font-medium"
-                                                                                            : "bg-white text-slate-700 border border-slate-200 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 active:scale-95 shadow-2xs cursor-pointer"
-                                                                                    )}
-                                                                                >
-                                                                                    {added ? (
-                                                                                        <>
-                                                                                            <Check size={11} strokeWidth={2.5} className="text-emerald-600" />
-                                                                                            <span>{secPreset.shortLabel}</span>
-                                                                                        </>
-                                                                                    ) : isAdding ? (
-                                                                                        <>
-                                                                                            <LoadingSpinner size="xs" />
-                                                                                            <span>{secPreset.shortLabel}</span>
-                                                                                        </>
-                                                                                    ) : (
-                                                                                        <>
-                                                                                            <Plus size={11} className="text-slate-400" />
-                                                                                            <span>{secPreset.shortLabel}</span>
-                                                                                        </>
-                                                                                    )}
-                                                                                </button>
-                                                                            );
-                                                                        })}
-                                                                    </div>
+                                                                    {!isClassBasedCollege && (
+                                                                        <div className="hidden sm:flex items-center gap-1.5 mr-1">
+                                                                            <span className="text-[11px] font-semibold text-slate-500">Quick Add:</span>
+                                                                            {SCHOOL_SECTION_PRESETS.map((secPreset) => {
+                                                                                const added = Boolean(findMatchingSection(secPreset.name, courseBatches));
+                                                                                const isAdding = quickAddingSectionKey === `${course._id}_${secPreset.name}`;
+                                                                                return (
+                                                                                    <button
+                                                                                        key={secPreset.name}
+                                                                                        type="button"
+                                                                                        disabled={added || isAdding}
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            handleQuickAddSection(course, secPreset);
+                                                                                        }}
+                                                                                        title={added ? `${secPreset.label} already exists` : `Quick add ${secPreset.label} in one click`}
+                                                                                        className={cn(
+                                                                                            "px-2 py-0.5 text-xs font-semibold rounded-md transition-all flex items-center gap-1",
+                                                                                            added
+                                                                                                ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80 cursor-default opacity-85 font-medium"
+                                                                                                : "bg-white text-slate-700 border border-slate-200 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/50 active:scale-95 shadow-2xs cursor-pointer"
+                                                                                        )}
+                                                                                    >
+                                                                                        {added ? (
+                                                                                            <>
+                                                                                                <Check size={11} strokeWidth={2.5} className="text-emerald-600" />
+                                                                                                <span>{secPreset.shortLabel}</span>
+                                                                                            </>
+                                                                                        ) : isAdding ? (
+                                                                                            <>
+                                                                                                <LoadingSpinner size="xs" />
+                                                                                                <span>{secPreset.shortLabel}</span>
+                                                                                            </>
+                                                                                        ) : (
+                                                                                            <>
+                                                                                                <Plus size={11} className="text-slate-400" />
+                                                                                                <span>{secPreset.shortLabel}</span>
+                                                                                            </>
+                                                                                        )}
+                                                                                    </button>
+                                                                                );
+                                                                            })}
+                                                                        </div>
+                                                                    )}
                                                                     <Button
                                                                         size="sm"
                                                                         variant="outline"
@@ -870,27 +872,29 @@ export default function BatchesPage() {
                                                                 <p className="text-xs text-slate-400 font-medium">No sections created for {course.name} yet.</p>
                                                                 {session?.user?.role !== 'instructor' && (
                                                                     <div className="flex flex-col items-center gap-2">
-                                                                        <div className="flex flex-wrap items-center justify-center gap-1.5">
-                                                                            <span className="text-xs font-bold text-slate-600 mr-1">Quick add:</span>
-                                                                            {SCHOOL_SECTION_PRESETS.map((secPreset) => {
-                                                                                const isAdding = quickAddingSectionKey === `${course._id}_${secPreset.name}`;
-                                                                                return (
-                                                                                    <button
-                                                                                        key={secPreset.name}
-                                                                                        type="button"
-                                                                                        disabled={isAdding}
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            handleQuickAddSection(course, secPreset);
-                                                                                        }}
-                                                                                        className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/60 active:scale-95 shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
-                                                                                    >
-                                                                                        {isAdding ? <LoadingSpinner size="xs" /> : <Plus size={11} className="text-slate-400" />}
-                                                                                        <span>{secPreset.label}</span>
-                                                                                    </button>
-                                                                                );
-                                                                            })}
-                                                                        </div>
+                                                                        {!isClassBasedCollege && (
+                                                                            <div className="flex flex-wrap items-center justify-center gap-1.5">
+                                                                                <span className="text-xs font-bold text-slate-600 mr-1">Quick add:</span>
+                                                                                {SCHOOL_SECTION_PRESETS.map((secPreset) => {
+                                                                                    const isAdding = quickAddingSectionKey === `${course._id}_${secPreset.name}`;
+                                                                                    return (
+                                                                                        <button
+                                                                                            key={secPreset.name}
+                                                                                            type="button"
+                                                                                            disabled={isAdding}
+                                                                                            onClick={(e) => {
+                                                                                                e.stopPropagation();
+                                                                                                handleQuickAddSection(course, secPreset);
+                                                                                            }}
+                                                                                            className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50/60 active:scale-95 shadow-2xs transition-all flex items-center gap-1 cursor-pointer"
+                                                                                        >
+                                                                                            {isAdding ? <LoadingSpinner size="xs" /> : <Plus size={11} className="text-slate-400" />}
+                                                                                            <span>{secPreset.label}</span>
+                                                                                        </button>
+                                                                                    );
+                                                                                })}
+                                                                            </div>
+                                                                        )}
                                                                         <button
                                                                             type="button"
                                                                             onClick={(e) => {
