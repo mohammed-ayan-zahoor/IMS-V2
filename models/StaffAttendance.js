@@ -32,6 +32,26 @@ const StaffAttendanceSchema = new Schema({
         type: String,
         trim: true
     },
+    checkInAt: {
+        type: Date
+    },
+    checkOutAt: {
+        type: Date
+    },
+    lastPunchAt: {
+        type: Date
+    },
+    faceMatchDistance: {
+        type: Number
+    },
+    snapshotRef: {
+        type: String,
+        trim: true
+    },
+    punchIds: [{
+        type: String,
+        trim: true
+    }],
     lateMinutes: {
         type: Number,
         default: 0,

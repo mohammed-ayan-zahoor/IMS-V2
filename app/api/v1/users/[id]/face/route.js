@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
+import { invalidateDescriptorCache } from "@/lib/attendance/faceMatcher";
 
 export async function POST(req, { params }) {
     try {
@@ -31,6 +32,11 @@ export async function POST(req, { params }) {
         user.faceDescriptor = descriptor;
         user.faceEnrolledAt = new Date();
         await user.save();
+
+        // Invalidate descriptor cache so new face is recognized immediately on kiosks
+        if (user.institute) {
+            invalidateDescriptorCache(user.institute);
+        }
 
         return NextResponse.json({
             message: "Face enrolled successfully",
