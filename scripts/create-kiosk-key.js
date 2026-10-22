@@ -1,3 +1,13 @@
+import fs from 'fs';
+import dotenv from 'dotenv';
+
+if (fs.existsSync('.env.local')) {
+    dotenv.config({ path: '.env.local' });
+}
+if (fs.existsSync('.env')) {
+    dotenv.config({ path: '.env' });
+}
+
 import { connectDB } from '../lib/mongodb.js';
 import KioskDevice from '../models/KioskDevice.js';
 import Institute from '../models/Institute.js';
@@ -26,7 +36,7 @@ async function main() {
         process.exit(1);
     }
 
-    const { rawKey, keyPrefix, keyHash } = generateKioskKey();
+    const { fullKey, keyPrefix, keyHash } = generateKioskKey();
 
     const kiosk = await KioskDevice.create({
         name: deviceName,
@@ -44,7 +54,7 @@ async function main() {
     console.log(`Device Name: ${kiosk.name}`);
     console.log(`Device ID:   ${kiosk._id}`);
     console.log("-------------------------------------------------------");
-    console.log(`🔑 KIOSK KEY: ${rawKey}`);
+    console.log(`🔑 KIOSK KEY: ${fullKey}`);
     console.log("-------------------------------------------------------");
     console.log("⚠️  Copy and paste this key into the mobile app setup screen.");
     console.log("This key is hashed in the database and cannot be recovered if lost.\n");
