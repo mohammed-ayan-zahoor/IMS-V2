@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 import Institute from "@/models/Institute";
+import Membership from "@/models/Membership";
 import KioskDevice from "@/models/KioskDevice";
 import { generateKioskKey } from "@/lib/attendance/kioskAuth";
 import bcrypt from "bcryptjs";
@@ -9,7 +10,7 @@ import bcrypt from "bcryptjs";
 export async function POST(req) {
     try {
         const body = await req.json();
-        const { email, password, deviceName } = body;
+        const { email, password, deviceName, instituteId } = body;
 
         if (!email || !password) {
             return NextResponse.json({
@@ -42,33 +43,86 @@ export async function POST(req) {
             }, { status: 401 });
         }
 
-        // 2. Verify Admin Privileges
-        const isAdmin = user.role === 'admin' || user.role === 'super_admin' || user.isSuperAdmin;
-        if (!isAdmin) {
+        // 2. Collect all institutes this user has admin access to
+        const instituteMap = new Map();
+
+        // Check primary institute on user
+        if (user.institute) {
+            const primaryInst = await Institute.findById(user.institute).select("name code");
+            if (primaryInst && primaryInst.status !== 'deleted') {
+                instituteMap.set(primaryInst._id.toString(), {
+                    id: primaryInst._id.toString(),
+                    name: primaryInst.name,
+                    code: primaryInst.code || ""
+                });
+            }
+        }
+
+        // Check memberships
+        const memberships = await Membership.find({
+            user: user._id,
+            isActive: true,
+            role: { $in: ['admin', 'super_admin'] }
+        }).populate({
+            path: 'institute',
+            select: 'name code status'
+        });
+
+        for (const m of memberships) {
+            if (m.institute && m.institute._id && m.institute.status !== 'deleted') {
+                instituteMap.set(m.institute._id.toString(), {
+                    id: m.institute._id.toString(),
+                    name: m.institute.name,
+                    code: m.institute.code || ""
+                });
+            }
+        }
+
+        // If Super Admin, allow access to all active institutes
+        if (user.role === 'super_admin' || user.isSuperAdmin) {
+            const allInsts = await Institute.find({ status: { $ne: 'deleted' } }).select("name code").limit(50);
+            for (const inst of allInsts) {
+                instituteMap.set(inst._id.toString(), {
+                    id: inst._id.toString(),
+                    name: inst.name,
+                    code: inst.code || ""
+                });
+            }
+        }
+
+        const availableInstitutes = Array.from(instituteMap.values());
+
+        if (availableInstitutes.length === 0) {
             return NextResponse.json({
                 success: false,
-                message: "Only institute administrators can pair attendance kiosks"
+                message: "No active institute found for this administrator account"
             }, { status: 403 });
         }
 
-        // 3. Resolve Institute
-        const instituteId = user.institute;
-        if (!instituteId) {
+        // 3. Multi-Institute Switcher: If user has > 1 institute and hasn't picked one yet
+        if (!instituteId && availableInstitutes.length > 1) {
             return NextResponse.json({
-                success: false,
-                message: "No institute linked to this administrator account"
-            }, { status: 400 });
+                success: true,
+                requiresInstituteSelection: true,
+                institutes: availableInstitutes,
+                message: "Select an institute for this kiosk tablet"
+            });
         }
 
-        const institute = await Institute.findById(instituteId);
-        if (!institute) {
+        // 4. Resolve Target Institute
+        const targetInstituteId = instituteId || availableInstitutes[0].id;
+        const selectedInst = instituteMap.get(targetInstituteId.toString());
+
+        if (!selectedInst) {
             return NextResponse.json({
                 success: false,
-                message: "Institute record not found"
-            }, { status: 404 });
+                message: "Selected institute is invalid or unauthorized"
+            }, { status: 403 });
         }
 
-        // 4. Register Kiosk Device
+        const institute = await Institute.findById(targetInstituteId);
+
+        // 5. Register Kiosk Device
         const { fullKey, keyPrefix, keyHash } = generateKioskKey();
         const kioskName = (deviceName && deviceName.trim().length > 0) ? deviceName.trim() : "Front Gate Tablet";
 
@@ -82,7 +136,7 @@ export async function POST(req) {
             lastSeenAt: new Date()
         });
 
-        // 5. Count enrolled staff with face descriptors
+        // 6. Count enrolled staff with face descriptors
         const enrolledStaffCount = await User.countDocuments({
             institute: institute._id,
             deletedAt: null,
@@ -91,6 +145,7 @@ export async function POST(req) {
 
         return NextResponse.json({
             success: true,
+            requiresInstituteSelection: false,
             kioskKey: fullKey,
             instituteName: institute.name,
             kioskName: kioskDevice.name,
