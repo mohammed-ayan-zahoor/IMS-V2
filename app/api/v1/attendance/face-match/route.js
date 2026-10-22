@@ -135,18 +135,24 @@ export async function POST(req) {
             dryRun
         });
 
+        const staffPayload = {
+            id: teacher.id,
+            _id: teacher.id,
+            name: teacher.name,
+            email: teacher.email,
+            enrollmentNumber: teacher.enrollmentNumber,
+            role: teacher.role,
+            designation: teacher.designation || teacher.role,
+            departmentName: teacher.departmentName || "",
+            avatar: teacher.avatar
+        };
+
         // 7. Return Kiosk Response
         return NextResponse.json({
             success: true,
             matched: true,
-            teacher: {
-                id: teacher.id,
-                name: teacher.name,
-                email: teacher.email,
-                enrollmentNumber: teacher.enrollmentNumber,
-                role: teacher.role,
-                avatar: teacher.avatar
-            },
+            staff: staffPayload,
+            teacher: staffPayload,
             distance: Number(matchRes.distance.toFixed(4)),
             secondDistance: matchRes.secondDistance ? Number(matchRes.secondDistance.toFixed(4)) : null,
             action: punchRes.action,
