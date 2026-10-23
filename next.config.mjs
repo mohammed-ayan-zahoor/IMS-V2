@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['pdfkit', 'canvas', 'puppeteer'],
+  serverExternalPackages: ['pdfkit', 'canvas', 'puppeteer', 'node-unrar-js'],
   outputFileTracingRoot: process.cwd(),
   outputFileTracingIncludes: {
     '/api/v1/mou/docx': ['./templates/mou/**/*'],
