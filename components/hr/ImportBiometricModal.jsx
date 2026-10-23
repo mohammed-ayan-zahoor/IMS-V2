@@ -448,7 +448,7 @@ export default function ImportBiometricModal({
 const CSS = `
 .ibm-root{--accent:#4f46e5;--ink:#14141f;--muted:#6c6c7d;--line:#e8e8ef;--tint:#f4f3ff;--ease:cubic-bezier(.22,1,.36,1);
   position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:16px;color:var(--ink);font-family:inherit}
-.ibm-backdrop{position:absolute;inset:0;background:rgba(14,14,26,.42);backdrop-filter:blur(3px);animation:ibm-fade .3s ease both}
+.ibm-backdrop{position:absolute;inset:0;background:rgba(15,23,42,0.45);animation:ibm-fade .2s ease both}
 .ibm-panel{position:relative;width:min(520px,100%);max-height:calc(100vh - 32px);overflow:auto;background:#fff;border-radius:20px;
   box-shadow:0 30px 80px -24px rgba(20,20,60,.4),0 0 0 1px rgba(20,20,40,.06);animation:ibm-pop .35s var(--ease) both}
 .ibm-inner{animation:ibm-wipe .75s var(--ease) both}
