@@ -5,426 +5,408 @@ import { connectDB } from "@/lib/mongodb";
 import StaffAttendance from "@/models/StaffAttendance";
 import User from "@/models/User";
 import HRSettings from "@/models/HRSettings";
-import Department from "@/models/Department";
+import Payslip from "@/models/Payslip";
+import { createAuditLog } from "@/services/auditService";
+import {
+    detectFileType,
+    extractArchive,
+    findBestAttendanceFile,
+    parsePdfAttendance,
+    parseTimeToMinutes,
+    normalizeName
+} from "@/lib/attendance/biometricParser";
 import * as XLSX from "xlsx";
-import { parse, isValid, format } from "date-fns";
-
-function parseTimeToMinutes(timeStr) {
-    if (!timeStr) return 0;
-    const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})(?:\s*(AM|PM))?$/i);
-    if (!match) return 0;
-    let hours = parseInt(match[1], 10);
-    const minutes = parseInt(match[2], 10);
-    const meridian = match[3]?.toUpperCase();
-    if (meridian === "PM" && hours < 12) hours += 12;
-    if (meridian === "AM" && hours === 12) hours = 0;
-    return hours * 60 + minutes;
-}
-
-function normalizeName(name) {
-    if (!name) return "";
-    return String(name).toLowerCase()
-        .replace(/\b(dr|mr|mrs|prof|miss|ms)\b/g, "")
-        .replace(/[^a-z0-9]/g, "")
-        .trim();
-}
-
-// ponytail: Parses ONtime / Secureye attendance reports directly from PDF in runtime.
-// Uses colon coordinate offsets to accurately bind in/out times to calendar days (1-31).
-async function parsePdfAttendance(buffer) {
-    if (!global.DOMMatrix) {
-        global.DOMMatrix = class DOMMatrix {
-            constructor() {
-                this.a = 1; this.b = 0; this.c = 0; this.d = 1; this.e = 0; this.f = 0;
-            }
-        };
-    }
-
-    const pdfjs = await import("pdfjs-dist/legacy/build/pdf.mjs");
-    const doc = await pdfjs.getDocument({ data: new Uint8Array(buffer) }).promise;
-
-    let detectedMonth = null;
-    let detectedYear = null;
-    const monthNames = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
-    const employeeMap = new Map();
-
-    for (let p = 1; p <= doc.numPages; p++) {
-        const page = await doc.getPage(p);
-        const content = await page.getTextContent();
-        const items = content.items.map(it => ({ x: it.transform[4], y: it.transform[5], str: it.str }));
-
-        if (p === 1) {
-            const fullText = items.map(it => it.str).join(" ");
-            const pMatch = fullText.match(/To\s+(\d{1,2})\s*[\-\/]\s*([a-z]{3}|\d{1,2})\s*[\-\/]\s*(\d{4})/i) ||
-                           fullText.match(/(\d{1,2})\s*[\-\/]\s*([a-z]{3}|\d{1,2})\s*[\-\/]\s*(\d{4})/i);
-            if (pMatch) {
-                const rawM = pMatch[2].toLowerCase();
-                detectedMonth = monthNames[rawM] || parseInt(rawM, 10);
-                detectedYear = parseInt(pMatch[3], 10);
-            }
-        }
-
-        const day1Item = items.find(it => Math.abs(it.y - 529) < 5 && it.str.trim() === "1");
-        const day1X = day1Item ? day1Item.x : 108.7;
-
-        const empCodeItems = items
-            .filter(it => it.x < 45 && it.y < 525 && /^\d{4,5}$/.test(it.str.trim()))
-            .sort((a, b) => b.y - a.y);
-
-        empCodeItems.forEach(empItem => {
-            const empCode = empItem.str.trim();
-            const empY = empItem.y;
-
-            const nameItems = items.filter(it => it.x >= 45 && it.x < 100 && Math.abs(it.y - empY) < 10);
-            nameItems.sort((a, b) => b.y - a.y || a.x - b.x);
-            const empName = nameItems.map(it => it.str.trim()).filter(Boolean).join(" ");
-
-            const empItems = items.filter(it => it.x >= 100 && it.y >= empY - 12 && it.y <= empY + 6);
-
-            const days = {};
-            for (let d = 1; d <= 31; d++) days[d] = { in: "", out: "", code: "" };
-
-            const colons = empItems.filter(it => it.str.includes(":"));
-            colons.forEach(colItem => {
-                const dayNum = Math.round((colItem.x - day1X) / 21) + 1;
-                if (dayNum >= 1 && dayNum <= 31) {
-                    const isTop = colItem.y >= empY - 3;
-                    const sameLineItems = empItems.filter(it => Math.abs(it.y - colItem.y) < 2);
-                    sameLineItems.sort((a, b) => a.x - b.x);
-                    
-                    const nearby = sameLineItems.filter(it => Math.abs(it.x - colItem.x) < 18);
-                    const localStr = nearby.map(it => it.str).join("").replace(/\s+/g, "");
-                    const timeMatch = localStr.match(/(\d{1,2}):(\d{2})/);
-                    if (timeMatch) {
-                        const timeStr = `${timeMatch[1].padStart(2, "0")}:${timeMatch[2]}`;
-                        if (isTop) {
-                            days[dayNum].in = timeStr;
-                        } else {
-                            days[dayNum].out = timeStr;
-                        }
-                    }
-                }
-            });
-
-            const codeCandidates = empItems.filter(it => /WO|MIS|\bA\b|\bP\b/i.test(it.str));
-            codeCandidates.forEach(cand => {
-                const dayNum = Math.round((cand.x - day1X) / 21) + 1;
-                if (dayNum >= 1 && dayNum <= 31 && !days[dayNum].in && !days[dayNum].out) {
-                    const c = cand.str.trim();
-                    if (/WO/i.test(c)) days[dayNum].code = "WO-I";
-                    else if (/MIS/i.test(c)) days[dayNum].code = "MIS";
-                    else if (c === "A") days[dayNum].code = "A";
-                    else if (c === "P") days[dayNum].code = "P";
-                }
-            });
-
-            employeeMap.set(empCode, { empCode, empName, days });
-        });
-    }
-
-    const rows = [];
-    rows.push(["Monthly Attendance Report with (In\\Out) Time", `For Period : 01/${detectedMonth || 8}/${detectedYear || 2026} To 31/${detectedMonth || 8}/${detectedYear || 2026}`]);
-    rows.push([""]);
-    rows.push([""]);
-    const headerRow = ["Emp Code", "", "Emp Name", ""];
-    for (let d = 1; d <= 31; d++) headerRow.push(String(d));
-    rows.push(headerRow);
-
-    for (const emp of employeeMap.values()) {
-        const row = [emp.empCode, "", emp.empName, ""];
-        for (let d = 1; d <= 31; d++) {
-            const entry = emp.days[d];
-            if (entry.in && entry.out) {
-                row.push(`${entry.in}\n${entry.out}`);
-            } else if (entry.in) {
-                row.push(entry.in);
-            } else if (entry.out) {
-                row.push(entry.out);
-            } else if (entry.code) {
-                row.push(entry.code);
-            } else {
-                row.push("");
-            }
-        }
-        rows.push(row);
-    }
-
-    return { rows, detectedYear, detectedMonth };
-}
 
 export async function POST(req) {
     try {
         const session = await getServerSession(authOptions);
         if (!session || !['admin', 'super_admin'].includes(session.user.role)) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+            return NextResponse.json({ error: "Unauthorized access" }, { status: 401 });
         }
 
         const instituteId = session?.user?.institute?.id;
         if (!instituteId) {
-            return NextResponse.json({ error: "Institute not found" }, { status: 400 });
+            return NextResponse.json({ error: "Institute identifier not found in session" }, { status: 400 });
         }
 
         const formData = await req.formData();
         const file = formData.get("file");
+        const overwriteManual = formData.get("overwriteManual") === "true";
 
         if (!file || typeof file === "string") {
-            return NextResponse.json({ error: "Please upload a valid file (.xlsx, .xls, or .pdf)." }, { status: 400 });
+            return NextResponse.json({ error: "Please upload a valid biometric file (.rar, .zip, .pdf, .xlsx, or .xls)." }, { status: 400 });
         }
 
-        const fileName = (file.name || "").toLowerCase();
-        const isPdf = fileName.endsWith(".pdf") || file.type === "application/pdf";
         const buffer = Buffer.from(await file.arrayBuffer());
+        if (!buffer || buffer.length === 0) {
+            return NextResponse.json({ error: "The uploaded file is empty (0 bytes)." }, { status: 400 });
+        }
 
-        let rows = [];
-        let pdfDetectedYear = null;
-        let pdfDetectedMonth = null;
+        // 1. Identify File Type via Magic Bytes
+        const detectedType = detectFileType(buffer);
+        let targetBuffer = buffer;
+        let isPdf = false;
+        let isExcel = false;
+        let importNotice = null;
 
-        if (isPdf) {
-            const pdfData = await parsePdfAttendance(buffer);
-            rows = pdfData.rows;
-            pdfDetectedYear = pdfData.detectedYear;
-            pdfDetectedMonth = pdfData.detectedMonth;
-        } else {
-            const workbook = XLSX.read(buffer, { type: "buffer" });
-            const firstSheetName = workbook.SheetNames[0];
-            if (!firstSheetName) {
-                return NextResponse.json({ error: "Uploaded workbook contains no sheets." }, { status: 400 });
+        if (detectedType === "rar" || detectedType === "zip") {
+            // Extract archive in-memory
+            let extractedFiles;
+            try {
+                extractedFiles = await extractArchive(buffer, detectedType);
+            } catch (archiveErr) {
+                return NextResponse.json({ error: archiveErr.message }, { status: 400 });
             }
 
-            const worksheet = workbook.Sheets[firstSheetName];
-            // Read sheet rows as raw 2D array
-            rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
-        }
+            // Find best file inside archive (preferring In/Out PDF)
+            let bestTarget;
+            try {
+                bestTarget = await findBestAttendanceFile(extractedFiles);
+            } catch (findErr) {
+                return NextResponse.json({ error: findErr.message }, { status: 400 });
+            }
 
-        if (!rows || rows.length < 3) {
-            return NextResponse.json({ error: "Uploaded file has insufficient data." }, { status: 400 });
+            targetBuffer = bestTarget.file.data;
+            if (bestTarget.type === "excel_summary") {
+                isExcel = true;
+                importNotice = "Imported from summary Excel. Exact In/Out timestamps were not available in this report.";
+            } else {
+                isPdf = true;
+            }
+        } else if (detectedType === "pdf" || (file.name || "").toLowerCase().endsWith(".pdf")) {
+            isPdf = true;
+        } else if (detectedType === "xls" || (file.name || "").toLowerCase().endsWith(".xls") || (file.name || "").toLowerCase().endsWith(".xlsx")) {
+            isExcel = true;
+        } else {
+            return NextResponse.json({
+                error: "Unsupported file format. Please upload a .rar, .zip, .pdf, or Excel (.xlsx, .xls) file."
+            }, { status: 400 });
         }
 
         await connectDB();
 
-        // 1. Detect Year and Month from file headers or query params
-        let detectedYear = pdfDetectedYear || null;
-        let detectedMonth = pdfDetectedMonth || null; // 1-12
+        let detectedYear = null;
+        let detectedMonth = null;
+        let parsedEmployees = [];
 
-        for (let i = 0; i < Math.min(rows.length, 10); i++) {
-            const line = rows[i].join(" ");
-            // Match "For Period : 01/08/2026 To 31/08/2026" or "01-08-2026 To 31-08-2026"
-            const periodMatch = line.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-            if (periodMatch) {
-                detectedMonth = parseInt(periodMatch[2], 10);
-                detectedYear = parseInt(periodMatch[3], 10);
-                break;
+        // 2. Parse Attendance Data (PDF or Excel)
+        if (isPdf) {
+            try {
+                const pdfResult = await parsePdfAttendance(targetBuffer);
+                detectedYear = pdfResult.detectedYear;
+                detectedMonth = pdfResult.detectedMonth;
+                parsedEmployees = pdfResult.employees;
+            } catch (pdfErr) {
+                return NextResponse.json({ error: `Failed to parse PDF attendance: ${pdfErr.message}` }, { status: 400 });
+            }
+        } else {
+            // Parse Excel
+            try {
+                const workbook = XLSX.read(targetBuffer, { type: "buffer" });
+                const firstSheetName = workbook.SheetNames[0];
+                if (!firstSheetName) {
+                    return NextResponse.json({ error: "Uploaded Excel workbook contains no sheets." }, { status: 400 });
+                }
+                const worksheet = workbook.Sheets[firstSheetName];
+                const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+
+                // Detect month/year from header
+                for (let i = 0; i < Math.min(rows.length, 10); i++) {
+                    const line = rows[i].join(" ");
+                    const periodMatch = line.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+                    if (periodMatch) {
+                        detectedMonth = parseInt(periodMatch[2], 10);
+                        detectedYear = parseInt(periodMatch[3], 10);
+                        break;
+                    }
+                }
+
+                // Detect employee header row
+                let headerRowIdx = -1;
+                let codeCol = 0;
+                let nameCol = 2;
+                for (let r = 0; r < Math.min(rows.length, 15); r++) {
+                    const rStr = rows[r].join(" ").toLowerCase();
+                    if (rStr.includes("emp code") || rStr.includes("empcode")) {
+                        headerRowIdx = r;
+                        break;
+                    }
+                }
+                if (headerRowIdx === -1) headerRowIdx = 8; // standard fallback
+
+                const daysInMonth = new Date(detectedYear || new Date().getFullYear(), detectedMonth || 8, 0).getDate();
+
+                for (let r = headerRowIdx + 1; r < rows.length; r++) {
+                    const row = rows[r];
+                    if (!row || !row[codeCol]) continue;
+                    const empCode = String(row[codeCol]).trim();
+                    if (!/^\d{2,6}$/.test(empCode)) continue;
+                    const empName = String(row[nameCol] || "").trim();
+
+                    const days = {};
+                    for (let d = 1; d <= daysInMonth; d++) {
+                        const cellVal = String(row[nameCol + 1 + d] || "").trim();
+                        days[d] = { in: "", out: "", code: cellVal };
+                    }
+                    parsedEmployees.push({ empCode, empName, days });
+                }
+            } catch (xlErr) {
+                return NextResponse.json({ error: `Failed to parse Excel file: ${xlErr.message}` }, { status: 400 });
             }
         }
 
-        // Fallbacks if not auto-detected from text
-        if (!detectedYear || !detectedMonth) {
-            const now = new Date();
-            detectedYear = parseInt(formData.get("year") || String(now.getFullYear()), 10);
-            detectedMonth = parseInt(formData.get("month") || String(now.getMonth() + 1), 10);
-        }
+        // Period Fallbacks
+        const effectiveYear = detectedYear || parseInt(formData.get("year") || String(new Date().getFullYear()), 10);
+        const effectiveMonth = detectedMonth || parseInt(formData.get("month") || String(new Date().getMonth() + 1), 10);
+        const daysInMonth = new Date(effectiveYear, effectiveMonth, 0).getDate();
 
-        // 2. Fetch Institute Staff & HR Settings
+        // 3. Check If Payslips Already Exist for This Month
+        const existingPayslipsCount = await Payslip.countDocuments({
+            institute: instituteId,
+            month: effectiveMonth,
+            year: effectiveYear
+        });
+        const payslipWarning = existingPayslipsCount > 0
+            ? `Payslips for ${effectiveMonth}/${effectiveYear} have already been generated (${existingPayslipsCount} payslips found). Re-importing attendance may make existing payroll calculations stale.`
+            : null;
+
+        // 4. Fetch Staff & HR Shift Settings
         const [staffMembers, hrSettings] = await Promise.all([
             User.find({
                 institute: instituteId,
                 role: { $in: ['admin', 'instructor', 'staff'] },
                 deletedAt: null
-            }).populate("department", "name shiftTimings"),
+            }).populate("department", "name shiftTimings").lean(),
             HRSettings.findOne({ institute: instituteId }).lean()
         ]);
 
-        // Build Staff Lookup maps
-        const byBiometricId = new Map();
-        const byName = new Map();
+        // Build Staff Lookup Maps with Collision Detection
+        const byExactBioId = new Map();
+        const byStrippedBioId = new Map(); // stripped -> array of users (to detect ambiguity!)
+        const byNormalizedName = new Map(); // normalizedName -> array of users (to detect ambiguity!)
 
         staffMembers.forEach(s => {
-            const bId = s.hrDetails?.biometricId;
-            if (bId) {
-                const raw = String(bId).trim();
-                const stripped = raw.replace(/^0+/, "");
-                byBiometricId.set(raw, s);
-                byBiometricId.set(stripped, s);
-                // Also pad to 4 digits (e.g. 0058)
-                byBiometricId.set(stripped.padStart(4, "0"), s);
+            const rawBioId = s.hrDetails?.biometricId ? String(s.hrDetails.biometricId).trim() : null;
+            if (rawBioId) {
+                byExactBioId.set(rawBioId, s);
+                const stripped = rawBioId.replace(/^0+/, "") || "0";
+                if (!byStrippedBioId.has(stripped)) byStrippedBioId.set(stripped, []);
+                byStrippedBioId.get(stripped).push(s);
             }
 
             const fullName = `${s.profile?.firstName || ""} ${s.profile?.lastName || ""}`.trim();
             if (fullName) {
-                byName.set(normalizeName(fullName), s);
+                const norm = normalizeName(fullName);
+                if (norm) {
+                    if (!byNormalizedName.has(norm)) byNormalizedName.set(norm, []);
+                    byNormalizedName.get(norm).push(s);
+                }
             }
         });
 
-        // 3. Find table column positions
-        // Look for the row containing "Emp Code" or "EmpCode" or "Code"
-        let headerRowIndex = -1;
-        let empCodeCol = 0;
-        let empNameCol = 1;
-        const dayCols = []; // array of { colIndex, dayNumber }
+        // 5. Fetch Existing Attendance to Protect Manual Edits and Approved Leaves
+        const monthStart = new Date(Date.UTC(effectiveYear, effectiveMonth - 1, 1, 0, 0, 0, 0));
+        const monthEnd = new Date(Date.UTC(effectiveYear, effectiveMonth - 1, daysInMonth, 23, 59, 59, 999));
 
-        for (let r = 0; r < Math.min(rows.length, 15); r++) {
-            const row = rows[r];
-            for (let c = 0; c < row.length; c++) {
-                const val = String(row[c]).toLowerCase().replace(/[^a-z0-9]/g, "");
-                if (val.includes("empcode") || val === "code") {
-                    headerRowIndex = r;
-                    empCodeCol = c;
-                    break;
-                }
-            }
-            if (headerRowIndex !== -1) break;
-        }
+        const existingAttendance = await StaffAttendance.find({
+            institute: instituteId,
+            date: { $gte: monthStart, $lte: monthEnd }
+        }).lean();
 
-        if (headerRowIndex === -1) {
-            // Default to row index 4 (standard OnTime format)
-            headerRowIndex = 4;
-            empCodeCol = 0;
-            empNameCol = 1;
-        } else {
-            // Determine empName column (usually right next to empCode)
-            for (let c = empCodeCol + 1; c < rows[headerRowIndex].length; c++) {
-                const val = String(rows[headerRowIndex][c]).toLowerCase();
-                if (val.includes("name")) {
-                    empNameCol = c;
-                    break;
-                }
-            }
-        }
+        const existingAttendanceMap = new Map();
+        existingAttendance.forEach(rec => {
+            const staffId = rec.staff.toString();
+            const dateKey = new Date(rec.date).toISOString().split("T")[0];
+            existingAttendanceMap.set(`${staffId}_${dateKey}`, rec);
+        });
 
-        // Map day columns (1, 2, 3 ... 31)
-        const headerRow = rows[headerRowIndex] || [];
-        for (let c = 0; c < headerRow.length; c++) {
-            const cellVal = String(headerRow[c]).trim();
-            const dayNum = parseInt(cellVal, 10);
-            if (!isNaN(dayNum) && dayNum >= 1 && dayNum <= 31) {
-                dayCols.push({ colIndex: c, dayNumber: dayNum });
-            }
-        }
-
-        if (dayCols.length === 0) {
-            // If day numbers weren't in header row, infer sequential days starting after empName
-            const daysInMonth = new Date(detectedYear, detectedMonth, 0).getDate();
-            for (let d = 1; d <= daysInMonth; d++) {
-                dayCols.push({ colIndex: empNameCol + d, dayNumber: d });
-            }
-        }
-
-        // 4. Parse Employee Rows
+        // 6. Match Staff and Build Attendance Upserts
         const bulkOperations = [];
         const matchedStaffIds = new Set();
         const unmatchedList = [];
+        const autoBoundStaff = [];
         let totalPunchesImported = 0;
 
-        for (let r = headerRowIndex + 1; r < rows.length; r++) {
-            const row = rows[r];
-            if (!row || row.length === 0) continue;
+        for (const emp of parsedEmployees) {
+            const rawCode = emp.empCode;
+            const strippedCode = rawCode.replace(/^0+/, "") || "0";
+            const rawName = emp.empName;
+            const normName = normalizeName(rawName);
 
-            const rawCode = String(row[empCodeCol] || "").trim();
-            const rawName = String(row[empNameCol] || "").trim();
+            let staff = null;
+            let matchType = "none";
 
-            // Skip page break headers or summaries
-            if (!rawCode || rawCode.toLowerCase().includes("company") || rawCode.toLowerCase().includes("location") || rawCode.toLowerCase().includes("emp")) {
-                continue;
+            // Stage 1: Exact Biometric ID match
+            if (byExactBioId.has(rawCode)) {
+                staff = byExactBioId.get(rawCode);
+                matchType = "exact_biometric";
             }
+            // Stage 2: Stripped zero match (guarded against collisions)
+            else if (byStrippedBioId.has(strippedCode)) {
+                const candidates = byStrippedBioId.get(strippedCode);
+                if (candidates.length === 1) {
+                    staff = candidates[0];
+                    matchType = "stripped_biometric";
+                } else {
+                    unmatchedList.push({
+                        code: rawCode,
+                        name: rawName,
+                        reason: "Ambiguous biometric ID (multiple staff matched after stripping leading zeros)"
+                    });
+                    continue;
+                }
+            }
+            // Stage 3: Normalized name match with strict safety guards
+            else if (normName && byNormalizedName.has(normName)) {
+                const candidates = byNormalizedName.get(normName);
+                if (candidates.length === 1) {
+                    const candidate = candidates[0];
+                    const existingCode = candidate.hrDetails?.biometricId;
 
-            // Match staff member: 1. Biometric ID -> 2. Name Fallback
-            let staff = byBiometricId.get(rawCode) || byBiometricId.get(rawCode.replace(/^0+/, ""));
-            if (!staff && rawName) {
-                staff = byName.get(normalizeName(rawName));
-                // Auto-bind biometric machine code into staff profile so future imports match instantly
-                if (staff && !staff.hrDetails?.biometricId && rawCode) {
-                    User.updateOne({ _id: staff._id }, { $set: { "hrDetails.biometricId": rawCode } }).exec();
+                    // Safety guard: Never overwrite if user already has a different biometric ID
+                    if (existingCode && String(existingCode).trim() !== rawCode) {
+                        unmatchedList.push({
+                            code: rawCode,
+                            name: rawName,
+                            reason: `Staff matched by name (${rawName}), but already has a different Biometric ID (${existingCode}). Auto-bind skipped for safety.`
+                        });
+                        continue;
+                    }
+
+                    // Safety guard: Code must not be claimed by another staff member
+                    if (byExactBioId.has(rawCode) && byExactBioId.get(rawCode)._id.toString() !== candidate._id.toString()) {
+                        unmatchedList.push({
+                            code: rawCode,
+                            name: rawName,
+                            reason: `Biometric Code (${rawCode}) is already assigned to another staff member.`
+                        });
+                        continue;
+                    }
+
+                    staff = candidate;
+                    matchType = "name_fallback";
+
+                    // Auto-bind biometric ID in database
+                    if (!existingCode) {
+                        User.updateOne({ _id: staff._id }, { $set: { "hrDetails.biometricId": rawCode } }).exec();
+                        autoBoundStaff.push({ id: staff._id, name: rawName, code: rawCode });
+                    }
+                } else {
+                    unmatchedList.push({
+                        code: rawCode,
+                        name: rawName,
+                        reason: "Ambiguous staff name (multiple staff members share this name)"
+                    });
+                    continue;
                 }
             }
 
             if (!staff) {
-                unmatchedList.push({ code: rawCode, name: rawName });
+                unmatchedList.push({
+                    code: rawCode,
+                    name: rawName,
+                    reason: "No staff found with matching Biometric ID or Name"
+                });
                 continue;
             }
 
             matchedStaffIds.add(staff._id.toString());
 
-            // Resolve effective shift timings
+            // Resolve Effective Shift Rules
             const deptShift = staff.department?.shiftTimings;
             const hasCustomDeptShift = Boolean(deptShift?.useCustomShift);
             const shiftStart = hasCustomDeptShift ? (deptShift.shiftStart || "09:00") : (hrSettings?.shiftStart || "09:00");
             const shiftEnd = hasCustomDeptShift ? (deptShift.shiftEnd || "18:00") : (hrSettings?.shiftEnd || "18:00");
             const checkInGraceMins = hasCustomDeptShift ? (deptShift.checkInGraceMins ?? 15) : (hrSettings?.checkInGraceMins ?? 15);
             const checkOutGraceMins = hasCustomDeptShift ? (deptShift.checkOutGraceMins ?? 10) : (hrSettings?.checkOutGraceMins ?? 10);
+            const overtimeBufferMins = hrSettings?.overtimeBufferMins ?? 30;
+            const overtimeEnabled = hrSettings?.overtimeEnabled !== false;
 
             const shiftStartMins = parseTimeToMinutes(shiftStart);
             const shiftEndMins = parseTimeToMinutes(shiftEnd);
 
-            // Process each day in this row
-            for (const { colIndex, dayNumber } of dayCols) {
-                if (colIndex >= row.length) continue;
-                const cellRaw = String(row[colIndex] || "").trim();
-                if (!cellRaw) continue;
+            // Process Each Day in Month
+            for (let d = 1; d <= daysInMonth; d++) {
+                const dayEntry = emp.days[d];
+                if (!dayEntry) continue;
 
-                // Build query date
-                const dateObj = new Date(detectedYear, detectedMonth - 1, dayNumber);
-                if (isNaN(dateObj.getTime()) || dateObj.getMonth() !== (detectedMonth - 1)) {
-                    continue; // invalid day for this month (e.g. Feb 30)
+                // Timezone safe UTC date
+                const dateObj = new Date(Date.UTC(effectiveYear, effectiveMonth - 1, d, 0, 0, 0, 0));
+                const dateKey = dateObj.toISOString().split("T")[0];
+                const existingRec = existingAttendanceMap.get(`${staff._id.toString()}_${dateKey}`);
+
+                // Guard 1: Protect Manual Admin Edits (unless overwriteManual toggle is active)
+                if (existingRec && existingRec.source === "manual" && !overwriteManual) {
+                    continue; // Skip overwriting manual corrections
                 }
-                dateObj.setHours(0, 0, 0, 0);
+
+                // Guard 2: Protect Pre-Approved Leaves from Being Overwritten as Absent
+                if (existingRec && existingRec.status === "on_leave" && !dayEntry.in && !dayEntry.out) {
+                    continue; // Keep approved leave intact
+                }
 
                 let status = "present";
-                let checkInTime = "";
-                let checkOutTime = "";
+                let checkInTime = dayEntry.in || "";
+                let checkOutTime = dayEntry.out || "";
                 let lateMinutes = 0;
                 let earlyDepartureMinutes = 0;
                 let overtimeMinutes = 0;
-                let remarks = "Imported from Biometric Excel (ONtime)";
+                let remarks = "";
 
-                const upperCell = cellRaw.toUpperCase();
+                const code = (dayEntry.code || "").toUpperCase();
 
-                // Case 1: Standard Summary Codes (P, A, WO-I, MIS, HL)
-                if (upperCell === "P") {
+                if (checkInTime || checkOutTime) {
                     status = "present";
-                } else if (upperCell === "A") {
-                    status = "absent";
-                } else if (upperCell.includes("WO") || upperCell.includes("W/O")) {
-                    status = "holiday";
-                    remarks = "Week Off";
-                } else if (upperCell === "MIS") {
-                    status = "half_day";
-                    remarks = "Biometric Missed Punch (MIS)";
-                } else if (upperCell === "HL" || upperCell === "HD") {
-                    status = "half_day";
-                } else if (["CL", "EL", "SL", "L", "LV"].includes(upperCell)) {
-                    status = "on_leave";
-                } else {
-                    // Case 2: In/Out Times (e.g. "09:31\n15:07" or "09:31" or "09:31 15:07")
-                    const timeMatches = cellRaw.match(/\b\d{1,2}:\d{2}\b/g);
-                    if (timeMatches && timeMatches.length > 0) {
-                        status = "present";
-                        checkInTime = timeMatches[0];
-                        if (timeMatches.length > 1) {
-                            checkOutTime = timeMatches[1];
-                        }
 
+                    // Check-In Lateness Calculation
+                    if (checkInTime) {
                         const inMins = parseTimeToMinutes(checkInTime);
                         if (inMins > (shiftStartMins + checkInGraceMins)) {
-                            lateMinutes = inMins - shiftStartMins;
+                            lateMinutes = Math.max(0, inMins - shiftStartMins);
                         }
-
-                        if (checkOutTime) {
-                            const outMins = parseTimeToMinutes(checkOutTime);
-                            if (outMins < (shiftEndMins - checkOutGraceMins)) {
-                                earlyDepartureMinutes = shiftEndMins - outMins;
-                            }
-                            if (hrSettings?.overtimeEnabled && outMins > shiftEndMins) {
-                                const rawOt = outMins - shiftEndMins;
-                                const buffer = hrSettings.overtimeBufferMins || 30;
-                                overtimeMinutes = rawOt >= buffer ? rawOt : 0;
-                            }
-                        }
-
-                        remarks = `Biometric In: ${checkInTime}${checkOutTime ? ` Out: ${checkOutTime}` : ""}`;
-                    } else {
-                        // Unknown text - default to present if non-empty
-                        status = "present";
                     }
+
+                    // Check-Out Early Departure & Overtime Calculation
+                    if (checkOutTime) {
+                        const outMins = parseTimeToMinutes(checkOutTime);
+                        if (outMins < (shiftEndMins - checkOutGraceMins)) {
+                            earlyDepartureMinutes = Math.max(0, shiftEndMins - outMins);
+                        } else if (overtimeEnabled && outMins >= (shiftEndMins + overtimeBufferMins)) {
+                            overtimeMinutes = outMins - shiftEndMins;
+                        }
+                    }
+
+                    // Punch anomalies
+                    if (checkInTime && !checkOutTime) {
+                        remarks = `Biometric In: ${checkInTime} (Missed Punch Out)`;
+                    } else if (!checkInTime && checkOutTime) {
+                        remarks = `Biometric Out: ${checkOutTime} (Missed Punch In)`;
+                    } else if (code.includes("WO")) {
+                        remarks = `Worked on Week Off (${checkInTime} - ${checkOutTime})`;
+                    } else {
+                        remarks = `Biometric In: ${checkInTime} Out: ${checkOutTime}`;
+                    }
+                } else if (code === "A") {
+                    status = "absent";
+                    remarks = "Biometric Absent";
+                } else if (code.includes("WO") || code.includes("W/O")) {
+                    status = "holiday";
+                    remarks = "Week Off";
+                } else if (code === "MIS") {
+                    status = "half_day";
+                    remarks = "Biometric Missed Punch (MIS)";
+                } else if (code === "HD" || code === "HL") {
+                    status = "half_day";
+                    remarks = "Biometric Half Day";
+                } else if (["CL", "EL", "SL", "L", "LV"].includes(code)) {
+                    status = "on_leave";
+                    remarks = "On Leave";
+                } else if (code === "P") {
+                    status = "present";
+                    remarks = "Present (Summary Log)";
+                } else {
+                    // Blank day without punches or codes
+                    status = "absent";
                 }
 
                 bulkOperations.push({
@@ -454,24 +436,55 @@ export async function POST(req) {
             }
         }
 
+        // 7. Execute Bulk Write
         if (bulkOperations.length > 0) {
-            await StaffAttendance.bulkWrite(bulkOperations);
+            await StaffAttendance.bulkWrite(bulkOperations, { ordered: false });
         }
 
-        const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        const periodLabel = `${monthNames[detectedMonth - 1]} ${detectedYear}`;
+        // 8. Audit Logging
+        try {
+            await createAuditLog({
+                actor: session.user.id,
+                action: "hr.attendance.biometric_import",
+                resource: { type: "StaffAttendance" },
+                institute: instituteId,
+                details: {
+                    fileName: file.name,
+                    period: `${effectiveMonth}/${effectiveYear}`,
+                    totalPunchesImported,
+                    matchedStaffCount: matchedStaffIds.size,
+                    unmatchedCount: unmatchedList.length,
+                    autoBoundCount: autoBoundStaff.length
+                }
+            });
+        } catch (auditErr) {
+            console.error("Audit log failed during biometric import:", auditErr);
+        }
+
+        const monthNames = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December"
+        ];
+        const periodLabel = `${monthNames[effectiveMonth - 1]} ${effectiveYear}`;
 
         return NextResponse.json({
             success: true,
             period: periodLabel,
+            year: effectiveYear,
+            month: effectiveMonth,
             matchedStaffCount: matchedStaffIds.size,
             totalRecordsImported: totalPunchesImported,
             unmatchedCount: unmatchedList.length,
-            unmatchedStaff: unmatchedList.slice(0, 20)
+            unmatchedStaff: unmatchedList,
+            autoBoundCount: autoBoundStaff.length,
+            payslipWarning,
+            notice: importNotice
         });
 
     } catch (error) {
-        console.error("Biometric Excel Import Error:", error);
-        return NextResponse.json({ error: "Failed to process Excel file: " + error.message }, { status: 500 });
+        console.error("Biometric Attendance Import Error:", error);
+        return NextResponse.json({
+            error: "Failed to process attendance file: " + (error.message || "Internal server error")
+        }, { status: 500 });
     }
 }
