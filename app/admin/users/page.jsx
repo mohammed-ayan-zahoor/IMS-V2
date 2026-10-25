@@ -230,7 +230,7 @@ export default function UserManagementPage() {
         filteredBatches.forEach(b => {
             const courseName = b.course?.name || "Other Batches";
             if (!groups[courseName]) groups[courseName] = [];
-            groups[courseName].push({ label: b.name, value: b._id });
+            groups[courseName].push({ label: `${courseName} - ${b.name}`, value: b._id });
         });
         return Object.entries(groups).map(([group, items]) => ({ group, items }));
     }, [availableBatches, selectedAssignmentSession, formData.assignedCourses]);

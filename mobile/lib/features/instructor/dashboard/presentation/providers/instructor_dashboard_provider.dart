@@ -1,3 +1,4 @@
+import 'package:student_app/core/network/api_error_helper.dart';
 import 'package:flutter/material.dart';
 import 'package:student_app/features/instructor/dashboard/data/models/instructor_dashboard_model.dart';
 import 'package:student_app/features/instructor/dashboard/data/repositories/instructor_dashboard_repository.dart';
@@ -33,7 +34,7 @@ class InstructorDashboardProvider extends ChangeNotifier {
         _errorMessage = 'Unable to load dashboard data. Please pull down to refresh.';
       }
     } catch (e) {
-      _errorMessage = 'Network error. Please check your connection.';
+      _errorMessage = ApiErrorHelper.extractMessage(e, fallback: 'Unable to load dashboard data. Please pull down to refresh.');
     } finally {
       _isLoading = false;
       notifyListeners();

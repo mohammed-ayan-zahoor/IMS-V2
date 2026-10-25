@@ -607,7 +607,7 @@ export default function AdmissionApplicationsPage() {
                                     value={selectedBatchId}
                                     onChange={(val) => setSelectedBatchId(val)}
                                     options={batches.map(b => ({
-                                        label: `${b.name} (${b.activeEnrollmentCount || 0}/${b.capacity})`,
+                                        label: `${b.course?.name ? `${b.course.name} - ` : ''}${b.name} (${b.activeEnrollmentCount || 0}/${b.capacity})`,
                                         value: b._id
                                     }))}
                                     className="rounded-xl text-xs"

@@ -1,0 +1,2736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quantech — A school system that works like an Organiser</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --ease: cubic-bezier(.22, 1, .36, 1);
+      --pd: calc(300ms + var(--o, 0) * 110ms);
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      background: #F1F2F2;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      color: #0E0E0E;
+      overflow-x: hidden;
+    }
+
+    /* Scroll offset so sections land with comfortable framing below the sticky navbar */
+    section,
+    section[id] {
+      scroll-margin-top: 130px;
+    }
+
+    /* Apple-Style Hero Load Choreography */
+    @keyframes rise  {
+      from {
+        opacity: 0;
+        transform: translateY(var(--y, 12px));
+        filter: blur(4px);
+      }
+      to {
+        opacity: 1;
+        transform: none;
+        filter: none;
+      }
+    }
+    @keyframes drop  { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: none; } }
+    @keyframes word  {
+      0% {
+        opacity: 0;
+        transform: translateY(80%);
+        filter: blur(8px);
+      }
+      35% {
+        opacity: 0.85;
+      }
+      100% {
+        opacity: 1;
+        transform: none;
+        filter: none;
+      }
+    }
+    @keyframes wipePill { from { clip-path: inset(0 100% 0 0 round 999px); } to { clip-path: inset(0 0 0 0 round 999px); } }
+    @keyframes draw  { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+    @keyframes nudge { 50% { transform: translateX(3px); } }
+    @keyframes spin  { to { transform: rotate(90deg); } }
+
+    .nav     { animation: drop 500ms var(--ease) both; }
+    .sec > .badge { animation: rise 450ms var(--ease) 150ms both; }
+    .sec > .badge svg { animation: nudge 400ms var(--ease) 700ms; }
+
+    .line    {
+      display: block;
+      overflow: hidden;
+      padding-top: 4px;
+      padding-bottom: 24px;
+      margin-bottom: -20px;
+      -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 calc(100% - 24px), transparent 100%);
+      mask-image: linear-gradient(180deg, #000 0%, #000 calc(100% - 24px), transparent 100%);
+    }   /* soft feathered mask for word rise */
+    .w       {
+      display: inline-block;
+      will-change: transform, opacity, filter;
+      animation: word 600ms var(--ease) calc(250ms + var(--i) * 60ms) both;
+    }
+
+    .org     { display: inline-block; background: #BFF0E4; border: 2px solid #7FD6C2; border-radius: 999px;
+               padding: 0 22px; animation: wipePill 600ms var(--ease) 650ms both; vertical-align: middle; }
+    .org .w  { color: #1F8F7F; animation-delay: 760ms; }
+
+    .sub     { --y: 10px; animation: rise 500ms var(--ease) 850ms both; }
+    .cta-1   { animation: rise 500ms var(--ease) 980ms both; }
+    .cta-2   { animation: rise 500ms var(--ease) 1060ms both; }
+    .cta-1 svg { transform-origin: center; animation: spin 500ms var(--ease) 1500ms both; }
+
+    .dots    { transform-origin: center; animation: draw 700ms var(--ease) 1100ms both; }
+
+    /* Instant press feedback, hover lift */
+    .pill:hover  { transform: translateY(-1px); transition: transform 150ms var(--ease); }
+    .pill:active { transform: scale(.97); transition: transform 100ms ease-out; }
+
+    /* Sliding Nav Dot */
+    .nav-links {
+      position: relative;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+    .nav-links a {
+      position: relative;
+      color: #0E0E0E;
+      padding: 4px 0;
+      transition: color 150ms ease;
+    }
+    .nav-dot {
+      position: absolute;
+      bottom: -4px;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #0E0E0E;
+      pointer-events: none;
+      transition: left 250ms var(--ease), opacity 200ms ease;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .nav, .badge, .w, .org, .sub, .cta-1, .cta-2, .dots, .badge svg, .cta-1 svg,
+      .in .tile, .in .rule, .in .copy, .in .rollrow, .in .chip, .in .badge2, .in .bar, .in .admit-btn,
+      .trust.in *, .manage.in *, .price.in * {
+        animation: fadeOnly 250ms ease backwards !important;
+        animation-delay: 0ms !important;
+      }
+      .tile:hover {
+        transform: rotate(var(--r)) !important;
+      }
+      .card:hover,
+      .plan:hover {
+        transform: none !important;
+      }
+      @keyframes fadeOnly { from { opacity: 0; } to { opacity: 1; } }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    /* Full-width site wrapper (No outer container card) */
+    .site-wrapper {
+      width: 100%;
+      min-height: 100vh;
+      background: #F1F2F2;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Teal Radial Gradient Washes across the page */
+    .bg-washes {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      background: 
+        radial-gradient(ellipse 60% 18% at 10% 33%, rgba(79, 150, 144, 0.45), transparent),
+        radial-gradient(ellipse 90% 12% at 50% 50%, rgba(79, 150, 144, 0.35), transparent),
+        radial-gradient(ellipse 80% 10% at 40% 66%, rgba(79, 150, 144, 0.30), transparent);
+      z-index: 1;
+    }
+
+    .site-content {
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Buttons & Pills */
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 14px;
+      padding: 12px 22px;
+      border: 1.5px solid transparent;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease;
+      user-select: none;
+    }
+
+
+    .ink {
+      background: #0E0E0E;
+      color: #FFFFFF;
+    }
+    .ink:hover {
+      background: #262626;
+    }
+
+    .wht {
+      background: #FFFFFF;
+      color: #0E0E0E;
+      border-color: #E2E8F0;
+    }
+    .wht:hover {
+      background: #F8FAFC;
+    }
+
+    .teal {
+      background: #4F9690;
+      color: #FFFFFF;
+    }
+    .teal:hover {
+      background: #42827C;
+    }
+
+    .sec {
+      text-align: center;
+      padding: 0 48px;
+      max-width: 1240px;
+      margin: 0 auto;
+    }
+
+    h1, .h1 {
+      font-weight: 800;
+      font-size: clamp(38px, 6vw, 76px);
+      line-height: 1.08;
+      letter-spacing: -0.04em;
+      margin: 28px auto 0;
+      max-width: 900px;
+      color: #0E0E0E;
+    }
+
+    h2 {
+      font-weight: 800;
+      font-size: clamp(26px, 3.5vw, 40px);
+      line-height: 1.1;
+      letter-spacing: -0.025em;
+      margin: 0;
+      color: #0E0E0E;
+    }
+
+    .sub {
+      font-weight: 500;
+      font-size: 14px;
+      line-height: 1.5;
+      color: #4A4F4F;
+      margin: 12px auto 0;
+      max-width: 620px;
+    }
+
+    /* Dashed line */
+    .dash {
+      border-top: 1.5px dashed #2F7E78;
+      width: 100%;
+    }
+
+    /* Floating White Pill Nav */
+    nav.floating-nav {
+      position: fixed;
+      top: 20px;
+      left: 0;
+      right: 0;
+      margin: 0 auto;
+      z-index: 1000;
+      width: 740px;
+      max-width: calc(100% - 32px);
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(47, 126, 120, 0.2);
+      border-radius: 999px;
+      box-shadow: 0 8px 28px rgba(0, 0, 0, 0.06);
+      transition: border-radius 280ms var(--ease), box-shadow 280ms var(--ease);
+      box-sizing: border-box;
+    }
+    
+    .nav-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 10px 8px 22px;
+      width: 100%;
+      box-sizing: border-box;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .nav-brand {
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: -0.03em;
+      color: #0E0E0E;
+      text-decoration: none;
+      user-select: none;
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .nav-toggle {
+      display: none;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 6px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 5px;
+      transition: background 150ms ease;
+      user-select: none;
+    }
+    .nav-toggle:hover {
+      background: rgba(0, 0, 0, 0.05);
+    }
+    .t-line {
+      display: block;
+      width: 18px;
+      height: 2px;
+      background: #0E0E0E;
+      border-radius: 2px;
+      transition: transform 250ms var(--ease), opacity 200ms ease;
+    }
+
+    .nav-mobile-dropdown {
+      display: none;
+      flex-direction: column;
+      padding: 0 16px 14px;
+      border-top: 1px solid rgba(47, 126, 120, 0.12);
+      margin-top: 2px;
+    }
+    .mob-item {
+      display: flex;
+      align-items: center;
+      height: 44px;
+      color: #0E0E0E;
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 14px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+      padding: 0 10px;
+      border-radius: 8px;
+      transition: background 150ms ease, color 150ms ease;
+    }
+    .mob-item:last-child {
+      border-bottom: none;
+    }
+    .mob-item:hover,
+    .mob-item:active {
+      background: rgba(79, 150, 144, 0.08);
+      color: #1F8F7F;
+    }
+
+    /* Mobile Nav Open State */
+    nav.floating-nav.mobile-open {
+      border-radius: 24px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.12);
+    }
+    nav.floating-nav.mobile-open .nav-mobile-dropdown {
+      display: flex;
+      animation: dropMenu 250ms var(--ease);
+    }
+    nav.floating-nav.mobile-open .t1 {
+      transform: translateY(3.5px) rotate(45deg);
+    }
+    nav.floating-nav.mobile-open .t2 {
+      transform: translateY(-3.5px) rotate(-45deg);
+    }
+
+    @keyframes dropMenu {
+      from { opacity: 0; transform: translateY(-8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+
+    /* Step Tiles Row & Apple-Style Scroll Choreography */
+    .steps {
+      margin-top: 76px;
+    }
+    .steps:not(.in) .tile,
+    .steps:not(.in) .rule {
+      opacity: 0;
+    }
+
+    .rule {
+      border-top: 1.5px dashed #2F7E78;
+      width: 100%;
+    }
+    .in .rule {
+      animation: reveal 600ms var(--ease) var(--rd, 0ms) backwards;
+    }
+    @keyframes reveal {
+      from { clip-path: inset(0 50% 0 50%); }
+      to { clip-path: inset(0 0 0 0); }
+    }
+
+    .tiles,
+    .tiles-row {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 40px;
+      padding: 78px 24px 86px;
+      flex-wrap: wrap;
+      max-width: 1240px;
+      margin: 0 auto;
+    }
+
+    .tile {
+      width: 304px;
+      height: 304px;
+      border-radius: 28px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 4px solid #FFFFFF;
+      padding: 22px 22px 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      text-align: left;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
+      transform: rotate(var(--r));
+      transition: transform 450ms var(--ease), box-shadow 450ms var(--ease);
+    }
+
+    .tile:hover {
+      transform: translateY(-6px) rotate(calc(var(--r) * .4));
+      box-shadow: 0 10px 28px rgba(0, 0, 0, 0.06);
+    }
+
+    .in .tile {
+      animation: tileIn 700ms var(--ease) var(--d) backwards;
+    }
+    @keyframes tileIn {
+      from { opacity: 0; transform: translateY(40px) rotate(calc(var(--r) * 1.5)); }
+    }
+
+    /* Step copy */
+    .in .tile .copy {
+      animation: rise 500ms var(--ease) calc(var(--d) + 350ms) backwards;
+    }
+
+    /* Tile 1 inside motion */
+    .in .rollrow {
+      animation: slideIn 500ms var(--ease) calc(var(--d) + 400ms) backwards;
+    }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-24px) rotate(14deg); }
+      to { opacity: 1; transform: rotate(14deg); }
+    }
+    .in .admit-btn {
+      animation: press 300ms ease-out calc(var(--d) + 1100ms);
+    }
+    @keyframes press {
+      50% { transform: scale(0.95); }
+    }
+
+    /* Tile 2 inside motion */
+    .in .chip {
+      animation: chipIn 450ms var(--ease) calc(var(--d) + 500ms + var(--k) * 140ms) backwards;
+    }
+    @keyframes chipIn {
+      from { opacity: 0; translate: 0 -12px; }
+      to { opacity: 1; translate: 0 0; }
+    }
+    .in .badge2 {
+      animation: pop 300ms var(--ease) calc(var(--d) + 700ms + var(--k) * 140ms) backwards;
+    }
+    @keyframes pop {
+      from { opacity: 0; scale: 0.9; }
+      to { opacity: 1; scale: 1; }
+    }
+
+    /* Tile 3 inside motion */
+    .bar {
+      transform-origin: bottom;
+    }
+    .in .bar {
+      animation: grow 600ms var(--ease) calc(var(--d) + 450ms + var(--k) * 80ms) backwards;
+    }
+    .in .hero-bar {
+      animation-delay: calc(var(--d) + 450ms + var(--k) * 80ms + 120ms);
+    }
+    @keyframes grow {
+      from { transform: scaleY(0); }
+    }
+
+    /* Tile typography */
+    .tile-caption {
+      margin-top: auto;
+      z-index: 2;
+    }
+    .step-badge {
+      font-weight: 700;
+      font-size: 13px;
+      color: #0E0E0E;
+      margin-bottom: 5px;
+      letter-spacing: -0.01em;
+    }
+    .step-desc {
+      font-weight: 500;
+      font-size: 12.5px;
+      line-height: 1.4;
+      color: #3A3F3F;
+    }
+    .step-desc b {
+      color: #0E0E0E;
+      font-weight: 700;
+    }
+
+    /* Tile 1 Graphic: Angled ribbon with teal pill button */
+    .tile1-visual {
+      position: relative;
+      height: 145px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-radius: 18px;
+    }
+    .tile1-ribbon {
+      position: absolute;
+      width: 136%;
+      left: -18%;
+      top: 36px;
+      height: 56px;
+      background: #FFFFFF;
+      border-radius: 14px;
+      transform: rotate(14deg);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px 0 24px;
+      box-shadow: 0 3px 14px rgba(0, 0, 0, 0.04);
+    }
+    .tile1-label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #2F7E78;
+      letter-spacing: -0.01em;
+    }
+    .tile1-btn {
+      background: #4F9690;
+      color: #FFFFFF;
+      font-size: 13px;
+      font-weight: 700;
+      padding: 9px 18px;
+      border-radius: 999px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: 0 4px 10px rgba(79, 150, 144, 0.25);
+      white-space: nowrap;
+    }
+
+    /* Tile 2 Graphic: Overlapping chat/transaction pills */
+    .tile2-visual {
+      position: relative;
+      height: 145px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 7px;
+    }
+    .chat-pill {
+      background: #FFFFFF;
+      border-radius: 999px;
+      padding: 5px 12px 5px 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04);
+    }
+    .chat-pill-1 {
+      width: 95%;
+      transform: rotate(-3deg);
+      margin-left: -4px;
+    }
+    .chat-pill-2 {
+      width: 92%;
+      transform: rotate(2deg);
+      margin-left: 12px;
+    }
+    .chat-pill-3 {
+      width: 88%;
+      transform: rotate(-1deg);
+      margin-left: -8px;
+    }
+    .chat-avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      display: grid;
+      place-items: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: #FFFFFF;
+    }
+    .av-parent {
+      background: linear-gradient(135deg, #E06D53, #D97746);
+    }
+    .av-admin {
+      background: linear-gradient(135deg, #2F7E78, #4F9690);
+    }
+    .chat-meta {
+      display: flex;
+      flex-direction: column;
+      line-height: 1.15;
+      text-align: left;
+    }
+    .chat-name {
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #0E0E0E;
+    }
+    .chat-sub {
+      font-size: 8.5px;
+      font-weight: 500;
+      color: #5A6060;
+    }
+    .chat-chip {
+      margin-left: auto;
+      background: #BFF0E4;
+      color: #1F8F7F;
+      border-radius: 999px;
+      padding: 2.5px 7px;
+      font-size: 9.5px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    /* Tile 3 Graphic: Bar Chart */
+    .tile3-visual {
+      position: relative;
+      height: 145px;
+      width: 100%;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+    .bars-group {
+      display: flex;
+      align-items: flex-end;
+      gap: 12px;
+      height: 100%;
+      z-index: 2;
+      padding-bottom: 6px;
+    }
+    .chart-bar {
+      width: 32px;
+      border-radius: 999px;
+    }
+    .cbar-1 {
+      height: 72px;
+      background: linear-gradient(180deg, #D4E6E3 0%, #E2EFECE0 100%);
+      border: 1.5px solid #B8D6D1;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+      opacity: 0.45;
+    }
+    .cbar-2 {
+      height: 96px;
+      background: linear-gradient(180deg, #D4E6E3 0%, #E2EFECE0 100%);
+      border: 1.5px solid #B8D6D1;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+      opacity: 0.45;
+    }
+    .cbar-3 {
+      height: 136px;
+      width: 36px;
+      background: linear-gradient(180deg, #2F7E78 0%, #4F9690 60%, #9CC7C2 100%);
+      box-shadow: 0 6px 18px rgba(47, 126, 120, 0.35);
+      opacity: 1;
+    }
+    .cbar-4 {
+      height: 82px;
+      background: linear-gradient(180deg, #D4E6E3 0%, #E2EFECE0 100%);
+      border: 1.5px solid #B8D6D1;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.02);
+      opacity: 0.45;
+    }
+
+    /* ---------- Block A: Trust Section ---------- */
+    .trust {
+      position: relative;
+      overflow: hidden;
+    }
+    .trust:not(.in) :is(.mist, .cap, .ln, .lead, .eyebrow, .stds li),
+    .manage:not(.in) :is(.ln, .lead, .card) {
+      opacity: 0;
+    }
+
+    .mask {
+      overflow: hidden;
+    }
+    .ln {
+      display: block;
+      padding-bottom: .1em;
+    }
+
+    .mist {
+      position: absolute;
+      left: -140px;
+      top: 20px;
+      width: 520px;
+      height: 420px;
+      background: radial-gradient(ellipse at center, rgba(79, 150, 144, 0.30) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    .cap {
+      position: relative;
+      width: 68px;
+      height: 68px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #2F7E78, #4F9690);
+      margin: 0 auto 18px;
+      display: grid;
+      place-items: center;
+      box-shadow: 0 4px 14px rgba(47, 126, 120, 0.2);
+    }
+    .ring {
+      position: absolute;
+      inset: -4px;
+      border-radius: 50%;
+      border: 3px solid #FFFFFF;
+      pointer-events: none;
+    }
+
+    @keyframes line   { from { transform: translateY(105%); } }
+    @keyframes capIn  { from { opacity: 0; transform: scale(.8); } }
+    @keyframes ripple { from { opacity: .6; transform: scale(1); } to { opacity: 0; transform: scale(1.5); } }
+    @keyframes track  { from { opacity: 0; letter-spacing: .14em; } }
+
+    .in .mist { animation: fade 1000ms ease backwards; }
+    .in .cap  { animation: capIn 600ms var(--ease) backwards; }
+    .in .ring { animation: ripple 700ms var(--ease) 200ms both; }
+
+    .trust.in .ln      { animation: line 650ms var(--ease) calc(150ms + var(--i, 0) * 90ms) backwards; }
+    .trust.in .lead    { animation: rise 500ms var(--ease) 450ms backwards; }
+    .trust.in .eyebrow { animation: track 500ms var(--ease) 600ms backwards; }
+    .trust.in .stds li { animation: rise 450ms var(--ease) calc(720ms + var(--k, 0) * 70ms) backwards; --y: 8px; }
+
+    .stds {
+      list-style: none;
+      padding: 0;
+      margin: 38px 0 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 48px;
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: -0.01em;
+      color: #525858;
+      flex-wrap: wrap;
+    }
+
+    /* ---------- Block B: Features / Manage Section ---------- */
+    .manage.in .ln   { animation: line 650ms var(--ease) backwards; }
+    .manage.in .lead { animation: rise 500ms var(--ease) 150ms backwards; }
+    .manage.in .card { animation: rise 700ms var(--ease) calc(300ms + var(--k, 0) * 90ms) backwards; --y: 28px; }
+    .manage.in .ico  { animation: pop 350ms var(--ease) calc(550ms + var(--k, 0) * 90ms) backwards; }
+    @keyframes pop { from { opacity: 0; transform: scale(.7); } }
+
+    .ico path, .ico rect, .ico circle, .ico line, .ico polyline {
+      stroke-dasharray: 1;
+      stroke-dashoffset: 0;
+    }
+    .manage.in .ico :is(path, rect, circle, line, polyline) {
+      animation: draw 500ms var(--ease) calc(650ms + var(--k, 0) * 90ms) backwards;
+    }
+    @keyframes draw { from { stroke-dashoffset: 1; } }
+
+    .manage.in .card :is(h4, p) {
+      animation: rise 450ms var(--ease) calc(700ms + var(--k, 0) * 90ms) backwards;
+      --y: 8px;
+    }
+
+    .cards,
+    .features-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 40px;
+      text-align: left;
+      flex-wrap: wrap;
+    }
+
+    .card,
+    .ft {
+      background: #FFFFFF;
+      border-radius: 10px;
+      padding: 22px;
+      text-align: left;
+      flex: 1;
+      min-width: 220px;
+      transition: transform 250ms var(--ease), box-shadow 250ms var(--ease);
+      cursor: default;
+      user-select: none;
+    }
+    .card:hover,
+    .ft:hover {
+      transform: translateY(-4px);
+      box-shadow: inset 0 0 0 1.5px #2F7E78;
+    }
+    .card:active,
+    .ft:active {
+      transform: scale(.985);
+      transition-duration: 100ms;
+    }
+
+    .card h4 {
+      font-size: 14px;
+      font-weight: 700;
+      margin: 0 0 8px;
+      color: #0E0E0E;
+    }
+    .card p {
+      font-weight: 500;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #4A4F4F;
+      margin: 0;
+    }
+
+    .ico,
+    .ic {
+      width: 34px;
+      height: 34px;
+      border-radius: 6px;
+      background: #4F9690;
+      display: grid;
+      place-items: center;
+      margin-bottom: 16px;
+    }
+
+    /* Pricing Section & Apple-Style Choreography */
+    .price:not(.in) :is(.ln, .lead, .plan) {
+      opacity: 0;
+    }
+
+    .price.in .ln   { animation: line 650ms var(--ease) backwards; }
+    .price.in .lead { animation: rise 500ms var(--ease) 150ms backwards; }
+
+    .plans,
+    .pricing-row {
+      display: flex;
+      gap: 28px;
+      justify-content: center;
+      margin-top: 44px;
+      align-items: stretch;
+      flex-wrap: wrap;
+    }
+
+    .plan,
+    .pc {
+      border: 2px solid #2F7E78;
+      border-radius: 22px;
+      overflow: hidden;
+      width: 320px;
+      text-align: left;
+      background: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 250ms var(--ease);
+      box-sizing: border-box;
+    }
+    .plan:hover,
+    .pc:hover {
+      transform: translateY(-4px);
+    }
+    .plan:active,
+    .pc:active {
+      transform: scale(.99);
+      transition-duration: 100ms;
+    }
+
+    .price.in .plan {
+      --y: 32px;
+      animation: rise 700ms var(--ease) var(--pd) backwards;
+    }
+
+    .price.in .nm {
+      --y: 8px;
+      animation: rise 450ms var(--ease) calc(var(--pd) + 300ms) backwards;
+    }
+    .price.in .bdg {
+      animation: pop 300ms var(--ease) calc(var(--pd) + 450ms) backwards;
+    }
+    .price.in .desc {
+      --y: 8px;
+      animation: rise 450ms var(--ease) calc(var(--pd) + 380ms) backwards;
+    }
+    .price.in .unit {
+      animation: fade 400ms ease calc(var(--pd) + 900ms) backwards;
+    }
+
+    .amt {
+      font-variant-numeric: tabular-nums;
+      display: inline-block;
+    }
+    .amt.word {
+      overflow: hidden;
+    }
+    .price.in .amt.word .ln {
+      animation: line 650ms var(--ease) calc(var(--pd) + 460ms) backwards;
+    }
+
+    .unit {
+      font-weight: 500;
+      font-size: 13px;
+      letter-spacing: 0 !important;
+      white-space: nowrap;
+    }
+
+    .plan .t,
+    .pc .t {
+      padding: 24px 24px 20px;
+      min-height: 148px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-sizing: border-box;
+    }
+
+    .plan .b,
+    .pc .b {
+      padding: 22px 24px 26px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      box-sizing: border-box;
+    }
+
+    .feat,
+    .pc ul {
+      margin: 0 0 24px;
+      padding-left: 18px;
+      font-weight: 500;
+      font-size: 12.5px;
+      line-height: 2.1;
+      list-style-type: disc;
+    }
+
+    .price.in .feat li {
+      --y: 8px;
+      animation: rise 450ms var(--ease) calc(var(--pd) + 650ms + var(--i, 0) * 55ms) backwards;
+    }
+
+    .plan .cta,
+    .pc .pill {
+      width: 100%;
+      justify-content: center;
+      background: linear-gradient(90deg, #0E0E0E, #4A4F4F);
+      color: #FFFFFF;
+      margin-top: auto;
+      border: 1.5px solid transparent;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 14px;
+      padding: 12px 22px;
+      display: inline-flex;
+      align-items: center;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 100ms ease-out, filter 150ms ease, background-color 150ms ease;
+    }
+    .plan .cta:hover,
+    .pc .pill:hover {
+      filter: brightness(1.18);
+    }
+    .plan .cta:active,
+    .pc .pill:active {
+      transform: scale(.97);
+    }
+
+    .price.in .plan .cta {
+      --y: 10px;
+      animation: rise 500ms var(--ease) calc(var(--pd) + 1050ms) backwards;
+    }
+
+    .featured.growth-card .t {
+      background: #FFFFFF;
+      color: #0E0E0E;
+    }
+    .featured.growth-card .b {
+      background: #4F9690;
+      color: #FFFFFF;
+    }
+    .featured .cta {
+      background: transparent !important;
+      border: 1.5px solid #FFFFFF !important;
+      color: #FFFFFF !important;
+    }
+    .featured .cta:hover {
+      filter: none !important;
+      background: rgba(255, 255, 255, 0.14) !important;
+    }
+
+    /* FAQ Section: Layout & Choreographed Scroll Entrance */
+    .faq {
+      display: flex;
+      gap: 36px;
+      padding: 120px 56px 0;
+      align-items: flex-start;
+      max-width: 1240px;
+      margin: 0 auto;
+    }
+    .faq .left {
+      flex: 4;
+    }
+    .faq .right {
+      flex: 6;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .faq:not(.in) :is(.badge, .ln, .ask, .row) {
+      opacity: 0;
+    }
+
+    @keyframes wipe {
+      from { clip-path: inset(0 100% 0 0 round 9px); }
+      to { clip-path: inset(0 0 0 0 round 9px); }
+    }
+
+    /* Left Column Entrance */
+    .faq .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #8FB5B1;
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-weight: 600;
+      font-size: 11px;
+      color: #0E0E0E;
+      animation: none;
+    }
+    .faq .badge i {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: 2px solid #0E0E0E;
+      display: inline-block;
+      box-sizing: border-box;
+    }
+    .faq h2 {
+      font-size: 44px;
+      margin: 16px 0 28px;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      font-weight: 800;
+      color: #0E0E0E;
+    }
+    .faq h2 em {
+      font-style: normal;
+      color: #2F7E78;
+    }
+    .faq .ask {
+      border: 2px solid #2F7E78;
+      border-radius: 9px;
+      padding: 24px;
+      background: #F6F8F8;
+    }
+    .faq .ask h3 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #0E0E0E;
+      margin: 0 0 10px;
+    }
+    .faq .ask p {
+      font-weight: 500;
+      font-size: 13px;
+      line-height: 1.5;
+      margin: 0 0 20px;
+      color: #4A4F4F;
+      letter-spacing: 0;
+    }
+    .faq .ask .a2 {
+      display: inline-block;
+      text-decoration: none;
+    }
+
+    .faq.in .badge   { animation: pop 300ms var(--ease) backwards; --s: .9; }
+    .faq.in .ln      { animation: line 650ms var(--ease) calc(80ms + var(--i) * 90ms) backwards; }
+    .faq.in .ask     { --y: 20px; animation: rise 600ms var(--ease) 300ms backwards; }
+    .faq.in .ask .a1 { --y: 8px; animation: rise 450ms var(--ease) 550ms backwards; }
+    .faq.in .ask .a2 { animation: rise 500ms var(--ease) 700ms backwards; }
+
+    /* Rows: Entrance */
+    .faq.in .row             { animation: wipe 600ms var(--ease) calc(200ms + var(--k) * 90ms) backwards; }
+    .faq.in .chev            { animation: pop 300ms var(--ease) calc(450ms + var(--k) * 90ms) backwards; --s: .7; }
+    .faq.in .q span          { animation: fade 350ms ease calc(550ms + var(--k) * 90ms) backwards; }
+    .faq.in .row.open .ans p { animation: fade 450ms ease calc(650ms + var(--k) * 90ms) backwards; }
+
+    /* Rows: Interaction (Transitions for interruptible motion) */
+    .row {
+      position: relative;
+      border: 2px solid #2F7E78;
+      border-radius: 9px;
+      background: #F6F8F8;
+      transition: transform 100ms ease-out, border-color 200ms ease;
+    }
+    .row:hover  { border-color: #1F6B65; }
+    .row:active { transform: scale(.99); }
+
+    .q {
+      all: unset;
+      box-sizing: border-box;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      width: 100%;
+      padding: 18px 20px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 14px;
+      color: #0E0E0E;
+      letter-spacing: 0;
+      position: relative;
+      z-index: 2;
+    }
+    .q:focus-visible {
+      outline: 2px solid #0E0E0E;
+      outline-offset: 3px;
+      border-radius: 9px;
+    }
+
+    .chev {
+      width: 24px;
+      height: 24px;
+      border: 1.5px solid #4F9690;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      flex-shrink: 0;
+      transition: transform 300ms var(--ease), background-color 200ms ease;
+    }
+    .q:hover .chev  { background: rgba(79, 150, 144, .15); }
+    .row.open .chev { transform: rotate(180deg); }
+
+    .ans {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows 350ms var(--ease);
+      position: relative;
+      z-index: 2;
+    }
+    .ans > div { overflow: hidden; }
+    .ans p {
+      margin: 0;
+      padding: 0 20px 20px;
+      opacity: 0;
+      transition: opacity 250ms ease;
+      font-weight: 500;
+      font-size: 13px;
+      line-height: 1.55;
+      color: #2B3A38;
+      letter-spacing: 0;
+    }
+    .row.open .ans   { grid-template-rows: 1fr; }
+    .row.open .ans p { opacity: 1; transition-delay: 100ms; }
+
+    .row::after {
+      content: "";
+      position: absolute;
+      inset: auto 0 0 0;
+      height: 46%;
+      border-radius: 0 0 7px 7px;
+      background: linear-gradient(180deg, transparent, rgba(95, 154, 149, .55));
+      opacity: 0;
+      transition: opacity 350ms ease;
+      pointer-events: none;
+      z-index: 1;
+    }
+    .row.open::after { opacity: 1; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .faq.in * {
+        animation: fade 250ms ease backwards !important;
+        animation-delay: 0ms !important;
+      }
+      .ans, .chev, .ans p, .row::after {
+        transition-duration: 1ms !important;
+      }
+    }
+
+    /* ---------- CTA ---------- */
+    section.cta,
+    .cta {
+      display: block !important;
+      position: relative;
+      max-width: 1240px;
+      margin: 100px auto 0;
+      padding: 80px 48px 110px;
+      text-align: center;
+      box-sizing: border-box;
+      background: transparent !important;
+      border-radius: 0 !important;
+      border: none !important;
+      width: 100% !important;
+    }
+    .cta:not(.in) :is(.shape, .ln, .lead, .btns a, .btns button, .b1, .b2) {
+      opacity: 0;
+    }
+    .cta h2 {
+      font-size: 32px;
+      max-width: 580px;
+      margin: 0 auto;
+      letter-spacing: -0.02em;
+      line-height: 1.25;
+      font-weight: 800;
+      color: #0E0E0E;
+      position: relative;
+      z-index: 2;
+      text-wrap: balance;
+    }
+    .shape {
+      position: absolute;
+      left: 6%;
+      right: 0;
+      top: 70px;
+      bottom: 0;
+      border-radius: 520px 0 90px 0 / 100% 0 90px 0;
+      background: radial-gradient(ellipse 65% 85% at 82% 88%, #5F9A95 0%, rgba(95, 154, 149, 0.6) 38%, rgba(214, 226, 224, 0.35) 72%, rgba(241, 242, 242, 0) 100%);
+      -webkit-mask-image: linear-gradient(180deg, transparent 0, #000 38%);
+      mask-image: linear-gradient(180deg, transparent 0, #000 38%);
+      pointer-events: none;
+      z-index: 1;
+      transform-origin: 100% 100%;
+    }
+    .cta.in .shape { animation: swell 900ms var(--ease) backwards; }
+    @keyframes swell { from { opacity: 0; transform: translateX(40px) scale(.92); } }
+    .cta.in .ln   { animation: line 650ms var(--ease) calc(100ms + var(--i) * 90ms) backwards; }
+    .cta.in .lead { animation: rise 500ms var(--ease) 400ms backwards; }
+    .cta.in .b1   { --y: 12px; animation: rise 500ms var(--ease) 560ms backwards; }
+    .cta.in .b2   { --y: 12px; animation: rise 500ms var(--ease) 640ms backwards; }
+
+    .cta .lead {
+      font-weight: 500;
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: #4A4F4F;
+      max-width: 520px;
+      margin: 16px auto 0;
+      position: relative;
+      z-index: 2;
+      letter-spacing: 0;
+    }
+    .cta .btns {
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      margin-top: 30px;
+      flex-wrap: wrap;
+      position: relative;
+      z-index: 2;
+    }
+    .cta .btns :is(a, button) {
+      padding: 16px 34px;
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: none;
+      border: 1.5px solid #000000 !important;
+      box-shadow: 0 3px 6px rgba(0, 0, 0, 0.2) !important;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      font-family: inherit;
+    }
+    .cta .btns :is(a, button):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.25) !important;
+    }
+    .cta .btns :is(a, button):active {
+      transform: scale(.97);
+      transition-duration: 100ms;
+    }
+    .cta .b2.tint {
+      background: #DCE8E6;
+      color: #0E0E0E;
+    }
+
+    /* ---------- Footer ---------- */
+    .foot {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 40px 64px 0;
+      box-sizing: border-box;
+    }
+    .foot:not(.in) :is(.col > *, .soc a, .mail, .copy, .rule, .word span) {
+      opacity: 0;
+    }
+    .foot .cols {
+      display: flex;
+      gap: 120px;
+      padding-bottom: 24px;
+      flex-wrap: wrap;
+    }
+    .foot .col {
+      display: flex;
+      flex-direction: column;
+    }
+    .foot .col h4 {
+      font-weight: 700;
+      font-size: 12px;
+      margin: 0 0 10px;
+      color: #0E0E0E;
+      letter-spacing: 0;
+    }
+    .foot .col p,
+    .foot .col a {
+      font-weight: 500;
+      font-size: 12px;
+      line-height: 2;
+      color: #4A4F4F;
+      margin: 0;
+      text-decoration: none;
+      letter-spacing: 0;
+      display: block;
+    }
+    .foot .soc {
+      display: flex;
+      gap: 16px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    .foot .soc a {
+      line-height: 1;
+    }
+    .foot .mail {
+      font-size: 11px;
+      color: #4A4F4F;
+      line-height: 1.5;
+      text-decoration: none;
+      letter-spacing: 0;
+    }
+
+    .foot.in .col > :is(h4)   { --y: 8px; animation: rise 450ms var(--ease) calc(var(--c) * 80ms) backwards; }
+    .foot.in .col > :is(p, a) { --y: 8px; animation: rise 450ms var(--ease) calc(var(--c) * 80ms + 100ms + var(--j) * 40ms) backwards; }
+    .foot.in .soc a          { animation: pop 300ms var(--ease) calc(400ms + var(--j) * 60ms) backwards; }
+    .foot.in .mail           { animation: fade 400ms ease 500ms backwards; }
+
+    .rule {
+      transform-origin: left;
+      border: 0;
+      border-top: 1px solid #C9D3D2;
+      max-width: 1112px;
+      margin: 0 auto;
+    }
+    .foot.in .rule { animation: draw 800ms var(--ease) 500ms backwards; }
+    .foot.in .copy { animation: fade 500ms ease 800ms backwards; }
+
+    .copy {
+      text-align: center;
+      font-weight: 500;
+      font-size: 11px;
+      color: #4A4F4F;
+      padding-top: 14px;
+      margin: 0;
+      letter-spacing: 0;
+    }
+
+    /* link underline that draws and retracts */
+    .col a {
+      background: linear-gradient(currentColor, currentColor) left bottom / 0 1px no-repeat;
+      transition: background-size 250ms var(--ease);
+      width: fit-content;
+    }
+    .col a:hover {
+      background-size: 100% 1px;
+    }
+
+    /* ---------- Wordmark ---------- */
+    .word {
+      overflow: visible;
+      height: auto;
+      display: flex;
+      justify-content: center;
+      white-space: nowrap;
+      font: 800 clamp(32px, 10.5vw, 218px)/1 'Inter', sans-serif;
+      letter-spacing: -0.025em;
+      margin-top: 40px;
+      padding-bottom: 56px;
+      user-select: none;
+      box-sizing: border-box;
+      max-width: 100vw;
+    }
+    .word span {
+      display: inline-block;
+      background: linear-gradient(180deg, #4A7F7B 18%, rgba(79, 150, 144, 0.45) 60%, rgba(79, 150, 144, 0.08) 96%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+      transition: transform 300ms var(--ease);
+      cursor: default;
+    }
+    .word span:hover {
+      transform: translateY(-14px);
+    }
+    .foot.in .word span {
+      animation: letter 900ms var(--ease) calc(700ms + var(--i) * 55ms) backwards;
+    }
+    @keyframes letter {
+      from { opacity: 0; transform: translateY(40px); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .cta.in *, .foot.in * {
+        animation: fade 250ms ease backwards !important;
+        animation-delay: 0ms !important;
+      }
+      .word span:hover {
+        transform: none;
+      }
+    }
+
+    /* ==========================================================================
+       RESPONSIVE DESIGN BREAKPOINTS & DEVICE ADAPTATIONS
+       ========================================================================== */
+
+    /* Small Laptops & Tablets Landscape (<= 1024px) */
+    @media (max-width: 1024px) {
+      .tile {
+        transform: rotate(calc(var(--r) * 0.45));
+      }
+      .foot .cols {
+        gap: 60px;
+      }
+    }
+
+    /* Tablets (<= 960px) */
+    @media (max-width: 960px) {
+      .cards,
+      .features-row {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      .card,
+      .ft {
+        min-width: 0;
+      }
+      .plans,
+      .pricing-row {
+        flex-direction: column;
+        align-items: center;
+        gap: 28px;
+      }
+      .plan,
+      .pc {
+        width: 100%;
+        max-width: 380px;
+      }
+      .faq {
+        flex-direction: column;
+        padding: 80px 32px 0;
+        gap: 36px;
+      }
+      .faq .left,
+      .faq .right {
+        width: 100%;
+        flex: none;
+      }
+      .faq .right {
+        max-width: 100%;
+      }
+    }
+
+    /* Tablets Portrait & Large Mobiles (<= 820px) */
+    @media (max-width: 820px) {
+      nav.floating-nav {
+        width: calc(100% - 32px);
+        max-width: 520px;
+      }
+      .nav-links {
+        display: none !important;
+      }
+      .nav-toggle {
+        display: flex;
+      }
+      .nav-bar {
+        padding: 6px 8px 6px 18px;
+      }
+      .nav-login-btn {
+        padding: 8px 14px !important;
+        font-size: 12px !important;
+      }
+      .foot .cols {
+        gap: 40px;
+      }
+    }
+
+    /* Mobile Screens (<= 768px) */
+    @media (max-width: 768px) {
+      .sec {
+        padding: 0 20px;
+      }
+      #home {
+        padding-top: 96px !important;
+      }
+      .sec > .badge {
+        font-size: 11px;
+        padding: 4px 10px 4px 4px;
+        gap: 6px;
+        max-width: 96%;
+      }
+      .sec > .badge span:first-child {
+        padding: 4px 8px;
+      }
+      h1, .h1 {
+        font-size: clamp(30px, 8.2vw, 48px);
+        margin-top: 18px;
+      }
+      .org {
+        padding: 0 14px;
+      }
+      .sub {
+        font-size: 14.5px;
+        line-height: 1.5;
+        padding: 0 8px;
+      }
+      
+      /* Straighten tilted cards on mobile for clean Apple card stack */
+      .tiles,
+      .tiles-row {
+        gap: 24px;
+        padding: 36px 16px 54px;
+      }
+      .tile {
+        width: 100% !important;
+        max-width: 330px !important;
+        height: auto !important;
+        min-height: 290px;
+        transform: none !important;
+        margin: 0 auto;
+      }
+      .tile:hover {
+        transform: translateY(-4px) !important;
+      }
+
+      /* Standards List */
+      .stds {
+        gap: 16px 20px;
+        margin-top: 28px;
+        flex-wrap: wrap;
+      }
+      .stds li {
+        font-size: 13.5px !important;
+      }
+
+      /* Final CTA */
+      .cta {
+        padding: 56px 20px 72px;
+      }
+      .cta .btns {
+        flex-direction: column;
+        width: 100%;
+        max-width: 320px;
+        margin: 24px auto 0;
+        gap: 10px;
+      }
+      .cta .btns .pill {
+        width: 100%;
+        justify-content: center;
+        box-sizing: border-box;
+      }
+
+      /* Footer */
+      .foot {
+        padding: 36px 20px 0;
+      }
+      .foot .cols {
+        flex-direction: column;
+        gap: 32px;
+      }
+      .word {
+        padding-bottom: 36px;
+      }
+    }
+
+    /* Compact Mobile Devices (<= 600px) */
+    @media (max-width: 600px) {
+      .cards,
+      .features-row {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .card,
+      .ft {
+        width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+      }
+      .faq {
+        padding: 50px 16px 0;
+      }
+      .faq .q {
+        font-size: 14.5px;
+        padding: 16px 20px 16px 0;
+      }
+      .faq .ans p {
+        font-size: 13px;
+        line-height: 1.55;
+      }
+    }
+
+    /* Apple-Style Request Demo Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 280ms var(--ease);
+    }
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(14, 14, 14, 0.52);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+    }
+    .modal-card {
+      position: relative;
+      background: #FFFFFF;
+      border-radius: 28px;
+      border: 1.5px solid rgba(47, 126, 120, 0.25);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+      width: 100%;
+      max-width: 480px;
+      padding: 32px 30px 28px;
+      box-sizing: border-box;
+      transform: scale(0.94) translateY(12px);
+      transition: transform 320ms var(--ease);
+      z-index: 2;
+    }
+    .modal-overlay.active .modal-card {
+      transform: scale(1) translateY(0);
+    }
+    .modal-close {
+      position: absolute;
+      top: 18px;
+      right: 18px;
+      width: 34px;
+      height: 34px;
+      border-radius: 50%;
+      background: #F1F2F2;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #0E0E0E;
+      transition: background 150ms ease, transform 100ms ease;
+    }
+    .modal-close:hover {
+      background: #E2E6E6;
+    }
+    .modal-close:active {
+      transform: scale(0.92);
+    }
+    .modal-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #BFF0E4;
+      color: #1F8F7F;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      border-radius: 999px;
+      padding: 4px 12px;
+      margin-bottom: 12px;
+    }
+    .pulse-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #1F8F7F;
+      animation: pulseDot 1.5s infinite;
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.85); }
+    }
+    .modal-title {
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: #0E0E0E;
+      margin: 0 0 8px;
+      line-height: 1.2;
+    }
+    .modal-desc {
+      font-size: 13.5px;
+      color: #4A4F4F;
+      line-height: 1.45;
+      margin: 0 0 20px;
+    }
+    .modal-form {
+      display: flex;
+      flex-direction: column;
+      gap: 13px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      text-align: left;
+    }
+    .form-group label {
+      font-size: 12px;
+      font-weight: 700;
+      color: #0E0E0E;
+      letter-spacing: -0.01em;
+    }
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      height: 42px;
+      padding: 0 14px;
+      border-radius: 12px;
+      border: 1.5px solid #D8DCDC;
+      background: #F9FAFA;
+      font-family: inherit;
+      font-size: 13.5px;
+      color: #0E0E0E;
+      box-sizing: border-box;
+      outline: none;
+      transition: border-color 150ms ease, box-shadow 150ms ease, background 150ms ease;
+    }
+    .form-group input:focus,
+    .form-group select:focus {
+      border-color: #2F7E78;
+      background: #FFFFFF;
+      box-shadow: 0 0 0 3px rgba(47, 126, 120, 0.14);
+    }
+    .form-row {
+      display: flex;
+      gap: 12px;
+    }
+    .form-row .form-group {
+      flex: 1;
+    }
+    @media (max-width: 480px) {
+      .form-row {
+        flex-direction: column;
+        gap: 13px;
+      }
+      .modal-card {
+        padding: 24px 20px 22px;
+      }
+    }
+    .modal-submit-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      height: 46px;
+      border-radius: 999px;
+      background: #25D366;
+      color: #FFFFFF;
+      font-weight: 700;
+      font-size: 14px;
+      border: none;
+      cursor: pointer;
+      margin-top: 6px;
+      transition: transform 100ms ease, filter 150ms ease, background 200ms ease;
+      font-family: inherit;
+      box-shadow: 0 4px 14px rgba(37, 211, 102, 0.35);
+    }
+    .modal-submit-btn:hover {
+      filter: brightness(1.06);
+    }
+    .modal-submit-btn:active {
+      transform: scale(0.98);
+    }
+    .modal-footer-contact {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-size: 12.5px;
+      color: #606767;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+    .direct-call-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      color: #2F7E78;
+      font-weight: 700;
+      text-decoration: none;
+      transition: color 150ms ease;
+    }
+    .direct-call-link:hover {
+      color: #1F8F7F;
+      text-decoration: underline;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="site-wrapper">
+    
+    <!-- Background Wash -->
+    <div class="bg-washes"></div>
+
+    <div class="site-content">
+
+      <!-- Navigation -->
+      <nav class="floating-nav nav" id="mainNav">
+        <div class="nav-bar">
+          <a href="#home" class="nav-brand">Quantech</a>
+          <span class="nav-links" id="navLinks">
+            <a href="#home" class="nav-item active">Home</a>
+            <a href="#how-it-works" class="nav-item">How It Works</a>
+            <a href="#features" class="nav-item">Features</a>
+            <a href="#pricing" class="nav-item">Pricing</a>
+            <a href="#faq" class="nav-item">FAQ</a>
+            <a href="#contact" class="nav-item">Contact</a>
+            <span class="nav-dot" id="navDot"></span>
+          </span>
+          <div class="nav-actions">
+            <a href="/login" class="pill ink nav-login-btn" style="padding: 10px 18px;">Admin Login</a>
+            <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation menu" aria-expanded="false">
+              <span class="t-line t1"></span>
+              <span class="t-line t2"></span>
+            </button>
+          </div>
+        </div>
+        <div class="nav-mobile-dropdown" id="navMobileMenu">
+          <a href="#home" class="mob-item">Home</a>
+          <a href="#how-it-works" class="mob-item">How It Works</a>
+          <a href="#features" class="mob-item">Features</a>
+          <a href="#pricing" class="mob-item">Pricing</a>
+          <a href="#faq" class="mob-item">FAQ</a>
+          <a href="#contact" class="mob-item">Contact</a>
+        </div>
+      </nav>
+
+      <!-- Hero Section -->
+      <section class="sec" id="home" style="padding-top: 104px;">
+        <div class="badge" style="display: inline-flex; align-items: center; gap: 12px; background: #FFFFFF; border: 1.5px solid #0E0E0E; border-radius: 999px; padding: 6px 14px 6px 6px; font-weight: 600; font-size: 12px; margin-bottom: 8px;">
+          <span style="background: #0E0E0E; color: #FFFFFF; border-radius: 999px; padding: 5px 12px;">Session 2026-27</span>
+          <span>All-In-One Campus Management & ERP</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="#0E0E0E">
+            <path d="M6 4l14 8-14 8z"></path>
+          </svg>
+        </div>
+
+        <h1 class="h1">
+          <span class="line"><span class="w" style="--i:0">A</span> <span class="w" style="--i:1">school</span> <span class="w" style="--i:2">system</span> <span class="w" style="--i:3">that</span></span>
+          <span class="line"><span class="w" style="--i:4">works</span> <span class="w" style="--i:5">like</span> <span class="w" style="--i:6">an</span>
+            <span class="org"><span class="w" style="--i:8">Organiser</span></span></span>
+        </h1>
+
+        <p class="sub" style="max-width: 480px;">
+          Admissions, automated fee collection, marksheet generation, and parent WhatsApp updates. Built for modern schools.
+        </p>
+
+        <div style="display: flex; gap: 12px; justify-content: center; margin-top: 28px; flex-wrap: wrap;">
+          <button type="button" class="pill ink cta-1 open-demo-btn" style="cursor: pointer; border: none; font-family: inherit;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="#FFFFFF">
+              <path d="M12 2l2.5 7.5L22 12l-7.5 2.5L12 22l-2.5-7.5L2 12l7.5-2.5z"></path>
+            </svg>
+            Request Demo
+          </button>
+          <a href="tel:+919488842786" class="pill wht cta-2">
+            <span style="width: 24px; height: 24px; border-radius: 50%; background: #C9824A; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            </span>
+            Book a call
+          </a>
+        </div>
+      </section>
+
+      <!-- Steps Strip with Apple-Style Scroll Choreography -->
+      <section class="steps" id="how-it-works" data-id="steps">
+        <div class="rule"></div>
+        <div class="tiles">
+          
+          <!-- Step 01: Admissions -->
+          <article class="tile" style="--r:-10deg; --d:100ms">
+            <div class="tile1-visual">
+              <div class="tile1-ribbon rollrow">
+                <span class="tile1-label">Roll #2026-84</span>
+                <span class="tile1-btn admit-btn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                  Admit Student
+                </span>
+              </div>
+            </div>
+            <div class="tile-caption copy">
+              <div class="step-badge">Step 01:</div>
+              <div class="step-desc">Register <b>new admissions</b> in minutes, verify KYC, and <b>auto-issue roll numbers</b></div>
+            </div>
+          </article>
+
+          <!-- Step 02: Fees & WhatsApp -->
+          <article class="tile" style="--r:-3deg; --d:220ms">
+            <div class="tile2-visual">
+              
+              <div class="chat-pill chat-pill-1 chip" style="--k:0">
+                <div class="chat-avatar av-parent">P</div>
+                <div class="chat-meta">
+                  <span class="chat-name">Pooja Sharma (Parent)</span>
+                  <span class="chat-sub">Term 1 Tuition Fee Paid</span>
+                </div>
+                <span class="chat-chip badge2" id="amt">+₹0</span>
+              </div>
+
+              <div class="chat-pill chat-pill-2 chip" style="--k:1">
+                <div class="chat-avatar av-admin">A</div>
+                <div class="chat-meta">
+                  <span class="chat-name">Accounts Dept.</span>
+                  <span class="chat-sub">Reconciled with HDFC Bank</span>
+                </div>
+                <span class="chat-chip badge2">Auto-Match</span>
+              </div>
+
+              <div class="chat-pill chat-pill-3 chip" style="--k:2">
+                <div class="chat-avatar" style="background: #25D366; font-size: 10px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91C2.13 13.66 2.59 15.36 3.45 16.86L2.05 22L7.3 20.63C8.75 21.41 10.38 21.83 12.04 21.83C17.5 21.83 21.95 17.38 21.95 11.92C21.95 9.27 20.92 6.78 19.05 4.91C17.18 3.03 14.69 2 12.04 2M12.05 3.67C14.25 3.67 16.31 4.53 17.87 6.09C19.42 7.65 20.28 9.72 20.28 11.92C20.28 16.46 16.58 20.16 12.04 20.16C10.66 20.16 9.3 19.8 8.1 19.09L7.81 18.92L4.69 19.74L5.52 16.7L5.33 16.39C4.54 15.13 4.12 13.54 4.12 11.91C4.12 7.37 7.82 3.67 12.05 3.67Z"/></svg>
+                </div>
+                <div class="chat-meta">
+                  <span class="chat-name">Parent WhatsApp</span>
+                  <span class="chat-sub">Receipt #4820 delivered</span>
+                </div>
+                <span class="chat-chip badge2">Delivered ✓✓</span>
+              </div>
+
+            </div>
+            <div class="tile-caption copy">
+              <div class="step-badge">Step 02:</div>
+              <div class="step-desc">Collect <b>school fees online</b> with auto-reconcile and <b>instant WhatsApp receipts</b></div>
+            </div>
+          </article>
+
+          <!-- Step 03: Marksheets & Analytics -->
+          <article class="tile" style="--r:8deg; --d:340ms">
+            <div class="tile3-visual">
+              <div class="bars-group">
+                <div class="chart-bar cbar-1 bar" style="--k:0"></div>
+                <div class="chart-bar cbar-2 bar" style="--k:1"></div>
+                <div class="chart-bar cbar-3 bar hero-bar" style="--k:2"></div>
+                <div class="chart-bar cbar-4 bar" style="--k:3"></div>
+              </div>
+            </div>
+            <div class="tile-caption copy">
+              <div class="step-badge">Step 03:</div>
+              <div class="step-desc">Generate <b>CBSE marksheets</b> and publish <b>report cards in 1 click</b></div>
+            </div>
+          </article>
+
+        </div>
+        <div class="rule" style="--rd:150ms"></div>
+      </section>
+
+      <!-- Block A: Trust Section -->
+      <section class="trust sec" id="trust" style="padding-top: 84px;">
+        <div class="mist"></div>
+        <div class="cap">
+          <span class="ring"></span>
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="#FFFFFF"><path d="M12 3L1 9l11 6 9-4.91V17h2V9M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/></svg>
+        </div>
+        <h2 class="mask" style="font-size: 32px; max-width: 640px; margin: 0 auto;">
+          <span class="ln" style="--i:0">Simpler Days for Teachers, Zero</span>
+          <span class="ln" style="--i:1">Headaches for Principals</span>
+        </h2>
+        <p class="lead sub" style="max-width: 580px;">
+          Forget juggling manual registers, lost fee receipts, and chaotic WhatsApp groups. Quantech unifies admissions, automated fee collections, CBSE report cards, and parent updates into one calm dashboard.
+        </p>
+        <p class="eyebrow" style="font-weight: 600; font-size: 11.5px; color: #2F7E78; margin: 24px 0 0; letter-spacing: 0.02em;">
+          BUILT FOR MODERN CAMPUSES & COMPLIANT WITH NATIONAL EDUCATION STANDARDS
+        </p>
+        
+        <ul class="stds">
+          <li style="--k:0; display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            CBSE Standards
+          </li>
+          <li style="--k:1; font-weight: 800; letter-spacing: 0.04em; font-size: 15px;">
+            CISCE / ICSE
+          </li>
+          <li style="--k:2; display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            Cambridge Curriculum
+          </li>
+          <li style="--k:3; font-weight: 800; letter-spacing: 0.04em; font-size: 15px;">
+            STATE BOARDS
+          </li>
+          <li style="--k:4; display: flex; align-items: center; gap: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            DigiLocker Integrated
+          </li>
+        </ul>
+      </section>
+
+      <!-- Block B: Features Section (4 Flush White Tiles) -->
+      <section class="manage sec" id="features" data-id="manage" style="padding-top: 104px;">
+        <h2 class="mask">
+          <span class="ln">Here’s what Quantech Helps You Manage</span>
+        </h2>
+        <p class="lead sub">Comprehensive campus automation built for principals, administrators, teachers, and parents.</p>
+        
+        <div class="cards features-row">
+          
+          <article class="card ft" style="--k:0">
+            <i class="ico ic">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path pathLength="1" d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                <circle pathLength="1" cx="8.5" cy="7" r="4"></circle>
+                <line pathLength="1" x1="20" y1="8" x2="20" y2="14"></line>
+                <line pathLength="1" x1="23" y1="11" x2="17" y2="11"></line>
+              </svg>
+            </i>
+            <h4>Instant Admissions</h4>
+            <p>Digital registration forms, KYC document vaults, auto-generated student IDs, and instant cohort sectioning.</p>
+          </article>
+
+          <article class="card ft" style="--k:1">
+            <i class="ico ic">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect pathLength="1" x="2" y="4" width="20" height="16" rx="2"></rect>
+                <line pathLength="1" x1="2" y1="10" x2="22" y2="10"></line>
+              </svg>
+            </i>
+            <h4>Fee Collection & UPI</h4>
+            <p>Zero-reconciliation fee collection via UPI, cards & NetBanking with instant WhatsApp receipts for parents.</p>
+          </article>
+
+          <article class="card ft" style="--k:2">
+            <i class="ico ic">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path pathLength="1" d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline pathLength="1" points="14 2 14 8 20 8"></polyline>
+                <line pathLength="1" x1="16" y1="13" x2="8" y2="13"></line>
+                <line pathLength="1" x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline pathLength="1" points="10 9 9 9 8 9"></polyline>
+              </svg>
+            </i>
+            <h4>1-Click Marksheets</h4>
+            <p>Auto-calculated CGPA, scholastic grades, teacher remarks, and CBSE/ICSE board-compliant report cards.</p>
+          </article>
+
+          <article class="card ft" style="--k:3">
+            <i class="ico ic">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path pathLength="1" d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+              </svg>
+            </i>
+            <h4>Parent WhatsApp Hub</h4>
+            <p>Daily attendance alerts, homework, bus tracking, and emergency circulars delivered directly to parents' WhatsApp.</p>
+          </article>
+
+        </div>
+      </section>
+
+      <!-- Pricing Section with Apple-Style Scroll Choreography -->
+      <section class="price sec" id="pricing" style="padding-top: 120px; position: relative;">
+        <h2 class="mask"><span class="ln">Simple, Transparent Per-Student Pricing</span></h2>
+        <p class="lead sub">No hidden hardware costs or surprise licensing fees. Full campus automation billed annually per enrolled student.</p>
+        
+        <div class="plans pricing-row">
+          
+          <!-- Plan 1: Basic Campus -->
+          <article class="plan pc" style="--o:1">
+            <div class="t" style="background: #4F9690; color: #FFFFFF;">
+              <div style="height: 22px; display: flex; align-items: center;">
+                <b class="nm" style="font-size: 15px;">Basic Campus</b>
+              </div>
+              <p class="desc" style="font-weight: 500; font-size: 11px; line-height: 1.4; margin: 12px 0; opacity: 0.9;">
+                Essential attendance, rosters, and administrative tools for growing schools.
+              </p>
+              <div style="font-weight: 800; font-size: 42px; letter-spacing: -0.03em; display: flex; align-items: baseline; gap: 6px;">
+                <span class="amt" data-count="39">₹39</span>
+                <span class="unit" style="color: rgba(255, 255, 255, 0.9);">per student / yr</span>
+              </div>
+            </div>
+            <div class="b" style="background: #EEF3F2;">
+              <ul class="feat">
+                <li style="--i:0">30-sec digital attendance & roll call</li>
+                <li style="--i:1">Master student & faculty roster directory</li>
+                <li style="--i:2">Digital notice board & school circulars</li>
+                <li style="--i:3">Offline exam & unit test marks entry</li>
+                <li style="--i:4">Digital student ID cards (PDF export)</li>
+                <li style="--i:5">Classroom timetable & subject planner</li>
+                <li style="--i:6">Web & teacher mobile portal access</li>
+              </ul>
+              <button type="button" class="pill cta open-demo-btn" data-plan="Basic Campus (₹39/yr)" style="width: 100%; justify-content: center; border: none; cursor: pointer;">Choose Basic</button>
+            </div>
+          </article>
+
+          <!-- Plan 2: Campus Pro (Featured - ₹59 with FREE Physical ID Cards) -->
+          <article class="plan pc growth-card featured" style="--o:0">
+            <div class="t">
+              <div style="height: 22px; display: flex; justify-content: space-between; align-items: center;">
+                <b class="nm" style="font-size: 15px;">Campus Pro</b>
+                <span class="bdg" style="background: #BFF0E4; color: #1F8F7F; font-size: 10px; font-weight: 700; border-radius: 999px; padding: 2px 10px; letter-spacing: 0.02em;">MOU STANDARD</span>
+              </div>
+              <p class="desc" style="font-weight: 500; font-size: 11px; line-height: 1.4; margin: 12px 0; color: #4A4F4F;">
+                Complete ERP with automated fees, marksheets, and free physical ID cards.
+              </p>
+              <div style="font-weight: 800; font-size: 42px; letter-spacing: -0.03em; display: flex; align-items: baseline; gap: 6px;">
+                <span class="amt" data-count="59">₹59</span>
+                <span class="unit" style="color: #4A4F4F;">per student / yr</span>
+              </div>
+            </div>
+            <div class="b">
+              <ul class="feat">
+                <li style="--i:0">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="display: inline-block; vertical-align: -1px; margin-right: 3px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
+                  <b>Free physical PVC student ID cards</b>
+                </li>
+                <li style="--i:1">Automated fees & UPI instant receipts</li>
+                <li style="--i:2">1-click CBSE & ICSE marksheets</li>
+                <li style="--i:3">Parent WhatsApp attendance alerts</li>
+                <li style="--i:4">HOD syllabus completion progress</li>
+                <li style="--i:5">Parent Mobile App (Android & iOS)</li>
+                <li style="--i:6">UDISE+, APAAR & PEN compliance</li>
+              </ul>
+              <button type="button" class="pill cta open-demo-btn" data-plan="Campus Pro (₹59/yr) - Most Popular" style="width: 100%; justify-content: center; cursor: pointer;">Start Campus Pro</button>
+            </div>
+          </article>
+
+          <!-- Plan 3: Trust & Group -->
+          <article class="plan pc" style="--o:1">
+            <div class="t" style="background: #4F9690; color: #FFFFFF;">
+              <div style="height: 22px; display: flex; align-items: center;">
+                <b class="nm" style="font-size: 15px;">Trust & Group</b>
+              </div>
+              <p class="desc" style="font-weight: 500; font-size: 11px; line-height: 1.4; margin: 12px 0; opacity: 0.9;">
+                Multi-branch oversight, custom governance, and hardware integrations.
+              </p>
+              <div class="amt word" style="font-weight: 800; font-size: 34px; letter-spacing: -0.03em; display: flex; align-items: baseline; gap: 8px;">
+                <span class="ln">Enterprise</span>
+                <span class="unit" style="color: rgba(255, 255, 255, 0.9);">custom SLA</span>
+              </div>
+            </div>
+            <div class="b" style="background: #EEF3F2;">
+              <ul class="feat">
+                <li style="--i:0">Everything in Campus Pro (₹59 plan)</li>
+                <li style="--i:1">Multi-campus centralized governance</li>
+                <li style="--i:2">Live GPS school bus & fleet tracking</li>
+                <li style="--i:3">Biometric & turnstile gate sync</li>
+                <li style="--i:4">Custom marksheet template builder</li>
+                <li style="--i:5">DPDP Act 2023 hardware encryption</li>
+                <li style="--i:6">Dedicated campus account manager</li>
+              </ul>
+              <button type="button" class="pill cta open-demo-btn" data-plan="Trust & Group (Enterprise)" style="width: 100%; justify-content: center; border: none; cursor: pointer;">Talk to Sales</button>
+            </div>
+          </article>
+
+        </div>
+      </section>
+
+      <!-- FAQ Section -->
+      <section class="faq" id="faq">
+        <div class="left">
+          <span class="badge"><i></i>Trusted by 140+ Campuses</span>
+          <h2 class="mask"><span class="ln" style="--i:0">Frequently</span>
+                           <span class="ln" style="--i:1">Asked <em>Questions</em></span></h2>
+          <div class="ask">
+            <h3 class="a1">Still have questions?</h3>
+            <p class="a1">Can&#8217;t find the question you are looking for? Our campus implementation team is here to assist with custom setups and board compliance queries.</p>
+            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 14px;">
+              <a href="tel:+919488842786" class="pill teal a2" style="justify-content: center; gap: 8px;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+                Call 9488842786
+              </a>
+              <a href="mailto:support@quantech.in" class="pill wht a2" style="justify-content: center; border: 1.5px solid #2F7E78; color: #2F7E78;">Send Email</a>
+            </div>
+          </div>
+        </div>
+
+        <div class="right">
+          
+          <div class="row" style="--k:0">
+            <button class="q" aria-expanded="false" aria-controls="a0">
+              <span>How does the Free PVC Student ID card offer work?</span>
+              <i class="chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4F9690" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></i>
+            </button>
+            <div class="ans" id="a0">
+              <div>
+                <p>Every student enrolled on our Campus Pro plan (₹59/student/yr) receives a complimentary high-durability physical PVC ID card with custom campus branding and lanyards. As student admissions and photos are finalized in Quantech, cards are printed and delivered directly to your campus with zero hidden charges.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="row open" style="--k:1">
+            <button class="q" aria-expanded="true" aria-controls="a1">
+              <span>How long does campus onboarding and Excel migration take?</span>
+              <i class="chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4F9690" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></i>
+            </button>
+            <div class="ans" id="a1">
+              <div>
+                <p>Standard campus onboarding is completed in under 48 hours. Hand over your existing student registers or Excel sheets, and our dedicated team handles complete cohort mapping, fee structure setup, and a 60-minute staff training workshop before going live.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="row" style="--k:2">
+            <button class="q" aria-expanded="false" aria-controls="a2">
+              <span>Is Quantech compliant with CBSE, ICSE, and State Board marksheets?</span>
+              <i class="chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4F9690" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></i>
+            </button>
+            <div class="ans" id="a2">
+              <div>
+                <p>Yes. Quantech includes pre-configured assessment engines tailored for CBSE 9-point grading, ICSE bifurcation, and State Board frameworks. It automatically computes term aggregates, scholastic marks, co-scholastic grades, and attendance percentages, producing one-click board-compliant PDF report cards with QR verification.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="row" style="--k:3">
+            <button class="q" aria-expanded="false" aria-controls="a3">
+              <span>How do automated WhatsApp attendance and fee alerts work?</span>
+              <i class="chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4F9690" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></i>
+            </button>
+            <div class="ans" id="a3">
+              <div>
+                <p>Quantech connects directly to official WhatsApp Business APIs. Within 3 minutes of teacher morning roll call, parents of absent students receive an instant WhatsApp alert. For fee collections, automated WhatsApp reminders include a direct UPI payment link, generating a zero-reconciliation digital receipt immediately upon payment.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="row" style="--k:4">
+            <button class="q" aria-expanded="false" aria-controls="a4">
+              <span>Can we manage multiple campuses, staff payroll, and GPS bus tracking?</span>
+              <i class="chev"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#4F9690" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></i>
+            </button>
+            <div class="ans" id="a4">
+              <div>
+                <p>Yes. Our Trust & Enterprise plan centralizes multi-branch oversight with customized permission controls for trustees, principals, and accountants. It natively supports biometric staff attendance, payroll processing, and live GPS school bus fleet tracking with real-time parent ETA alerts.</p>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- Final CTA Section -->
+      <section class="cta" id="contact" data-id="cta">
+        <div class="shape"></div>
+        <h2 class="mask">
+          <span class="ln" style="--i:0">Make Campus Operations</span>
+          <span class="ln" style="--i:1">Effortless, Modern, and Stress&#8209;Free.</span>
+        </h2>
+        <p class="lead">From digital admissions and automated UPI fees to instant report cards, Quantech gives educators, trustees, and parents total clarity with zero administrative friction.</p>
+        <div class="btns">
+          <button type="button" class="pill wht b1 open-demo-btn" style="cursor: pointer; border: none; font-family: inherit;">Request Demo</button>
+          <a href="tel:+919488842786" class="pill tint b2">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-right: 4px;"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            Book a Call
+          </a>
+        </div>
+      </section>
+
+      <!-- Footer & Wordmark -->
+      <footer class="foot" id="foot">
+        <div class="cols">
+          <div class="col" style="--c:0">
+            <h4>Quantech</h4>
+            <p style="--j:0">All-in-one campus ERP</p>
+            <p style="--j:1">Built for CBSE, ICSE &amp; State Boards</p>
+            <p style="--j:2">Session 2026-27 ready</p>
+          </div>
+          <div class="col" style="--c:1">
+            <h4>Quick Links</h4>
+            <a href="#home" style="--j:0">Home</a>
+            <a href="#how-it-works" style="--j:1">How It Works</a>
+            <a href="#features" style="--j:2">Features</a>
+            <a href="#pricing" style="--j:3">Pricing (₹59/yr)</a>
+            <a href="#faq" style="--j:4">FAQ</a>
+            <a href="#contact" style="--j:5">Contact</a>
+          </div>
+          <div class="col" style="--c:2">
+            <h4>Follow Us</h4>
+            <div class="soc">
+              <a href="#" style="--j:0">f</a>
+              <a href="#" style="--j:1">t</a>
+              <a href="#" style="--j:2">ig</a>
+              <a href="#" style="--j:3">in</a>
+            </div>
+            <a href="mailto:support@quantech.in" class="mail">support@quantech.in</a>
+            <a href="tel:+919488842786" class="mail" style="display: block; margin-top: 6px; font-weight: 600;">+91 94888 42786</a>
+          </div>
+        </div>
+        <hr class="rule">
+        <p class="copy">© 2026 Quantech Technologies. All rights reserved.</p>
+        <div class="word" aria-hidden="true">
+          <span style="--i:0">Q</span><span style="--i:1">U</span><span style="--i:2">A</span><span style="--i:3">N</span>
+          <span style="--i:4">T</span><span style="--i:5">E</span><span style="--i:6">C</span><span style="--i:7">H</span>
+        </div>
+      </footer>
+
+    </div>
+  </div>
+
+  <!-- Apple-Style Request Demo Modal -->
+  <div class="modal-overlay" id="demoModal" aria-hidden="true" role="dialog" aria-labelledby="modalTitle">
+    <div class="modal-backdrop" id="modalBackdrop"></div>
+    <div class="modal-card">
+      <button class="modal-close" id="modalClose" aria-label="Close dialog">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+
+      <div class="modal-badge">
+        <span class="pulse-dot"></span>
+        LIVE 1-ON-1 DEMO
+      </div>
+
+      <h3 class="modal-title" id="modalTitle">Experience Quantech in Action</h3>
+      <p class="modal-desc">Schedule a 20-minute tailored walkthrough of admissions, automated fee collections, and report cards for your campus leadership.</p>
+
+      <form class="modal-form" id="demoForm">
+        <div class="form-group">
+          <label for="schoolName">School / Institution Name</label>
+          <input type="text" id="schoolName" name="schoolName" required placeholder="e.g. St. Xavier's International School" autocomplete="organization">
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="contactName">Your Name & Role</label>
+            <input type="text" id="contactName" name="contactName" required placeholder="e.g. Rajesh Kumar (Principal)" autocomplete="name">
+          </div>
+          <div class="form-group">
+            <label for="contactPhone">Phone / WhatsApp Number</label>
+            <input type="tel" id="contactPhone" name="contactPhone" required placeholder="e.g. 9488842786" pattern="[0-9]{10}" autocomplete="tel">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="planInterest">Plan of Interest</label>
+          <select id="planInterest" name="planInterest">
+            <option value="Campus Pro (₹59/yr) - Most Popular">Campus Pro (₹59/yr with Free PVC ID Cards)</option>
+            <option value="Basic Campus (₹39/yr)">Basic Campus (₹39/yr)</option>
+            <option value="Trust & Group (Enterprise)">Trust & Group (Multi-Branch)</option>
+          </select>
+        </div>
+
+        <button type="submit" class="modal-submit-btn">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.888 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.05 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+          </svg>
+          Confirm Demo on WhatsApp
+        </button>
+
+        <div class="modal-footer-contact">
+          <span>Need immediate assistance?</span>
+          <a href="tel:+919488842786" class="direct-call-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            Call +91 94888 42786
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    // Sliding Nav Dot & Live Scroll-Spy
+    const navContainer = document.getElementById('navLinks');
+    const navLinks = document.querySelectorAll('.nav-item');
+    const navDot = document.getElementById('navDot');
+
+    function positionNavDot(el) {
+      if (!el || !navDot || !navContainer) return;
+      const navRect = navContainer.getBoundingClientRect();
+      const linkRect = el.getBoundingClientRect();
+      const left = linkRect.left - navRect.left + (linkRect.width / 2) - 2;
+      navDot.style.left = `${left}px`;
+      navDot.style.opacity = '1';
+    }
+
+    let isUserHoveringNav = false;
+
+    const navSections = [
+      { id: 'home', link: document.querySelector('.nav-links a[href="#home"]') },
+      { id: 'how-it-works', link: document.querySelector('.nav-links a[href="#how-it-works"]') },
+      { id: 'features', link: document.querySelector('.nav-links a[href="#features"]') },
+      { id: 'pricing', link: document.querySelector('.nav-links a[href="#pricing"]') },
+      { id: 'faq', link: document.querySelector('.nav-links a[href="#faq"]') },
+      { id: 'contact', link: document.querySelector('.nav-links a[href="#contact"]') }
+    ];
+
+    function getActiveNavLink() {
+      return document.querySelector('.nav-item.active') || navLinks[0];
+    }
+
+    function updateNavOnScroll() {
+      if (isUserHoveringNav) return;
+
+      // Bottom-of-page check: activate Contact when user reaches the end
+      if ((window.innerHeight + window.pageYOffset) >= document.documentElement.scrollHeight - 70) {
+        const last = navSections[navSections.length - 1];
+        if (last && last.link && !last.link.classList.contains('active')) {
+          navLinks.forEach(l => l.classList.remove('active'));
+          last.link.classList.add('active');
+          positionNavDot(last.link);
+        }
+        return;
+      }
+
+      const scrollPos = window.pageYOffset + 140;
+      let activeSection = navSections[0];
+
+      for (let i = 0; i < navSections.length; i++) {
+        const targetId = navSections[i].id;
+        const el = document.getElementById(targetId) ||
+                   (targetId === 'how-it-works' ? document.getElementById('steps') : null) ||
+                   (targetId === 'features' ? document.getElementById('manage') : null) ||
+                   (targetId === 'contact' ? document.getElementById('cta') : null);
+        if (el) {
+          const top = el.getBoundingClientRect().top + window.pageYOffset;
+          if (scrollPos >= top) {
+            activeSection = navSections[i];
+          }
+        }
+      }
+
+      if (activeSection && activeSection.link && !activeSection.link.classList.contains('active')) {
+        navLinks.forEach(l => l.classList.remove('active'));
+        activeSection.link.classList.add('active');
+        positionNavDot(activeSection.link);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      setTimeout(() => positionNavDot(getActiveNavLink()), 60);
+    });
+
+    window.addEventListener('resize', () => {
+      const cur = document.querySelector('.nav-item:hover') || getActiveNavLink();
+      if (cur) positionNavDot(cur);
+    });
+
+    window.addEventListener('scroll', () => {
+      requestAnimationFrame(updateNavOnScroll);
+    }, { passive: true });
+
+    navLinks.forEach(link => {
+      link.addEventListener('mouseenter', () => {
+        isUserHoveringNav = true;
+        positionNavDot(link);
+      });
+      link.addEventListener('mouseleave', () => {
+        isUserHoveringNav = false;
+        positionNavDot(getActiveNavLink());
+      });
+    });
+
+    // Precise Smooth Scroll & Section Landing Wiring
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        const hash = this.getAttribute('href');
+        if (!hash || hash === '#') return;
+        const targetId = hash.slice(1);
+        
+        let target = document.getElementById(targetId);
+        if (!target) {
+          if (targetId === 'how-it-works' || targetId === 'admissions' || targetId === 'workflow' || targetId === 'tour' || targetId === 'steps') {
+            target = document.getElementById('how-it-works') || document.getElementById('steps');
+          } else if (targetId === 'features' || targetId === 'exams' || targetId === 'manage') {
+            target = document.getElementById('features') || document.getElementById('manage');
+          } else if (targetId === 'fees' || targetId === 'pricing') {
+            target = document.getElementById('pricing');
+          } else if (targetId === 'contact' || targetId === 'cta') {
+            target = document.getElementById('contact') || document.getElementById('cta');
+          }
+        }
+
+        if (target) {
+          e.preventDefault();
+          const nav = document.querySelector('.floating-nav');
+          const navHeight = nav ? nav.offsetHeight : 54;
+          // Clearance below nav: 20px nav top + navHeight + 24px breathing buffer
+          const targetTop = target.getBoundingClientRect().top + window.pageYOffset - (navHeight + 20 + 24);
+
+          window.scrollTo({
+            top: Math.max(0, targetTop),
+            behavior: 'smooth'
+          });
+
+          // Match active nav link
+          const matchLink = document.querySelector(`.nav-links a[href="${hash}"]`);
+          if (matchLink) {
+            navLinks.forEach(l => l.classList.remove('active'));
+            matchLink.classList.add('active');
+            positionNavDot(matchLink);
+          }
+
+          if (history.pushState) {
+            history.pushState(null, null, hash);
+          }
+        }
+      });
+    });
+
+    // Mobile Hamburger Menu Toggle
+    const navToggle = document.getElementById('navToggle');
+    const mainNav = document.getElementById('mainNav');
+    const mobileLinks = document.querySelectorAll('.mob-item');
+
+    if (navToggle && mainNav) {
+      navToggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = mainNav.classList.toggle('mobile-open');
+        navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+      });
+
+      // Close mobile menu when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!mainNav.contains(e.target) && mainNav.classList.contains('mobile-open')) {
+          mainNav.classList.remove('mobile-open');
+          navToggle.setAttribute('aria-expanded', 'false');
+        }
+      });
+
+      // Close mobile menu on clicking any navigation link
+      mobileLinks.forEach(link => {
+        link.addEventListener('click', () => {
+          mainNav.classList.remove('mobile-open');
+          navToggle.setAttribute('aria-expanded', 'false');
+        });
+      });
+    }
+
+    // Apple-Style Request Demo Modal Handling
+    const demoModal = document.getElementById('demoModal');
+    const modalClose = document.getElementById('modalClose');
+    const modalBackdrop = document.getElementById('modalBackdrop');
+    const demoForm = document.getElementById('demoForm');
+    const planSelect = document.getElementById('planInterest');
+
+    function openDemoModal(planName) {
+      if (!demoModal) return;
+      if (planName && planSelect) {
+        for (let i = 0; i < planSelect.options.length; i++) {
+          if (planSelect.options[i].value.includes(planName) || planSelect.options[i].text.includes(planName)) {
+            planSelect.selectedIndex = i;
+            break;
+          }
+        }
+      }
+      demoModal.classList.add('active');
+      demoModal.setAttribute('aria-hidden', 'false');
+      document.body.style.overflow = 'hidden';
+      setTimeout(() => {
+        const input = document.getElementById('schoolName');
+        if (input) input.focus();
+      }, 100);
+    }
+
+    function closeDemoModal() {
+      if (!demoModal) return;
+      demoModal.classList.remove('active');
+      demoModal.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    document.querySelectorAll('.open-demo-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const plan = btn.getAttribute('data-plan') || '';
+        openDemoModal(plan);
+      });
+    });
+
+    if (modalClose) modalClose.addEventListener('click', closeDemoModal);
+    if (modalBackdrop) modalBackdrop.addEventListener('click', closeDemoModal);
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && demoModal && demoModal.classList.contains('active')) {
+        closeDemoModal();
+      }
+    });
+
+    if (demoForm) {
+      demoForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const school = document.getElementById('schoolName').value.trim();
+        const name = document.getElementById('contactName').value.trim();
+        const phone = document.getElementById('contactPhone').value.trim();
+        const plan = planSelect ? planSelect.value : 'Campus Pro';
+
+        const msg = `Hi Quantech team,\n\nI would like to schedule a 1-on-1 demo for our campus.\n- School: ${school}\n- Contact Person: ${name}\n- Phone: ${phone}\n- Selected Plan: ${plan}\n\nPlease share your team's available slots. Thank you!`;
+
+        const waUrl = `https://wa.me/919488842786?text=${encodeURIComponent(msg)}`;
+        window.open(waUrl, '_blank');
+
+        // Show feedback inside button
+        const submitBtn = demoForm.querySelector('.modal-submit-btn');
+        if (submitBtn) {
+          submitBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Request Initiated on WhatsApp!`;
+          submitBtn.style.background = '#1F8F7F';
+          setTimeout(() => {
+            closeDemoModal();
+            demoForm.reset();
+            submitBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.888 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.05 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg> Confirm Demo on WhatsApp`;
+            submitBtn.style.background = '#25D366';
+          }, 2400);
+        }
+      });
+    }
+
+    // Responsive IntersectionObserver threshold
+    const trigThresh = window.innerWidth <= 768 ? 0.12 : 0.28;
+
+    // Steps Scroll-Trigger & Amount Counter Choreography
+    const steps = document.getElementById('how-it-works') || document.getElementById('steps');
+    if (steps) {
+      new IntersectionObserver(([e], io) => {
+        if (!e.isIntersecting) return;
+        steps.classList.add('in');
+        io.disconnect();
+
+        // Amount counter (+₹24,500), starts when tile 2's chip appears
+        const el = document.getElementById('amt'), end = 24500, t0 = performance.now() + 920;
+        if (!el) return;
+        if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          el.textContent = '+₹24,500';
+          return;
+        }
+        (function tick(t) {
+          const p = Math.min(Math.max((t - t0) / 700, 0), 1);
+          const v = Math.round(end * (1 - Math.pow(1 - p, 3)));
+          el.textContent = '+₹' + v.toLocaleString('en-IN');
+          if (p < 1) requestAnimationFrame(tick);
+        })(performance.now());
+      }, { threshold: trigThresh }).observe(steps);
+    }
+
+    // Trust & Manage Scroll-Trigger Choreography
+    ['trust', 'features', 'manage'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      new IntersectionObserver(([e], io) => {
+        if (e.isIntersecting) {
+          el.classList.add('in');
+          io.disconnect();
+        }
+      }, { threshold: trigThresh }).observe(el);
+    });
+
+    // Pricing Scroll-Trigger & Numeric Count-up Choreography
+    const price = document.getElementById('pricing');
+    if (price) {
+      new IntersectionObserver(([e], io) => {
+        if (!e.isIntersecting) return;
+        price.classList.add('in');
+        io.disconnect();
+        const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+        price.querySelectorAll('[data-count]').forEach(el => {
+          const end = +el.dataset.count, plan = el.closest('.plan');
+          const delay = 300 + (+plan.style.getPropertyValue('--o') || 0) * 110 + 460;
+          if (calm) {
+            el.textContent = '₹' + end;
+            return;
+          }
+          el.textContent = '₹0';
+          const t0 = performance.now() + delay;
+          (function tick(t) {
+            const p = Math.min(Math.max((t - t0) / 700, 0), 1);
+            el.textContent = '₹' + Math.round(end * (1 - Math.pow(1 - p, 3)));
+            if (p < 1) requestAnimationFrame(tick);
+          })(performance.now());
+        });
+      }, { threshold: trigThresh }).observe(price);
+    }
+
+    // FAQ Scroll-Trigger & Interactive Accordion Choreography
+    const faq = document.getElementById('faq');
+    if (faq) {
+      new IntersectionObserver(([e], io) => {
+        if (e.isIntersecting) {
+          faq.classList.add('in');
+          io.disconnect();
+        }
+      }, { threshold: trigThresh }).observe(faq);
+
+      faq.querySelectorAll('.q').forEach(btn => btn.addEventListener('click', () => {
+        const row = btn.closest('.row'), willOpen = !row.classList.contains('open');
+        faq.querySelectorAll('.row.open').forEach(r => {      // one open at a time
+          r.classList.remove('open');
+          r.querySelector('.q').setAttribute('aria-expanded', 'false');
+        });
+        if (willOpen) {
+          row.classList.add('open');
+          btn.setAttribute('aria-expanded', 'true');
+        }
+      }));
+    }
+
+    // CTA & Footer Scroll-Trigger Choreography
+    [['contact', trigThresh], ['cta', trigThresh], ['foot', trigThresh]].forEach(([id, t]) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      new IntersectionObserver(([e], io) => {
+        if (e.isIntersecting) {
+          el.classList.add('in');
+          io.disconnect();
+        }
+      }, { threshold: t }).observe(el);
+    });
+  </script>
+</body>
+</html>

@@ -562,7 +562,10 @@ export default function FeesPage() {
                             onChange={(val) => setSelectedBatch(val)}
                             options={[
                                 { label: `All ${isSchool ? "Sections" : "Batches"}`, value: "" },
-                                ...batches.map(b => ({ label: b.name, value: b._id }))
+                                ...batches.map(b => {
+                                    const cName = b.course?.name || courses.find(c => String(c._id) === String(b.course?._id || b.course))?.name;
+                                    return { label: cName ? `${cName} - ${b.name}` : b.name, value: b._id };
+                                })
                             ]}
                             disabled={!selectedCourse}
                             placeholder={isSchool ? "Filter Section" : "Filter Batch"}

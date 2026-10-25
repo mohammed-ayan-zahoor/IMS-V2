@@ -1,3 +1,4 @@
+import 'package:student_app/core/network/api_error_helper.dart';
 import 'package:student_app/core/constants/api_endpoints.dart';
 import 'package:student_app/core/network/api_client.dart';
 import 'package:student_app/features/instructor/syllabus/data/models/syllabus_model.dart';
@@ -60,10 +61,10 @@ class InstructorSyllabusRepository {
       }
       return {
         'success': false,
-        'message': res.data?['error'] ?? 'Failed to update syllabus',
+        'message': ApiErrorHelper.extractMessage(null, response: res, fallback: 'Failed to update syllabus'),
       };
     } catch (e) {
-      return {'success': false, 'message': 'Network error updating syllabus: $e'};
+      return {'success': false, 'message': ApiErrorHelper.extractMessage(e, fallback: 'Failed to update syllabus')};
     }
   }
 

@@ -199,7 +199,7 @@ export default function OfflineExamMarksPage({ params }) {
                         <Select
                             value={selectedBatch}
                             onChange={setSelectedBatch}
-                            options={exam.batches?.map(b => ({ label: `Batch: ${b.name}`, value: b._id })) || []}
+                            options={exam.batches?.map(b => ({ label: `${exam.course?.name ? `${exam.course.name} - ` : ''}${b.name.toLowerCase().startsWith('section') || b.name.toLowerCase().startsWith('batch') ? b.name : `Section ${b.name}`}`, value: b._id })) || []}
                         />
                     </div>
                     <Button 

@@ -20,7 +20,7 @@ export async function validateAndDeriveSession(req, scope) {
         await connectDB();
 
         const url = new URL(req.url);
-        const clientProvidedSessionId = req.headers.get('x-session-id') || url.searchParams.get('session');
+        const clientProvidedSessionId = req.headers.get('x-session-id') || url.searchParams.get('session') || url.searchParams.get('sessionId');
         const instituteId = scope.instituteId;
 
         // STEP 1: Validate institute exists and get its type (Cached)

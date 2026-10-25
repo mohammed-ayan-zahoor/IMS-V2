@@ -35,16 +35,33 @@ const nextConfig = {
     ];
   },
   async rewrites() {
-    return [
-      {
-        source: '/instructor/:path*',
-        destination: '/admin/:path*',
-      },
-      {
-        source: '/uploads/:filename',
-        destination: '/api/uploads/files/:filename',
-      },
-    ];
+    return {
+      beforeFiles: [
+        {
+          source: '/',
+          destination: '/landing.html',
+        },
+        {
+          source: '/quantech',
+          destination: '/landing.html',
+        },
+        {
+          source: '/landing',
+          destination: '/landing.html',
+        },
+      ],
+      afterFiles: [
+        {
+          source: '/instructor/:path*',
+          destination: '/admin/:path*',
+        },
+        {
+          source: '/uploads/:filename',
+          destination: '/api/uploads/files/:filename',
+        },
+      ],
+      fallback: [],
+    };
   },
   async headers() {
     return [

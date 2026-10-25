@@ -274,7 +274,10 @@ export default function EditQuestionPage({ params }) {
     };
 
     const courseOptions = courses.map(c => ({ label: c.name, value: c._id }));
-    const batchOptions = filteredBatches.map(b => ({ label: b.name, value: b._id }));
+    const batchOptions = filteredBatches.map(b => {
+        const cName = b.course?.name || courses?.find(c => String(c._id) === String(b.course?._id || b.course))?.name;
+        return { label: cName ? `${cName} - ${b.name}` : b.name, value: b._id };
+    });
     const subjectOptions = filteredSubjects.map(s => ({ label: s.name, value: s._id }));
     const difficultyOptions = [
         { label: "Easy", value: "easy" },

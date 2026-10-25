@@ -36,6 +36,13 @@ class ApiClient {
             options.headers['cookie'] = existingCookie.isEmpty ? cookieStr : '$existingCookie; $cookieStr';
           }
         }
+
+        // Automatically inject current academic session context if present
+        final sessionId = await _storage.read(key: 'selected_academic_session_id');
+        if (sessionId != null && sessionId.isNotEmpty && !options.headers.containsKey('x-session-id')) {
+          options.headers['x-session-id'] = sessionId;
+        }
+
         return handler.next(options);
       },
       onResponse: (response, handler) {

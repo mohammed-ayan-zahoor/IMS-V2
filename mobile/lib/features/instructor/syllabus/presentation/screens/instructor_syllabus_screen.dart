@@ -153,7 +153,7 @@ class _InstructorSyllabusScreenState extends State<InstructorSyllabusScreen> {
                       return DropdownMenuItem<String>(
                         value: b.id,
                         child: Text(
-                          '${b.name} (${b.courseName})',
+                          b.courseName.isNotEmpty ? '${b.courseName} - ${b.name}' : b.name,
                           style: const TextStyle(fontSize: 13),
                           overflow: TextOverflow.ellipsis,
                         ),

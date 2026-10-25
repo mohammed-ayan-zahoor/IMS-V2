@@ -182,7 +182,10 @@ export default function QuestionBankPage() {
             ...courseBundles.map(b => ({ label: `🎁 ${b.name}`, value: b._id }))
         ] : [])
     ];
-    const batchOptions  = [{ label: "All Batches", value: "" }, ...filteredBatches.map(b => ({ label: b.name, value: b._id }))];
+    const batchOptions  = [{ label: "All Batches", value: "" }, ...filteredBatches.map(b => {
+        const cName = b.course?.name || courses?.find(c => String(c._id) === String(b.course?._id || b.course))?.name;
+        return { label: cName ? `${cName} - ${b.name}` : b.name, value: b._id };
+    })];
     const chapterSelectOptions = [{ label: "All Chapters", value: "" }, ...chapterOptions.map(c => ({ label: c, value: c }))];
     const difficultyOptions = [
         { label: "All Difficulties", value: "" },

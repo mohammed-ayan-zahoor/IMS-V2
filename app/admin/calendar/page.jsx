@@ -914,7 +914,7 @@ export default function AdminCalendarPage() {
                                                     isSelected ? 'bg-slate-900 border-slate-900 text-white' : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                                                 )}
                                             >
-                                                {batch.name}
+                                                {batch.course?.name ? `${batch.course.name} - ${batch.name}` : batch.name}
                                             </button>
                                         );
                                     })}

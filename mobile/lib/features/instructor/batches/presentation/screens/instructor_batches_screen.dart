@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:student_app/core/providers/academic_session_provider.dart';
 import 'package:student_app/features/instructor/batches/presentation/providers/instructor_batches_provider.dart';
 import 'package:student_app/features/instructor/syllabus/presentation/screens/instructor_syllabus_screen.dart';
 import 'package:student_app/l10n/app_localizations.dart';
@@ -20,10 +21,59 @@ class InstructorBatchesScreen extends StatefulWidget {
 class _InstructorBatchesScreenState extends State<InstructorBatchesScreen> {
   String _searchQuery = '';
 
+  void _showSessionPicker(BuildContext context, AcademicSessionProvider sessionProv) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (_) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                  child: Text(
+                    'Select Academic Session',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  ),
+                ),
+                ...sessionProv.sessions.map((s) {
+                  final isSelected = s.id == sessionProv.selectedSessionId;
+                  return ListTile(
+                    title: Text(s.sessionName, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                    trailing: isSelected
+                        ? const Icon(Icons.check, color: Color(0xFF002045))
+                        : (s.isActive ? const Text('Active', style: TextStyle(color: Colors.green, fontSize: 12)) : null),
+                    onTap: () {
+                      sessionProv.selectSession(s.id);
+                      Navigator.pop(context);
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<InstructorBatchesProvider>();
+    final sessionProv = context.watch<AcademicSessionProvider>();
     final l10n = AppLocalizations.of(context);
+
+    if (sessionProv.selectedSessionId != null &&
+        provider.currentSessionId != sessionProv.selectedSessionId &&
+        !provider.isLoading) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        provider.loadBatches(refresh: true, sessionId: sessionProv.selectedSessionId);
+      });
+    }
 
     final filtered = provider.batches.where((b) {
       final query = _searchQuery.toLowerCase();
@@ -78,9 +128,57 @@ class _InstructorBatchesScreenState extends State<InstructorBatchesScreen> {
               ),
             ),
             const Divider(height: 1, color: Color(0xFFC4C6CF)),
+            if (sessionProv.sessions.isNotEmpty)
+              Container(
+                color: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    const Icon(Icons.calendar_month_outlined, size: 16, color: Color(0xFF545F72)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Session: ${sessionProv.selectedSession?.sessionName ?? "Current"}',
+                        style: GoogleFonts.inter(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF0D1C2E),
+                        ),
+                      ),
+                    ),
+                    if (sessionProv.sessions.length > 1)
+                      InkWell(
+                        onTap: () => _showSessionPicker(context, sessionProv),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEFF4FF),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                'Change',
+                                style: GoogleFonts.inter(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: const Color(0xFF002045),
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              const Icon(Icons.arrow_drop_down, size: 16, color: Color(0xFF002045)),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            if (sessionProv.sessions.isNotEmpty)
+              const Divider(height: 1, color: Color(0xFFE2E8F0)),
             Expanded(
               child: RefreshIndicator(
-                onRefresh: () => provider.loadBatches(refresh: true),
+                onRefresh: () => provider.loadBatches(refresh: true, sessionId: sessionProv.selectedSessionId),
                 color: const Color(0xFF002045),
                 child: provider.isLoading && provider.batches.isEmpty
                     ? const Center(child: CircularProgressIndicator(color: Color(0xFF002045)))

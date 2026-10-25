@@ -289,7 +289,7 @@ class _CreateOnlineExamScreenState extends State<CreateOnlineExamScreen> {
                     return DropdownMenuItem<String>(
                       value: b.id,
                       child: Text(
-                        '${b.name} (${b.courseName})',
+                        b.courseName.isNotEmpty ? '${b.courseName} - ${b.name}' : b.name,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(fontSize: 13),
                       ),

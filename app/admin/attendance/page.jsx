@@ -379,7 +379,10 @@ export default function AttendanceMarkingPage() {
                                         return matchesSession && matchesCourse;
                                     })
                                     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
-                                    .map(b => ({ label: b.name, value: b._id }))
+                                    .map(b => {
+                                        const cName = b.course?.name || courses.find(c => String(c._id) === String(b.course?._id || b.course))?.name;
+                                        return { label: cName ? `${cName} - ${b.name}` : b.name, value: b._id };
+                                    })
                             ]}
                             disabled={!selectedCourse && isSchool}
                         />

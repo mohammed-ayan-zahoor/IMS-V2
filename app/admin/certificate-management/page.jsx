@@ -495,7 +495,10 @@ const CertificateManagementPage = () => {
                 { value: "", label: instituteType === 'SCHOOL' ? "All Sections" : "All Batches" }, 
                 ...batches
                   .filter(b => !courseId || b.course?._id === courseId || b.course === courseId || b.courseBundle?._id === courseId || b.courseBundle === courseId)
-                  .map(b => ({ label: b.name, value: b._id }))
+                  .map(b => {
+                      const cName = b.course?.name || courses?.find(c => String(c._id) === String(b.course?._id || b.course))?.name;
+                      return { label: cName ? `${cName} - ${b.name}` : b.name, value: b._id };
+                  })
               ]}
               disabled={batchLoading}
             />

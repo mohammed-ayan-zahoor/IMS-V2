@@ -6,9 +6,16 @@ import 'package:student_app/features/instructor/dashboard/data/models/instructor
 class InstructorAttendanceRepository {
   final ApiClient _apiClient = ApiClient();
 
-  Future<List<InstructorBatchSummary>> fetchAssignedBatches() async {
+  Future<List<InstructorBatchSummary>> fetchAssignedBatches({String? sessionId}) async {
     try {
-      final res = await _apiClient.get(ApiEndpoints.instructorBatches);
+      final queryParams = <String, dynamic>{};
+      if (sessionId != null && sessionId.isNotEmpty) {
+        queryParams['session'] = sessionId;
+      }
+      final res = await _apiClient.get(
+        ApiEndpoints.instructorBatches,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
       if (res.statusCode == 200 && res.data != null) {
         List<dynamic> list = [];
         if (res.data is List) {

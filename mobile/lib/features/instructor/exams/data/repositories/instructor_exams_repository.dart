@@ -1,3 +1,5 @@
+import 'package:student_app/core/network/api_error_helper.dart';
+import 'package:dio/dio.dart';
 import 'package:student_app/core/constants/api_endpoints.dart';
 import 'package:student_app/core/network/api_client.dart';
 import 'package:student_app/features/instructor/exams/data/models/instructor_exam_model.dart';
@@ -97,12 +99,12 @@ class InstructorExamsRepository {
       }
       return {
         'success': false,
-        'message': res.data?['error'] ?? 'Failed to import questions',
+        'message': ApiErrorHelper.extractMessage(null, response: res, fallback: 'Failed to import questions'),
       };
     } catch (e) {
       return {
         'success': false,
-        'message': 'Network error importing questions',
+        'message': ApiErrorHelper.extractMessage(e, fallback: 'Failed to import questions'),
       };
     }
   }
@@ -244,12 +246,12 @@ class InstructorExamsRepository {
       }
       return {
         'success': false,
-        'message': res.data?['error'] ?? 'Failed to create exam',
+        'message': ApiErrorHelper.extractMessage(null, response: res, fallback: 'Failed to create exam'),
       };
     } catch (e) {
       return {
         'success': false,
-        'message': 'Network error creating exam',
+        'message': ApiErrorHelper.extractMessage(e, fallback: 'Failed to create exam'),
       };
     }
   }
@@ -266,12 +268,12 @@ class InstructorExamsRepository {
       }
       return {
         'success': false,
-        'message': res.data?['error'] ?? 'Failed to schedule offline exam',
+        'message': ApiErrorHelper.extractMessage(null, response: res, fallback: 'Failed to schedule offline exam'),
       };
     } catch (e) {
       return {
         'success': false,
-        'message': 'Network error scheduling offline exam',
+        'message': ApiErrorHelper.extractMessage(e, fallback: 'Failed to schedule offline exam'),
       };
     }
   }

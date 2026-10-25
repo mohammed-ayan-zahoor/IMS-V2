@@ -6,9 +6,16 @@ import 'package:student_app/features/instructor/dashboard/data/models/instructor
 class InstructorDashboardRepository {
   final ApiClient _apiClient = ApiClient();
 
-  Future<InstructorDashboardModel?> fetchDashboardData() async {
+  Future<InstructorDashboardModel?> fetchDashboardData({String? sessionId}) async {
     try {
-      final batchesFuture = _apiClient.get(ApiEndpoints.instructorBatches);
+      final queryParams = <String, dynamic>{};
+      if (sessionId != null && sessionId.isNotEmpty) {
+        queryParams['session'] = sessionId;
+      }
+      final batchesFuture = _apiClient.get(
+        ApiEndpoints.instructorBatches,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
       final statsFuture = _apiClient.get(ApiEndpoints.dashboardStats);
 
       final results = await Future.wait([batchesFuture, statsFuture]);

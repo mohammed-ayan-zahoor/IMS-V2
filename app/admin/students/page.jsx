@@ -1127,7 +1127,10 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                              !b.session
                                          ))
                                          .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
-                                         .map(b => ({ label: b.name, value: b._id }))
+                                         .map(b => {
+                                              const cName = b.course?.name || courses.find(c => c._id === (b.course?._id || b.course))?.name;
+                                              return { label: cName ? `${cName} - ${b.name}` : b.name, value: b._id };
+                                          })
                                      }
                                  />
                              </div>
@@ -1320,7 +1323,10 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                             return matchesCourse && matchesSession;
                                         })
                                         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
-                                        .map(b => ({ label: b.name, value: b._id }))
+                                        .map(b => {
+                                              const cName = b.course?.name || courses.find(c => c._id === (b.course?._id || b.course))?.name;
+                                              return { label: cName ? `${cName} - ${b.name}` : b.name, value: b._id };
+                                          })
                                 ]}
                             />
                         </div>
@@ -1882,10 +1888,14 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                         })
                                                   .filter(b => formData.sessionId ? (b.session?._id === formData.sessionId || b.session === formData.sessionId || !b.session) : true)
                                                   .sort((a, b) => (a.semester || 1) - (b.semester || 1) || (a.name || "").localeCompare(b.name || ""))
-                                                  .map(b => ({
-                                                      label: isCollege && b.semester ? `Sem ${b.semester} - ${b.name}` : b.name,
-                                                      value: b._id
-                                                  }))
+                                                  .map(b => {
+                                const cName = b.course?.name || courses.find(c => c._id === (b.course?._id || b.course))?.name;
+                                const prefix = cName ? `${cName} - ` : '';
+                                return {
+                                    label: isCollege && b.semester ? `Sem ${b.semester} - ${b.name}` : `${prefix}${isSchool ? 'Section ' : ''}${b.name}`,
+                                    value: b._id
+                                };
+                            })
                                     ]}
                                 />
                             ) : (
@@ -2430,7 +2440,10 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                                         return matchesCourse && matchesSession;
                                                     })
                                                     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
-                                                    .map(b => ({ label: b.name, value: b._id }))
+                                                    .map(b => {
+                                              const cName = b.course?.name || courses.find(c => c._id === (b.course?._id || b.course))?.name;
+                                              return { label: cName ? `${cName} - ${b.name}` : b.name, value: b._id };
+                                          })
                                             ]}
                                             disabled={!importCourseId}
                                         />
@@ -2757,7 +2770,10 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                                         return matchesCourse && matchesSession;
                                                     })
                                                     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
-                                                    .map(b => ({ label: b.name, value: b._id }))
+                                                    .map(b => {
+                                              const cName = b.course?.name || courses.find(c => c._id === (b.course?._id || b.course))?.name;
+                                              return { label: cName ? `${cName} - ${b.name}` : b.name, value: b._id };
+                                          })
                                             ]}
                                             disabled={!photoCourseId}
                                         />
@@ -3088,10 +3104,14 @@ function PromotionModalContent({ batches, courses, sessions, selectedCount, onPr
                         placeholder={`Select ${isCollege || isSchool ? "Section" : "Batch"}...`}
                         options={[
                             { label: `Select ${isCollege || isSchool ? "Section" : "Batch"}`, value: "" },
-                            ...filteredBatches.map(b => ({
-                                label: isCollege && b.semester ? `Sem ${b.semester} - ${b.name}` : b.name,
-                                value: b._id
-                            }))
+                            ...filteredBatches.map(b => {
+                                const cName = b.course?.name || courses.find(c => c._id === (b.course?._id || b.course))?.name;
+                                const prefix = cName ? `${cName} - ` : '';
+                                return {
+                                    label: isCollege && b.semester ? `Sem ${b.semester} - ${b.name}` : `${prefix}${isSchool ? 'Section ' : ''}${b.name}`,
+                                    value: b._id
+                                };
+                            })
                         ]}
                     />
                 </div>

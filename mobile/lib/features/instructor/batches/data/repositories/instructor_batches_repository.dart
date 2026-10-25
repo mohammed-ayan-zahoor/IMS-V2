@@ -5,9 +5,16 @@ import 'package:student_app/features/instructor/batches/data/models/instructor_b
 class InstructorBatchesRepository {
   final ApiClient _apiClient = ApiClient();
 
-  Future<List<InstructorBatchDetail>> fetchBatches() async {
+  Future<List<InstructorBatchDetail>> fetchBatches({String? sessionId}) async {
     try {
-      final res = await _apiClient.get(ApiEndpoints.instructorBatches);
+      final queryParams = <String, dynamic>{};
+      if (sessionId != null && sessionId.isNotEmpty) {
+        queryParams['session'] = sessionId;
+      }
+      final res = await _apiClient.get(
+        ApiEndpoints.instructorBatches,
+        queryParameters: queryParams.isNotEmpty ? queryParams : null,
+      );
       if (res.statusCode == 200 && res.data != null) {
         List<dynamic> list = [];
         if (res.data is List) {

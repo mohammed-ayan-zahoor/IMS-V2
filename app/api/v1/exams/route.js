@@ -109,33 +109,67 @@ export async function POST(req) {
 
         const body = await req.json();
 
+        // Auto-resolve course from batch if course is missing (common with mobile app submissions)
+        let courseId = body.course;
+        const batches = Array.isArray(body.batches) ? body.batches : (body.batch ? [body.batch] : []);
+        if (!courseId && batches.length > 0) {
+            const Batch = (await import("@/models/Batch")).default;
+            const batchDoc = await Batch.findById(batches[0]).select('course');
+            if (batchDoc?.course) {
+                courseId = batchDoc.course;
+            }
+        }
+
+        // Normalize questions: if elements are objects like { question: '...', marks: 5 }, extract question ID
+        const rawQuestions = Array.isArray(body.questions) ? body.questions : [];
+        const normalizedQuestions = rawQuestions.map(q => {
+            if (typeof q === 'object' && q !== null) {
+                return q.question || q._id || q.id;
+            }
+            return q;
+        }).filter(Boolean);
+
+        // Fallback schedule from scheduledAt if schedule object is missing
+        let schedule = body.schedule;
+        if ((!schedule || !schedule.startTime || !schedule.endTime) && body.scheduledAt) {
+            const startTime = new Date(body.scheduledAt);
+            const durationMins = Number(body.duration) || 60;
+            const endTime = new Date(startTime.getTime() + (durationMins * 60000));
+            schedule = { startTime, endTime };
+        }
+
         // Whitelist allowed fields (Mass Assignment Protection)
         // Ignoring: institute, createdBy, _id, status, deletedAt
         const allowedFields = {
             title: body.title,
-            course: body.course,
-            subject: body.subject,
-            batches: body.batches || (body.batch ? [body.batch] : []), // Support both for migration
-            questions: body.questions || [],
-            duration: body.duration,
-            totalMarks: body.totalMarks,
-            passingMarks: body.passingMarks,
-            scheduledAt: body.scheduledAt,
-            schedule: body.schedule,
-            instructions: body.instructions,
-            maxAttempts: body.maxAttempts,
-            resultPublication: body.resultPublication,
-            resultsPublished: body.resultsPublished,
+            course: courseId,
+            subject: body.subject || null,
+            batches,
+            questions: normalizedQuestions,
+            duration: Number(body.duration) || 60,
+            totalMarks: Number(body.totalMarks) || 0,
+            passingMarks: Number(body.passingMarks) || 0,
+            scheduledAt: body.scheduledAt || schedule?.startTime,
+            schedule,
+            instructions: body.instructions || "",
+            maxAttempts: Number(body.maxAttempts) || 1,
+            resultPublication: body.resultPublication || 'after_exam_end',
+            resultsPublished: body.resultsPublished || false,
             resultsPublishedAt: body.resultsPublishedAt,
-            showCorrectAnswers: body.showCorrectAnswers,
-            showExplanations: body.showExplanations,
+            showCorrectAnswers: body.showCorrectAnswers ?? true,
+            showExplanations: body.showExplanations ?? true,
             securityConfig: body.securityConfig,
-            negativeMarking: body.negativeMarking,
-            negativeMarkingPercentage: body.negativeMarkingPercentage,
+            negativeMarking: body.negativeMarking ?? false,
+            negativeMarkingPercentage: Number(body.negativeMarkingPercentage) || 0,
             requiresManualGrading: body.requiresManualGrading ?? false,
             semester: body.semester ? Number(body.semester) : null,
             examCategory: body.examCategory || 'GENERAL'
         };
+
+        if (!allowedFields.title || !allowedFields.course) {
+            return NextResponse.json({ error: "Exam title and course are required" }, { status: 400 });
+        }
+
         const exam = await Exam.create({
             ...allowedFields,
             institute: scope.instituteId, // Set Institute
@@ -168,6 +202,6 @@ export async function POST(req) {
 
     } catch (error) {
         console.error("Create Exam Error:", error);
-        return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+        return NextResponse.json({ error: error.message || "Failed to create exam" }, { status: 400 });
     }
 }

@@ -348,7 +348,7 @@ export default function AdminNoticesPage() {
                                                 }}
                                                 className="w-3.5 h-3.5 rounded border-slate-300 text-slate-900 focus:ring-0"
                                             />
-                                            <span className="text-xs font-medium text-slate-700 truncate">{item.name}</span>
+                                            <span className="text-xs font-medium text-slate-700 truncate">{item.course?.name ? `${item.course.name} - ${item.name}` : item.name}</span>
                                         </label>
                                     ))}
                                 </div>

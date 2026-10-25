@@ -1,19 +1,10 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import LoadingSpinner from "@/components/shared/LoadingSpinner";
+export const metadata = {
+  title: "Quantech — A school system that works like an Organiser",
+  description: "Admissions, automated fee collection, marksheet generation, and parent WhatsApp updates. Built for modern schools.",
+};
 
 export default function RootPage() {
-  const router = useRouter();
-
-  useEffect(() => {
-    router.push("/login");
-  }, [router]);
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <LoadingSpinner />
-    </div>
-  );
+  redirect("/landing.html");
 }

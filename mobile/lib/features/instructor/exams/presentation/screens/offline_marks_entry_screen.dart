@@ -67,9 +67,11 @@ class _OfflineMarksEntryScreenState extends State<OfflineMarksEntryScreen> {
     if (widget.exam.batches.isNotEmpty) {
       for (var b in widget.exam.batches) {
         String bName = b.name;
-        if (bName == 'Batch' || bName.isEmpty) {
-          final matched = instructorBatches.where((ib) => ib.id == b.id).firstOrNull;
-          if (matched != null) bName = matched.name;
+        final matched = instructorBatches.where((ib) => ib.id == b.id).firstOrNull;
+        if (matched != null && matched.courseName.isNotEmpty) {
+          bName = '${matched.courseName} - ${matched.name}';
+        } else if (widget.exam.courseName != null && widget.exam.courseName!.isNotEmpty) {
+          bName = '${widget.exam.courseName} - $bName';
         }
         list.add(b.copyWith(name: bName));
       }
@@ -79,12 +81,14 @@ class _OfflineMarksEntryScreenState extends State<OfflineMarksEntryScreen> {
         final matchesCourse = widget.exam.courseName == null ||
             ib.courseName.toLowerCase() == widget.exam.courseName!.toLowerCase();
         if (matchesCourse) {
-          list.add(OfflineExamBatchRef(id: ib.id, name: ib.name));
+          final bName = ib.courseName.isNotEmpty ? '${ib.courseName} - ${ib.name}' : ib.name;
+          list.add(OfflineExamBatchRef(id: ib.id, name: bName));
         }
       }
       if (list.isEmpty && instructorBatches.isNotEmpty) {
         for (var ib in instructorBatches) {
-          list.add(OfflineExamBatchRef(id: ib.id, name: ib.name));
+          final bName = ib.courseName.isNotEmpty ? '${ib.courseName} - ${ib.name}' : ib.name;
+          list.add(OfflineExamBatchRef(id: ib.id, name: bName));
         }
       }
     }
@@ -201,10 +205,17 @@ class _OfflineMarksEntryScreenState extends State<OfflineMarksEntryScreen> {
                           style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
                         ),
                         items: _availableBatches.map((b) {
+                          final matched = instructorBatches.where((ib) => ib.id == b.id).firstOrNull;
+                          final coursePrefix = matched != null && matched.courseName.isNotEmpty
+                              ? '${matched.courseName} - '
+                              : (widget.exam.courseName != null && widget.exam.courseName!.isNotEmpty ? '${widget.exam.courseName} - ' : '');
+                          final label = b.name.contains(' - ') || b.name.startsWith(coursePrefix)
+                              ? b.name
+                              : '$coursePrefix${b.name}';
                           return DropdownMenuItem<String>(
                             value: b.id,
                             child: Text(
-                              b.name,
+                              label,
                               style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
                             ),
                           );

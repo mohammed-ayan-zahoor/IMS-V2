@@ -435,8 +435,28 @@ export class BatchService {
     }
 
     static async getBatches(filters = {}, instituteId) {
-        // if (!instituteId) throw new Error("Institute context missing"); // Allow global view
         await connectDB();
+
+        // Auto-heal orphan batches missing academic session for already added classes
+        if (instituteId) {
+            try {
+                const Session = (await import('@/models/Session')).default;
+                const activeSession = await Session.findOne({
+                    $or: [{ instituteId: instituteId }, { institute: instituteId }],
+                    isActive: true,
+                    deletedAt: null
+                }).select('_id').lean();
+                if (activeSession) {
+                    await Batch.updateMany(
+                        { institute: instituteId, $or: [{ session: null }, { session: { $exists: false } }], deletedAt: null },
+                        { $set: { session: activeSession._id } }
+                    );
+                }
+            } catch (healErr) {
+                console.warn("[BATCH_HEAL] Failed to auto-heal orphan batch sessions:", healErr);
+            }
+        }
+
         const allowedFilters = ['course', 'courseBundle', 'instructor', 'enrolledStudents', 'session'];
         const safeFilters = {};
         Object.keys(filters).forEach(key => {
@@ -470,13 +490,7 @@ export class BatchService {
         }
 
         if (safeFilters.session && safeFilters.session !== 'all' && safeFilters.session !== '') {
-            andClauses.push({
-                $or: [
-                    { session: safeFilters.session },
-                    { session: null },
-                    { session: { $exists: false } }
-                ]
-            });
+            andClauses.push({ session: safeFilters.session });
         }
 
         if (safeFilters.courseBundle) {
@@ -492,42 +506,46 @@ export class BatchService {
             const instructorId = filters.instructorRoleContext;
             const User = mongoose.models.User || mongoose.model('User');
             const instructor = await User.findById(instructorId).select('assignments');
-            const assignedBatches = instructor?.assignments?.batches || [];
-            const assignedCourses = instructor?.assignments?.courses || [];
+            const assignedBatches = (instructor?.assignments?.batches || []).map(b => b.toString());
+            const assignedCourses = (instructor?.assignments?.courses || []).map(c => c.toString());
 
-            andClauses.push({
-                $or: [
-                    { instructor: instructorId },
-                    { _id: { $in: assignedBatches } },
-                    { course: { $in: assignedCourses } }
-                ]
-            });
+            // If instructor has specific batches assigned, check which courses those batches belong to
+            let coursesWithExplicitBatches = new Set();
+            if (assignedBatches.length > 0) {
+                const explicitBatches = await Batch.find({ _id: { $in: assignedBatches } }).select('course courseBundle').lean();
+                explicitBatches.forEach(b => {
+                    if (b.course) coursesWithExplicitBatches.add(b.course.toString());
+                    if (b.courseBundle) coursesWithExplicitBatches.add(b.courseBundle.toString());
+                });
+            }
+
+            // Only treat assigned courses as granting access to all batches if no specific batches were chosen for that course
+            const fullAccessCourses = assignedCourses.filter(c => !coursesWithExplicitBatches.has(c));
+
+            const instructorConditions = [
+                { instructor: instructorId }
+            ];
+
+            if (assignedBatches.length > 0) {
+                instructorConditions.push({ _id: { $in: assignedBatches } });
+            }
+
+            if (fullAccessCourses.length > 0) {
+                instructorConditions.push({ course: { $in: fullAccessCourses } });
+                instructorConditions.push({ courseBundle: { $in: fullAccessCourses } });
+            }
+
+            andClauses.push({ $or: instructorConditions });
         }
 
         if (andClauses.length === 1) {
-            query.$or = andClauses[0].$or;
+            if (andClauses[0].$or) {
+                query.$or = andClauses[0].$or;
+            } else {
+                Object.assign(query, andClauses[0]);
+            }
         } else if (andClauses.length > 1) {
             query.$and = andClauses;
-        }
-
-        // Auto-heal orphan batches missing academic session for already added classes
-        if (instituteId) {
-            try {
-                const Session = (await import('@/models/Session')).default;
-                const activeSession = await Session.findOne({
-                    $or: [{ instituteId: instituteId }, { institute: instituteId }],
-                    isActive: true,
-                    deletedAt: null
-                }).select('_id').lean();
-                if (activeSession) {
-                    await Batch.updateMany(
-                        { institute: instituteId, $or: [{ session: null }, { session: { $exists: false } }], deletedAt: null },
-                        { $set: { session: activeSession._id } }
-                    );
-                }
-            } catch (healErr) {
-                console.warn("[BATCH_HEAL] Failed to auto-heal orphan batch sessions:", healErr);
-            }
         }
 
         const batches = await Batch.find(query)

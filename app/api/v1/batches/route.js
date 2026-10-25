@@ -10,24 +10,14 @@ export async function GET(req) {
         const { searchParams } = new URL(req.url);
         const courseId = searchParams.get('courseId');
         const courseBundleId = searchParams.get('courseBundleId');
-        const sessionId = searchParams.get('sessionId');
+        const rawSessionId = searchParams.get('sessionId') || searchParams.get('session') || req.headers.get('x-session-id');
         const targetInstParam = searchParams.get('instituteId');
         const enrolledStudents = searchParams.get('enrolledStudents');
-
-        const filters = {};
-        if (courseId) filters.course = courseId;
-        if (courseBundleId) filters.courseBundle = courseBundleId;
-        if (sessionId) filters.session = sessionId;
-        if (enrolledStudents) filters.enrolledStudents = enrolledStudents;
+        const allSessions = searchParams.get('allSessions') === 'true' || rawSessionId === 'all';
 
         const scope = await getInstituteScope(req);
         if (!scope || (!scope.instituteId && !scope.isSuperAdmin)) {
             return NextResponse.json({ error: "Unauthorized or missing context" }, { status: 401 });
-        }
-
-        // Apply Instructor isolation
-        if (scope.user.role === 'instructor') {
-            filters.instructorRoleContext = scope.user.id;
         }
 
         // Global View Logic: Super Admin with explicit instituteId='all' or no explicit instituteId provided
@@ -43,6 +33,40 @@ export async function GET(req) {
             // Default to current institute in scope
             instituteId = scope.instituteId;
         }
+
+        const filters = {};
+        if (courseId) filters.course = courseId;
+        if (courseBundleId) filters.courseBundle = courseBundleId;
+        if (enrolledStudents) filters.enrolledStudents = enrolledStudents;
+
+        // Apply Academic Session Isolation
+        if (!allSessions) {
+            if (rawSessionId && rawSessionId !== 'all') {
+                filters.session = rawSessionId;
+            } else if (instituteId && (scope.user?.role === 'instructor' || searchParams.get('defaultToActive') === 'true')) {
+                // For instructors and defaultToActive views: automatically scope to current active session
+                try {
+                    const Session = (await import('@/models/Session')).default;
+                    const activeSession = await Session.findOne({
+                        $or: [{ instituteId: instituteId }, { institute: instituteId }],
+                        isActive: true,
+                        deletedAt: null
+                    }).select('_id').lean();
+
+                    if (activeSession) {
+                        filters.session = activeSession._id.toString();
+                    }
+                } catch (sessionErr) {
+                    console.warn("[BATCHES_GET] Failed to derive active session:", sessionErr);
+                }
+            }
+        }
+
+        // Apply Instructor isolation
+        if (scope.user?.role === 'instructor') {
+            filters.instructorRoleContext = scope.user.id;
+        }
+
         const batches = await BatchService.getBatches(filters, instituteId);
         return NextResponse.json({ batches });
     } catch (error) {

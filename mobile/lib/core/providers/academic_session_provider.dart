@@ -66,18 +66,29 @@ class AcademicSessionProvider extends ChangeNotifier {
       } catch (_) {}
 
       if (_sessions.isNotEmpty) {
-        // Priority 1: Previously chosen & persisted session ID (if still in list)
+        final activeSessions = _sessions.where((s) => s.isActive).toList();
+        final activeSession = activeSessions.isNotEmpty ? activeSessions.first : null;
+
+        // If a previously saved session is still valid AND is active, keep it.
+        // If the saved session was deactivated or the admin activated a new session, follow the server's active session!
         if (savedSessionId != null && _sessions.any((s) => s.id == savedSessionId)) {
-          _selectedSessionId = savedSessionId;
-        } else {
-          // Priority 2: Active session as configured on server
-          final active = _sessions.where((s) => s.isActive).toList();
-          if (active.isNotEmpty) {
-            _selectedSessionId = active.first.id;
+          final savedSession = _sessions.firstWhere((s) => s.id == savedSessionId);
+          if (savedSession.isActive || activeSession == null) {
+            _selectedSessionId = savedSessionId;
           } else {
-            // Priority 3: Fall back to first session in list
-            _selectedSessionId = _sessions.first.id;
+            _selectedSessionId = activeSession.id;
           }
+        } else if (activeSession != null) {
+          _selectedSessionId = activeSession.id;
+        } else {
+          _selectedSessionId = _sessions.first.id;
+        }
+
+        // Persist session ID to secure storage so ApiClient headers pick it up immediately
+        if (_selectedSessionId != null) {
+          try {
+            await _storage.write(key: _sessionStorageKey, value: _selectedSessionId);
+          } catch (_) {}
         }
       }
     } catch (e) {

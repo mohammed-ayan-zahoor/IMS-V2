@@ -109,8 +109,8 @@ class _InstructorAttendanceScreenState extends State<InstructorAttendanceScreen>
                           style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF545F72)),
                         ),
                         items: batches.map((b) {
-                          final label = b.courseName.isNotEmpty
-                              ? '${b.courseName} (Sec ${b.name})'
+                          final label = b.courseName.isNotEmpty && b.courseName != 'General'
+                              ? '${b.courseName} - Section ${b.name}'
                               : 'Section ${b.name}';
                           return DropdownMenuItem<String>(
                             value: b.id,

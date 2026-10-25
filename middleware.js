@@ -71,6 +71,15 @@ export default async function middleware(req) {
     }
 
     // ── Normal domain → Existing auth-protected middleware ──────────────────
+    // If visiting root "/" without a session token, allow public landing page immediately
+    if (path === "/") {
+        const sessionToken = req.cookies.get("next-auth.session-token")?.value ||
+                             req.cookies.get("__Secure-next-auth.session-token")?.value;
+        if (!sessionToken) {
+            return NextResponse.next();
+        }
+    }
+
     const requiresAuth =
         path === "/" ||
         path === "/dashboard" || path.startsWith("/dashboard/") ||
@@ -111,7 +120,7 @@ export default async function middleware(req) {
                 if (["admin", "super_admin", "instructor", "staff"].includes(token?.role)) {
                     return NextResponse.redirect(new URL("/admin/dashboard", req.url));
                 }
-                if (path === "/") return NextResponse.redirect(new URL("/login", req.url));
+                if (path === "/") return NextResponse.next();
             }
 
             // Protect admin & instructor routes

@@ -287,10 +287,13 @@ export default function MaterialsPage() {
         }))
     ];
 
-    const batchOptions = filteredBatches.map(b => ({
-        label: b.name,
-        value: b._id
-    }));
+    const batchOptions = filteredBatches.map(b => {
+        const cName = b.course?.name || courses.find(c => String(c._id) === String(b.course?._id || b.course))?.name;
+        return {
+            label: cName ? `${cName} - ${b.name}` : b.name,
+            value: b._id
+        };
+    });
 
     const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
 
