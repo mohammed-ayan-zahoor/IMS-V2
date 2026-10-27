@@ -817,7 +817,7 @@ export default function StaffAttendancePage() {
                         <thead className="sr-only">
                             <tr>
                                 <th scope="col">Staff member</th>
-                                <th scope="col">Shift</th>
+                                <th scope="col">Timing / Shift</th>
                                 <th scope="col">Status</th>
                                 <th scope="col">Actions</th>
                             </tr>
@@ -836,7 +836,8 @@ export default function StaffAttendancePage() {
                                 const shiftEnd = rec.effectiveShift?.shiftEnd || "18:00";
                                 const currentStatus = rec.status || "present";
                                 const statusMeta = STATUS_CONFIG[currentStatus] || STATUS_CONFIG.present;
-                                const hasNote = Boolean(rec.remarks && !["On time", "Uninformed absence", "Approved leave", "Half day shift", "Official holiday"].includes(rec.remarks));
+                                const isBiometricRemark = rec.remarks && rec.remarks.startsWith("Biometric In:");
+                                const hasNote = Boolean(rec.remarks && !isBiometricRemark && !["On time", "Uninformed absence", "Approved leave", "Half day shift", "Official holiday"].includes(rec.remarks));
                                 const isEditingNote = editingNoteId === staffId;
 
                                 return (
@@ -867,7 +868,6 @@ export default function StaffAttendancePage() {
                                                     <div className="text-[12px] text-[#5F6673] truncate leading-tight mt-0.5">
                                                         <span>{designationName} · {departmentName}</span>
                                                         {hasNote && <span className="ml-1 text-[#14161A]">· “{rec.remarks}”</span>}
-                                                        {rec.checkInTime && <span className="ml-1 text-emerald-700">· In: {rec.checkInTime}</span>}
                                                     </div>
                                                 </div>
                                             </div>
@@ -917,8 +917,31 @@ export default function StaffAttendancePage() {
                                         </td>
 
                                         {/* Zone 2: Shift (Tabular, Right-aligned) */}
-                                        <td className="px-3 py-2 text-right align-middle text-[13px] text-[#5F6673] tabular-nums whitespace-nowrap w-[120px] hidden sm:table-cell">
-                                            {shiftStart}–{shiftEnd}
+                                        <td className="px-3 py-2 text-right align-middle tabular-nums whitespace-nowrap w-[150px] hidden sm:table-cell">
+                                            {rec.checkInTime ? (
+                                                <div className="flex flex-col items-end leading-tight">
+                                                    <span className="text-[13px] font-medium text-[#14161A] inline-flex items-center gap-1">
+                                                        <span>{rec.checkInTime}</span>
+                                                        <span className="text-[#8C93A0] font-normal">–</span>
+                                                        <span>{rec.checkOutTime || "—"}</span>
+                                                        {rec.lateMinutes > 0 && (
+                                                            <span className="text-[10px] px-1 py-0.5 rounded bg-amber-50 text-amber-700 font-semibold" title={"Late by " + rec.lateMinutes + " mins"}>
+                                                                +{rec.lateMinutes}m
+                                                            </span>
+                                                        )}
+                                                    </span>
+                                                    <span className="text-[11px] text-[#8C93A0] mt-0.5" title={"Scheduled Shift: " + shiftStart + " to " + shiftEnd}>
+                                                        Shift: {shiftStart}–{shiftEnd}
+                                                    </span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-end leading-tight">
+                                                    <span className="text-[13px] text-[#8C93A0]">—</span>
+                                                    <span className="text-[11px] text-[#8C93A0] mt-0.5" title={"Scheduled Shift: " + shiftStart + " to " + shiftEnd}>
+                                                        Shift: {shiftStart}–{shiftEnd}
+                                                    </span>
+                                                </div>
+                                            )}
                                         </td>
 
                                         {/* Zone 3: Status Pull-Down Control */}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 /* ------------------------------------------------------------------ */
 /*  Config                                                             */
@@ -104,6 +105,23 @@ export default function ImportBiometricModal({
   year,
 }) {
   const isModalOpen = open ?? isOpen ?? false;
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  useEffect(() => {
+    if (isModalOpen) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isModalOpen]);
 
   const [file, setFile] = useState(null);
   const [overwrite, setOverwrite] = useState(false);
@@ -279,13 +297,13 @@ export default function ImportBiometricModal({
     window.location.href = `/admin/hr/payslips${q}`;
   };
 
-  if (!isModalOpen) return null;
+  if (!isModalOpen || !mounted) return null;
 
   const working = phase === "working";
   const stage = progress < 40 ? 0 : progress < 68 ? 1 : 2;
   const ext = file ? file.name.split(".").pop().toLowerCase() : "";
 
-  return (
+  return createPortal(
     <div className="ibm-root" role="dialog" aria-modal="true" aria-labelledby="ibm-h">
       <style>{CSS}</style>
       <div className="ibm-backdrop" onClick={close} />
@@ -438,7 +456,8 @@ export default function ImportBiometricModal({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -447,10 +466,10 @@ export default function ImportBiometricModal({
 /* ------------------------------------------------------------------ */
 const CSS = `
 .ibm-root{--accent:#4f46e5;--ink:#14141f;--muted:#6c6c7d;--line:#e8e8ef;--tint:#f4f3ff;--ease:cubic-bezier(.22,1,.36,1);
-  position:fixed;inset:0;z-index:80;display:grid;place-items:center;padding:16px;color:var(--ink);font-family:inherit}
-.ibm-backdrop{position:absolute;inset:0;background:rgba(15,23,42,0.45);animation:ibm-fade .2s ease both}
+  position:fixed;inset:0;z-index:99999;display:grid;place-items:center;padding:16px;color:var(--ink);font-family:inherit}
+.ibm-backdrop{position:fixed;inset:0;background:rgba(15,23,42,0.55);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);animation:ibm-fade .2s ease both}
 .ibm-panel{position:relative;width:min(520px,100%);max-height:calc(100vh - 32px);overflow:auto;background:#fff;border-radius:20px;
-  box-shadow:0 30px 80px -24px rgba(20,20,60,.4),0 0 0 1px rgba(20,20,40,.06);animation:ibm-pop .35s var(--ease) both}
+  box-shadow:0 30px 80px -24px rgba(20,20,60,.4),0 0 0 1px rgba(20,20,40,.06);animation:ibm-pop .35s var(--ease) both;z-index:1}
 .ibm-inner{animation:ibm-wipe .75s var(--ease) both}
 @keyframes ibm-fade{from{opacity:0}}
 @keyframes ibm-pop{from{opacity:0;transform:translateY(10px) scale(.98)}}
