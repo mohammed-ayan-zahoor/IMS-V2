@@ -41,8 +41,11 @@ import {
     BadgeCheck,
     Camera,
     Upload,
-    KeyRound
+    KeyRound,
+    ChevronLeft,
+    ChevronRight
 } from "lucide-react";
+import { format } from "date-fns";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import Input from "@/components/ui/Input";
@@ -80,6 +83,28 @@ export default function StaffProfilePage({ params }) {
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const fileInputRef = useRef(null);
     const modalFileInputRef = useRef(null);
+
+    // Attendance Month/Year Navigator
+    const [attendanceMonth, setAttendanceMonth] = useState(() => new Date().getMonth() + 1);
+    const [attendanceYear, setAttendanceYear] = useState(() => new Date().getFullYear());
+    const [attendanceLoading, setAttendanceLoading] = useState(false);
+
+    const fetchAttendanceMonth = useCallback(async (m, y) => {
+        try {
+            setAttendanceLoading(true);
+            const res = await fetch(`/api/v1/hr/staff/${id}?month=${m}&year=${y}`);
+            if (!res.ok) throw new Error("Failed to load attendance");
+            const data = await res.json();
+            if (data.attendanceMetrics) {
+                setAttendanceMetrics(data.attendanceMetrics);
+            }
+        } catch (err) {
+            console.error("Error loading month attendance:", err);
+            toast.error("Failed to load attendance for selected month");
+        } finally {
+            setAttendanceLoading(false);
+        }
+    }, [id, toast]);
 
     // Salary Structure State
     const [basicSalaryInput, setBasicSalaryInput] = useState(0);
@@ -1265,14 +1290,57 @@ export default function StaffProfilePage({ params }) {
                                     Monthly Attendance & Time Card
                                 </h2>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                                    Current month attendance records used directly for payroll calculation.
+                                    Viewing {format(new Date(attendanceYear, attendanceMonth - 1, 1), "MMMM yyyy")} records used directly for payroll calculation.
                                 </p>
                             </div>
-                            <Link href="/admin/hr/attendance">
-                                <Button variant="secondary" className="text-xs">
-                                    Go to Daily Attendance Sheet →
-                                </Button>
-                            </Link>
+
+                            <div className="flex items-center gap-2 flex-wrap">
+                                {/* Month Navigator */}
+                                <div className="flex items-center bg-gray-100 dark:bg-gray-800/80 rounded-lg p-1 border border-gray-200 dark:border-gray-700 shadow-sm">
+                                    <button
+                                        type="button"
+                                        disabled={attendanceLoading}
+                                        onClick={() => {
+                                            const newMonth = attendanceMonth === 1 ? 12 : attendanceMonth - 1;
+                                            const newYear = attendanceMonth === 1 ? attendanceYear - 1 : attendanceYear;
+                                            setAttendanceMonth(newMonth);
+                                            setAttendanceYear(newYear);
+                                            fetchAttendanceMonth(newMonth, newYear);
+                                        }}
+                                        className="p-1 hover:bg-white dark:hover:bg-gray-700 rounded-md transition-colors text-gray-600 dark:text-gray-300 disabled:opacity-40 cursor-pointer"
+                                        title="Previous month"
+                                    >
+                                        <ChevronLeft className="w-4 h-4" />
+                                    </button>
+
+                                    <div className="px-3 text-xs font-bold text-gray-900 dark:text-gray-100 min-w-[130px] text-center flex items-center justify-center gap-1.5">
+                                        {attendanceLoading && <Loader2 className="w-3 h-3 animate-spin text-indigo-600" />}
+                                        <span>{format(new Date(attendanceYear, attendanceMonth - 1, 1), "MMMM yyyy")}</span>
+                                    </div>
+
+                                    <button
+                                        type="button"
+                                        disabled={attendanceLoading}
+                                        onClick={() => {
+                                            const newMonth = attendanceMonth === 12 ? 1 : attendanceMonth + 1;
+                                            const newYear = attendanceMonth === 12 ? attendanceYear + 1 : attendanceYear;
+                                            setAttendanceMonth(newMonth);
+                                            setAttendanceYear(newYear);
+                                            fetchAttendanceMonth(newMonth, newYear);
+                                        }}
+                                        className="p-1 hover:bg-white dark:hover:bg-gray-700 rounded-md transition-colors text-gray-600 dark:text-gray-300 disabled:opacity-40 cursor-pointer"
+                                        title="Next month"
+                                    >
+                                        <ChevronRight className="w-4 h-4" />
+                                    </button>
+                                </div>
+
+                                <Link href="/admin/hr/attendance">
+                                    <Button variant="secondary" className="text-xs">
+                                        Daily Attendance Sheet →
+                                    </Button>
+                                </Link>
+                            </div>
                         </div>
 
                         {/* Metric Tiles */}
@@ -1322,8 +1390,9 @@ export default function StaffProfilePage({ params }) {
 
                         {/* Attendance Logs Table */}
                         <div className="mt-6 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
-                            <div className="bg-gray-50 dark:bg-gray-800/60 px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-800">
-                                This Month&apos;s Daily Attendance Logs
+                            <div className="bg-gray-50 dark:bg-gray-800/60 px-4 py-2.5 text-xs font-bold text-gray-700 dark:text-gray-300 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between">
+                                <span>{format(new Date(attendanceYear, attendanceMonth - 1, 1), "MMMM yyyy")} Daily Attendance Logs</span>
+                                <span className="text-[11px] font-normal text-gray-400">{(attendanceMetrics?.currentMonthLogs || []).length} days logged</span>
                             </div>
 
                             {(attendanceMetrics?.currentMonthLogs || []).length === 0 ? (

@@ -43,10 +43,17 @@ export async function GET(req, { params }) {
             return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
         }
 
-        // Fetch current month attendance metrics
+        // Fetch attendance metrics for requested or current month
+        const searchParams = new URL(req.url).searchParams;
         const now = new Date();
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+        const reqMonth = parseInt(searchParams.get('month'), 10);
+        const reqYear = parseInt(searchParams.get('year'), 10);
+
+        const year = (!isNaN(reqYear) && reqYear >= 2000 && reqYear <= 2100) ? reqYear : now.getFullYear();
+        const month = (!isNaN(reqMonth) && reqMonth >= 1 && reqMonth <= 12) ? reqMonth - 1 : now.getMonth();
+
+        const startOfMonth = new Date(Date.UTC(year, month, 1, 0, 0, 0, 0));
+        const endOfMonth = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59, 999));
 
         const currentMonthLogs = await StaffAttendance.find({
             institute: instituteId,
@@ -94,7 +101,9 @@ export async function GET(req, { params }) {
             staff,
             attendanceMetrics: {
                 summary: attendanceSummary,
-                currentMonthLogs
+                currentMonthLogs,
+                month: month + 1,
+                year
             },
             payslips,
             availableComponents
