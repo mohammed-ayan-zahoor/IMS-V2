@@ -8,6 +8,25 @@ import { StatStrip } from "./StatStrip";
 import { MonthSwitcher } from "./MonthSwitcher";
 import { StatusDot } from "./StatusDot";
 
+const extractPunchTime = (timeStr, dateVal) => {
+  if (timeStr && typeof timeStr === "string" && timeStr.trim()) {
+    return timeStr.trim();
+  }
+  if (dateVal) {
+    try {
+      const d = new Date(dateVal);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+      }
+    } catch {}
+  }
+  return null;
+};
+
 export function AttendanceTab({
   attendanceMetrics,
   month,
@@ -25,17 +44,27 @@ export function AttendanceTab({
     }));
   };
 
-  const { dayRows, hasPunchTimes, notMarkedCount } = useMemo(() => {
+  const { dayRows, notMarkedCount } = useMemo(() => {
     const logs = attendanceMetrics?.currentMonthLogs || [];
     const logMap = new Map();
-    let hasPunches = false;
 
     logs.forEach((log) => {
       if (log.date) {
-        const dStr = format(new Date(log.date), "yyyy-MM-dd");
-        logMap.set(dStr, log);
-        if (log.actualPunchIn || log.actualPunchOut || log.checkIn || log.checkOut) {
-          hasPunches = true;
+        const dObj = new Date(log.date);
+        const y = dObj.getFullYear();
+        const m = String(dObj.getMonth() + 1).padStart(2, "0");
+        const d = String(dObj.getDate()).padStart(2, "0");
+        const localKey = `${y}-${m}-${d}`;
+        logMap.set(localKey, log);
+
+        const utcY = dObj.getUTCFullYear();
+        const utcM = String(dObj.getUTCMonth() + 1).padStart(2, "0");
+        const utcD = String(dObj.getUTCDate()).padStart(2, "0");
+        const utcKey = `${utcY}-${utcM}-${utcD}`;
+        logMap.set(utcKey, log);
+
+        if (typeof log.date === "string") {
+          logMap.set(log.date.split("T")[0], log);
         }
       }
     });
@@ -55,6 +84,15 @@ export function AttendanceTab({
       const existing = logMap.get(dateStr);
 
       if (existing) {
+        const inTime = extractPunchTime(
+          existing.checkInTime || existing.actualPunchIn || existing.checkIn,
+          existing.checkInAt
+        );
+        const outTime = extractPunchTime(
+          existing.checkOutTime || existing.actualPunchOut || existing.checkOut,
+          existing.checkOutAt
+        );
+
         list.push({
           dateObj,
           dateStr,
@@ -62,9 +100,13 @@ export function AttendanceTab({
           isToday: isToday(dateObj),
           isSunday: isSun,
           status: existing.status || "present",
-          inTime: existing.actualPunchIn || existing.checkIn || null,
-          outTime: existing.actualPunchOut || existing.checkOut || null,
-          note: existing.notes || existing.holidayName || (existing.lateMinutes > 0 ? `Late by ${existing.lateMinutes}m` : null),
+          inTime,
+          outTime,
+          note:
+            existing.notes ||
+            existing.remarks ||
+            existing.holidayName ||
+            (existing.lateMinutes > 0 ? `Late by ${existing.lateMinutes}m` : null),
           shift: existing.shiftName || null,
           isUnmarked: false,
         });
@@ -100,7 +142,6 @@ export function AttendanceTab({
 
     return {
       dayRows: list,
-      hasPunchTimes: hasPunches,
       notMarkedCount: unrecorded,
     };
   }, [attendanceMetrics, month, year]);
@@ -188,12 +229,6 @@ export function AttendanceTab({
 
       {/* Daily Attendance Table */}
       <div className="pt-1">
-        {!hasPunchTimes && (
-          <p className="text-[12px] text-[#5F6673] pb-3 italic">
-            Punch times aren&apos;t recorded for this month.
-          </p>
-        )}
-
         <div className="w-full overflow-x-auto rounded-xl bg-white border border-[#E6E8EC] shadow-xs">
           {loading ? (
             <div className="py-16 flex items-center justify-center text-[13px] text-[#5F6673]">
@@ -204,14 +239,10 @@ export function AttendanceTab({
             <table className="w-full text-left border-collapse min-w-[620px]">
               <thead>
                 <tr className="border-b border-[#E6E8EC] text-[11px] font-semibold text-[#5F6673] uppercase tracking-wider bg-[#F8F9FA]">
-                  <th className="py-3 px-4 w-[180px]">Date</th>
-                  <th className="py-3 px-4 w-[140px]">Status</th>
-                  {hasPunchTimes && (
-                    <>
-                      <th className="py-3 px-4 w-[100px]">In</th>
-                      <th className="py-3 px-4 w-[100px]">Out</th>
-                    </>
-                  )}
+                  <th className="py-3 px-4 w-[160px]">Date</th>
+                  <th className="py-3 px-4 w-[130px]">Status</th>
+                  <th className="py-3 px-4 w-[95px]">In</th>
+                  <th className="py-3 px-4 w-[95px]">Out</th>
                   <th className="py-3 px-4">Note</th>
                 </tr>
               </thead>
@@ -227,7 +258,7 @@ export function AttendanceTab({
                     return (
                       <React.Fragment key={entry.clusterId}>
                         <tr className="bg-[#F8F9FA] hover:bg-[#F2F3F5] transition-colors">
-                          <td colSpan={hasPunchTimes ? 5 : 3} className="py-2.5 px-4">
+                          <td colSpan={5} className="py-2.5 px-4">
                             <button
                               type="button"
                               onClick={() => toggleCluster(entry.clusterId)}
@@ -262,7 +293,6 @@ export function AttendanceTab({
                             <AttendanceDayRow
                               key={d.dateStr}
                               day={d}
-                              hasPunchTimes={hasPunchTimes}
                               indent
                             />
                           ))}
@@ -274,7 +304,6 @@ export function AttendanceTab({
                     <AttendanceDayRow
                       key={entry.data.dateStr}
                       day={entry.data}
-                      hasPunchTimes={hasPunchTimes}
                     />
                   );
                 })}
@@ -287,7 +316,7 @@ export function AttendanceTab({
   );
 }
 
-function AttendanceDayRow({ day, hasPunchTimes, indent = false }) {
+function AttendanceDayRow({ day, indent = false }) {
   let statusTone = "muted";
   let statusLabel = "Not marked";
   let statusVariant = "ring";
@@ -371,16 +400,12 @@ function AttendanceDayRow({ day, hasPunchTimes, indent = false }) {
         />
       </td>
 
-      {hasPunchTimes && (
-        <>
-          <td className="py-2.5 px-4 tabular-nums font-semibold text-[#14161A]">
-            {day.inTime || "—"}
-          </td>
-          <td className="py-2.5 px-4 tabular-nums font-semibold text-[#14161A]">
-            {day.outTime || "—"}
-          </td>
-        </>
-      )}
+      <td className="py-2.5 px-4 tabular-nums font-semibold text-[#14161A]">
+        {day.inTime || "—"}
+      </td>
+      <td className="py-2.5 px-4 tabular-nums font-semibold text-[#14161A]">
+        {day.outTime || "—"}
+      </td>
 
       <td className="py-2.5 px-4 text-[#5F6673] truncate max-w-[220px]">
         {day.note || (day.shift ? `Shift: ${day.shift}` : "—")}
