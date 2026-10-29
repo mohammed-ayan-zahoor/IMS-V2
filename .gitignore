@@ -83,3 +83,8 @@ google-services.json
 *.doc
 *.rar
 templates/**/unpacked/
+
+
+# User uploads & runtime storage
+private_uploads/
+public/uploads/
