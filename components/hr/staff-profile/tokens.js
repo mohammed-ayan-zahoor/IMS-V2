@@ -1,23 +1,49 @@
-// Design tokens for Staff Profile overhaul based on Anti-Generic & Apple Fluid-Interface specifications
+// Apple Design & Staff Directory unified design tokens
 export const TOKENS = {
-  bgPage: "#F8F8FC",
+  // Page & surfaces
+  bgPage: "#F8F9FA",
   surface: "#FFFFFF",
-  bgHover: "#F1F1F8",
-  borderSubtle: "#E9E9F1",
-  borderInput: "#8E93A8",
-  textPrimary: "#101323",
-  textSecondary: "#6B7280",
+  bgSubtle: "#F2F3F5",
+  bgHover: "#EBECEF",
+
+  // Borders (hairline 1px)
+  borderSubtle: "#E6E8EC",
+  borderInput: "#D1D5DB",
+  borderFocus: "#4F46E5",
+
+  // Typography - Razor sharp contrast
+  textPrimary: "#14161A",   // Near-black, 14.5:1 contrast
+  textSecondary: "#5F6673", // Slate gray, 5.2:1 contrast (WCAG AAA)
+  textTertiary: "#7E8695",  // Metadata
+  textInverse: "#FFFFFF",
+
+  // Brand Accent (Apple Indigo)
   accent: "#4F46E5",
+  accentHover: "#4338CA",
   accentTint: "#EEF0FF",
-  ink: "#0F172A",
-  onInkMuted: "rgba(255, 255, 255, 0.64)",
+
+  // Semantic Status Tones
   positive: "#047857",
-  positiveOnInk: "#34D399",
+  positiveTint: "#E6F4EA",
   warning: "#B45309",
-  alert: "#B42318",
+  warningTint: "#FEF3C7",
+  alert: "#DC2626",
+  alertTint: "#FEE2E2",
+
+  // Dark Ledger Panel
+  ink: "#111827",
+  inkBorder: "#1F2937",
+  onInkSecondary: "#9CA3AF",
+  positiveOnInk: "#34D399",
 };
 
-export const SPRING_TRANSITION = {
+export const SPRING_FAST = {
+  type: "spring",
+  stiffness: 400,
+  damping: 30,
+};
+
+export const SPRING_SMOOTH = {
   type: "spring",
   bounce: 0,
   duration: 0.35,

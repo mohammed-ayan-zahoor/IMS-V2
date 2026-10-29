@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, use, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { motion } from "framer-motion";
 import {
   Camera,
   Copy,
@@ -12,16 +11,15 @@ import {
   FileSpreadsheet,
   Edit3,
   User,
-  ChevronRight,
   Phone,
   Mail,
   Calendar,
 } from "lucide-react";
-import Button from "@/components/ui/Button";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { cn } from "@/lib/utils";
 
 import { ProfileTab } from "@/components/hr/staff-profile/ProfileTab";
 import { SalaryTab } from "@/components/hr/staff-profile/SalaryTab";
@@ -52,7 +50,6 @@ export default function StaffProfilePage({ params }) {
 
   const [activeTab, setActiveTab] = useState(initialTab);
 
-  // Sync tab changes with URL
   const handleTabChange = (newTab) => {
     setActiveTab(newTab);
     const params = new URLSearchParams(window.location.search);
@@ -84,21 +81,6 @@ export default function StaffProfilePage({ params }) {
   const [attendanceMonth, setAttendanceMonth] = useState(() => new Date().getMonth() + 1);
   const [attendanceYear, setAttendanceYear] = useState(() => new Date().getFullYear());
   const [attendanceLoading, setAttendanceLoading] = useState(false);
-
-  // Scroll observer for mini identity in sticky tab bar
-  const headerRef = useRef(null);
-  const [isScrolledPastHeader, setIsScrolledPastHeader] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!headerRef.current) return;
-      const rect = headerRef.current.getBoundingClientRect();
-      setIsScrolledPastHeader(rect.bottom < 80);
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
 
   // --- Page-Level Draft Store for Salary and Deductions ---
   const [basicSalaryInput, setBasicSalaryInput] = useState(0);
@@ -349,7 +331,6 @@ export default function StaffProfilePage({ params }) {
     );
   }, [deductionsStructure, savedDeductionsStructure]);
 
-  // Warn on beforeunload if edits are unsaved
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (isSalaryDirty || isDeductionsDirty) {
@@ -366,7 +347,6 @@ export default function StaffProfilePage({ params }) {
     const basicVal = Math.max(0, parseFloat(newBasic) || 0);
     setBasicSalaryInput(basicVal);
 
-    // Auto-update non-overridden percentage components
     setEarningsStructure((prev) =>
       prev.map((item) => {
         if (item.calculationType === "percentage" && !item.isOverridden) {
@@ -408,7 +388,6 @@ export default function StaffProfilePage({ params }) {
     });
   };
 
-  // Discard actions
   const handleDiscardSalary = () => {
     setBasicSalaryInput(savedBasicSalary);
     setEarningsStructure(JSON.parse(JSON.stringify(savedEarningsStructure)));
@@ -421,7 +400,7 @@ export default function StaffProfilePage({ params }) {
   };
 
   // Save Salary Structure
-  const [salaryActionState, setSalaryActionState] = useState("idle"); // idle | dirty | saving | saved | error
+  const [salaryActionState, setSalaryActionState] = useState("idle");
   const handleSaveSalaryStructure = async () => {
     if (!basicSalaryInput || basicSalaryInput <= 0) {
       toast.error("Please enter a valid monthly basic pay");
@@ -594,7 +573,6 @@ export default function StaffProfilePage({ params }) {
     }
   };
 
-  // Save Profile modal
   const handleSaveProfile = async (e) => {
     e.preventDefault();
 
@@ -740,9 +718,12 @@ export default function StaffProfilePage({ params }) {
           description="The requested staff profile does not exist or has been removed."
           action={
             <Link href="/admin/hr/staff">
-              <Button className="mt-4 bg-[#4F46E5] text-white">
+              <button
+                type="button"
+                className="mt-4 h-8 px-4 rounded-lg bg-[#14161A] text-white hover:bg-black text-[13px] font-semibold transition-all cursor-pointer"
+              >
                 Back to Staff Directory
-              </Button>
+              </button>
             </Link>
           }
         />
@@ -757,6 +738,7 @@ export default function StaffProfilePage({ params }) {
   const designationName = staff.hrDetails?.designation?.name || "General Staff";
   const departmentName = staff.department?.name || staff.department?.code || "";
   const isAdmin = staff.role === "admin";
+  const isInstructor = staff.role === "instructor" || staff.role === "faculty";
 
   const formatJoiningDate = (dateVal) => {
     if (!dateVal) return null;
@@ -794,7 +776,6 @@ export default function StaffProfilePage({ params }) {
   const joiningFormatted = formatJoiningDate(staff.hrDetails?.joiningDate);
   const tenure = calculateTenure(staff.hrDetails?.joiningDate);
 
-  // Derived Totals for Profile summary & compensation
   const totalAllowances = earningsStructure
     .filter((item) => item.isIncluded)
     .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
@@ -805,7 +786,6 @@ export default function StaffProfilePage({ params }) {
     .reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
   const liveEstNetSalary = Math.max(0, liveGrossSalary - totalDeductions);
 
-  // Tab definitions
   const tabs = [
     { id: "profile", label: "Profile" },
     {
@@ -827,45 +807,28 @@ export default function StaffProfilePage({ params }) {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F8F8FC] dark:bg-[#0B0F17] text-[#101323] dark:text-gray-100 pb-28">
-      {/* 7.0 BREADCRUMB */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-5 pb-3">
-        <nav
-          aria-label="Breadcrumb"
-          className="flex items-center gap-1.5 text-xs text-[#6B7280] dark:text-gray-400"
-        >
-          <Link
-            href="/admin/hr"
-            className="hover:text-[#101323] dark:hover:text-white transition-colors"
-          >
-            Human resources
-          </Link>
-          <ChevronRight className="w-3.5 h-3.5 text-[#8E93A8]/60" />
-          <Link
-            href="/admin/hr/staff"
-            className="hover:text-[#101323] dark:hover:text-white transition-colors"
-          >
-            Staff directory
-          </Link>
-          <ChevronRight className="w-3.5 h-3.5 text-[#8E93A8]/60" />
-          <span
-            className="font-medium text-[#101323] dark:text-white truncate max-w-[200px]"
-            aria-current="page"
-          >
-            {fullName}
-          </span>
-        </nav>
-      </div>
+    <div className="text-[#14161A] select-none min-h-[calc(100vh-64px)] pb-28 font-[-apple-system,BlinkMacSystemFont,'Inter',system-ui,sans-serif]">
+      {/* ── Breadcrumb Navigation ────────────────────────────────────────── */}
+      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[12px] text-[#5F6673] mb-4">
+        <Link href="/admin/hr" className="hover:text-[#14161A] transition-colors">
+          Human resources
+        </Link>
+        <span>›</span>
+        <Link href="/admin/hr/staff" className="hover:text-[#14161A] transition-colors">
+          Staff directory
+        </Link>
+        <span>›</span>
+        <span className="font-semibold text-[#14161A] truncate max-w-[260px]">
+          {fullName}
+        </span>
+      </nav>
 
-      {/* 7.0 IDENTITY BLOCK (Unboxed, on page background) */}
-      <header
-        ref={headerRef}
-        className="max-w-7xl mx-auto px-4 sm:px-6 pt-2 pb-6 border-b border-[#E9E9F1] dark:border-gray-800/80"
-      >
+      {/* ── Identity Block (Unboxed, razor sharp contrast) ──────────────── */}
+      <header className="pb-6 border-b border-[#E6E8EC]/80 mb-6">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
           {/* Identity details */}
           <div className="flex items-start gap-4 sm:gap-5 min-w-0">
-            {/* 72x72 Avatar with hover camera overlay */}
+            {/* Avatar with hover upload overlay */}
             <div className="relative group shrink-0">
               <input
                 ref={fileInputRef}
@@ -876,13 +839,14 @@ export default function StaffProfilePage({ params }) {
                 disabled={uploadingPhoto}
               />
               {staff.profile?.avatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={staff.profile.avatar}
                   alt={fullName}
-                  className="w-[72px] h-[72px] rounded-[14px] object-cover border border-[#E9E9F1] dark:border-gray-800 shadow-xs"
+                  className="w-[72px] h-[72px] rounded-2xl object-cover border border-[#E6E8EC] shadow-2xs"
                 />
               ) : (
-                <div className="w-[72px] h-[72px] rounded-[14px] bg-[#4F46E5] flex items-center justify-center text-white font-semibold text-2xl shadow-xs select-none">
+                <div className="w-[72px] h-[72px] rounded-2xl bg-[#F2F3F5] text-[#14161A] border border-[#E6E8EC] flex items-center justify-center font-bold text-2xl shadow-2xs select-none">
                   {staff.profile?.firstName?.[0]?.toUpperCase() || "S"}
                 </div>
               )}
@@ -894,7 +858,7 @@ export default function StaffProfilePage({ params }) {
                 disabled={uploadingPhoto}
                 title="Change staff photo"
                 aria-label="Change staff photo"
-                className="absolute inset-0 bg-[#0F172A]/50 text-white rounded-[14px] opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 flex flex-col items-center justify-center gap-0.5 transition-opacity backdrop-blur-[2px] cursor-pointer"
+                className="absolute inset-0 bg-[#111827]/60 text-white rounded-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 flex flex-col items-center justify-center gap-0.5 transition-opacity backdrop-blur-[1px] cursor-pointer"
               >
                 {uploadingPhoto ? (
                   <Loader2 className="w-5 h-5 animate-spin" />
@@ -909,33 +873,41 @@ export default function StaffProfilePage({ params }) {
 
             {/* Name, Roles, and Metadata */}
             <div className="space-y-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <h1 className="text-[22px] leading-[26px] font-semibold tracking-[-0.02em] text-[#101323] dark:text-white truncate">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-[24px] font-semibold text-[#14161A] tracking-[-0.015em] leading-tight truncate">
                   {fullName}
                 </h1>
-                {isAdmin && (
-                  <span className="px-2 py-0.5 rounded-[4px] bg-[#EEF0FF] dark:bg-indigo-950/60 text-[#4F46E5] dark:text-indigo-300 text-xs font-semibold select-none">
+                {isAdmin ? (
+                  <span className="px-2 py-0.5 rounded-md bg-[#EEF0FF] text-[#4F46E5] text-[11px] font-semibold select-none">
                     Admin
+                  </span>
+                ) : isInstructor ? (
+                  <span className="px-2 py-0.5 rounded-md bg-[#E6F4EA] text-[#047857] text-[11px] font-semibold select-none">
+                    Teaching faculty
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-md bg-[#F2F3F5] text-[#5F6673] text-[11px] font-semibold select-none border border-[#E6E8EC]">
+                    Staff
                   </span>
                 )}
               </div>
 
-              <div className="text-sm font-medium text-[#101323]/80 dark:text-gray-300">
+              <div className="text-[13px] font-medium text-[#14161A]">
                 {designationName}
-                {departmentName ? ` · ${departmentName}` : ""}
+                {departmentName ? ` · Department of ${departmentName}` : ""}
               </div>
 
               {/* Contact & Date Metadata Line */}
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-[#6B7280] dark:text-gray-400 pt-0.5">
+              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-[#5F6673] pt-1">
                 {employeeCode && (
-                  <span className="inline-flex items-center gap-1 font-mono text-[13px] text-[#101323] dark:text-gray-300">
+                  <span className="inline-flex items-center gap-1.5 font-mono text-[12px] font-semibold text-[#14161A] bg-[#F2F3F5] px-2 py-0.5 rounded border border-[#E6E8EC]">
                     <span>{employeeCode}</span>
                     <button
                       type="button"
                       onClick={() => handleCopyCode(employeeCode)}
                       title="Copy employee code"
                       aria-label="Copy employee code"
-                      className="text-[#6B7280] hover:text-[#101323] dark:hover:text-white p-0.5 cursor-pointer"
+                      className="text-[#5F6673] hover:text-[#14161A] cursor-pointer p-0.5"
                     >
                       {copiedCode ? (
                         <Check className="w-3.5 h-3.5 text-[#047857]" />
@@ -943,9 +915,6 @@ export default function StaffProfilePage({ params }) {
                         <Copy className="w-3.5 h-3.5" />
                       )}
                     </button>
-                    <span aria-live="polite" className="sr-only">
-                      {copiedCode ? "Copied" : ""}
-                    </span>
                   </span>
                 )}
 
@@ -954,9 +923,9 @@ export default function StaffProfilePage({ params }) {
                     <span>·</span>
                     <a
                       href={`tel:${staff.profile.phone}`}
-                      className="hover:underline flex items-center gap-1"
+                      className="hover:underline flex items-center gap-1 text-[#5F6673] hover:text-[#14161A]"
                     >
-                      <Phone className="w-3 h-3 text-[#8E93A8]" />
+                      <Phone className="w-3 h-3 text-[#7E8695]" />
                       <span>{staff.profile.phone}</span>
                     </a>
                   </>
@@ -967,9 +936,9 @@ export default function StaffProfilePage({ params }) {
                     <span>·</span>
                     <a
                       href={`mailto:${staff.email}`}
-                      className="hover:underline flex items-center gap-1 truncate max-w-[220px]"
+                      className="hover:underline flex items-center gap-1 text-[#5F6673] hover:text-[#14161A] truncate max-w-[220px]"
                     >
-                      <Mail className="w-3 h-3 text-[#8E93A8]" />
+                      <Mail className="w-3 h-3 text-[#7E8695]" />
                       <span className="truncate">{staff.email}</span>
                     </a>
                   </>
@@ -978,8 +947,8 @@ export default function StaffProfilePage({ params }) {
                 {joiningFormatted && (
                   <>
                     <span>·</span>
-                    <span className="flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-[#8E93A8]" />
+                    <span className="flex items-center gap-1 text-[#5F6673]">
+                      <Calendar className="w-3 h-3 text-[#7E8695]" />
                       <span>Joined {joiningFormatted}</span>
                       {tenure ? <span>· {tenure}</span> : null}
                     </span>
@@ -989,23 +958,23 @@ export default function StaffProfilePage({ params }) {
             </div>
           </div>
 
-          {/* Header Action CTAs (§7.0: Primary + Secondary same shape & size) */}
-          <div className="flex items-center gap-2.5 shrink-0 self-start md:self-center">
+          {/* Header Action Buttons (Matching Staff Directory root) */}
+          <div className="flex items-center gap-2 shrink-0 self-start md:self-center">
             <button
               type="button"
               onClick={handleOpenEditProfile}
-              className="h-9 px-3.5 rounded-[8px] border border-[#8E93A8]/50 dark:border-gray-700 bg-transparent hover:bg-[#F1F1F8] dark:hover:bg-gray-800 text-xs font-semibold text-[#101323] dark:text-gray-100 transition-colors flex items-center gap-1.5 cursor-pointer active:scale-97 shadow-2xs"
+              className="h-8 px-3 rounded-lg border border-[#E6E8EC] bg-white hover:bg-[#F2F3F5] text-[13px] font-medium text-[#14161A] active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
             >
-              <Edit3 className="w-3.5 h-3.5 text-[#6B7280]" />
+              <Edit3 size={14} className="text-[#5F6673]" />
               <span>Edit profile</span>
             </button>
 
             <Link href={`/admin/hr/payslips?staff=${staff._id}`}>
               <button
                 type="button"
-                className="h-9 px-4 rounded-[8px] bg-[#4F46E5] hover:bg-indigo-700 text-white text-xs font-semibold shadow-xs transition-all flex items-center gap-1.5 cursor-pointer active:scale-97"
+                className="h-8 px-3.5 rounded-lg bg-[#4F46E5] hover:bg-indigo-700 text-white active:scale-[0.98] transition-all text-[13px] font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
               >
-                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <FileSpreadsheet size={14} />
                 <span>Generate payslip</span>
               </button>
             </Link>
@@ -1013,167 +982,93 @@ export default function StaffProfilePage({ params }) {
         </div>
       </header>
 
-      {/* 7.0 TAB BAR (Sticky, Translucent, Roving Tabindex & Sliding Spring Indicator) */}
-      <div className="sticky top-0 z-30 bg-[#F8F8FC]/80 dark:bg-[#0B0F17]/80 backdrop-blur-xl border-b border-[#E9E9F1] dark:border-gray-800/80 transition-shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between">
-          {/* Mini-identity on scroll past header */}
-          <div
-            className={`flex items-center gap-2.5 transition-opacity duration-200 mr-4 ${
-              isScrolledPastHeader ? "opacity-100" : "opacity-0 pointer-events-none w-0 overflow-hidden"
-            }`}
-          >
-            {staff.profile?.avatar ? (
-              <img
-                src={staff.profile.avatar}
-                alt={fullName}
-                className="w-6 h-6 rounded-md object-cover border border-[#E9E9F1] dark:border-gray-800 shrink-0"
-              />
-            ) : (
-              <div className="w-6 h-6 rounded-md bg-[#4F46E5] text-white text-[11px] font-bold flex items-center justify-center shrink-0">
-                {staff.profile?.firstName?.[0]?.toUpperCase() || "S"}
-              </div>
-            )}
-            <span className="text-xs font-semibold text-[#101323] dark:text-gray-100 truncate max-w-[140px]">
-              {fullName}
-            </span>
-          </div>
-
-          {/* Tab Navigation */}
-          <nav
-            role="tablist"
-            aria-label="Staff profile sections"
-            className="flex items-center space-x-1 sm:space-x-4 overflow-x-auto no-scrollbar py-1"
-          >
-            {tabs.map((tab) => {
-              const isActive = activeTab === tab.id;
-
-              return (
-                <button
-                  key={tab.id}
-                  role="tab"
-                  id={`tab-${tab.id}`}
-                  aria-selected={isActive}
-                  aria-controls={`tabpanel-${tab.id}`}
-                  onClick={() => handleTabChange(tab.id)}
-                  className={`relative py-3 px-3 text-xs font-medium transition-colors cursor-pointer select-none whitespace-nowrap flex items-center gap-1.5 ${
+      {/* ── Segmented Control Tab Bar (Matching Staff Directory root) ──── */}
+      <div className="flex items-center bg-[#F2F3F5] p-1 rounded-xl gap-0.5 overflow-x-auto max-w-full mb-6">
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => handleTabChange(tab.id)}
+              className={cn(
+                "relative h-8 px-4 rounded-lg text-[13px] font-medium transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer",
+                isActive
+                  ? "bg-white text-[#14161A] font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
+                  : "text-[#5F6673] hover:text-[#14161A] hover:bg-white/40"
+              )}
+            >
+              <span>{tab.label}</span>
+              {tab.count !== undefined && (
+                <span
+                  className={cn(
+                    "text-[11px] font-mono tabular-nums px-1.5 py-0.2 rounded-full",
                     isActive
-                      ? "text-[#101323] dark:text-white font-semibold"
-                      : "text-[#6B7280] dark:text-gray-400 hover:text-[#101323] dark:hover:text-gray-200"
-                  }`}
+                      ? "bg-[#F2F3F5] text-[#14161A] font-semibold"
+                      : "bg-[#E6E8EC] text-[#5F6673]"
+                  )}
                 >
-                  <span>{tab.label}</span>
-
-                  {/* Tab Count Numeral */}
-                  {tab.count !== undefined && (
-                    <span className="text-[11px] font-mono tabular-nums text-[#6B7280] dark:text-gray-400">
-                      {tab.count}
-                    </span>
-                  )}
-
-                  {/* Dirty Dot Indicator */}
-                  {tab.isDirty && (
-                    <span
-                      className="w-1.5 h-1.5 rounded-full bg-[#4F46E5]"
-                      title="Unsaved changes"
-                      aria-label="Unsaved changes"
-                    />
-                  )}
-
-                  {/* Active Sliding Indicator */}
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeTabUnderline"
-                      className="absolute bottom-0 left-0 right-0 h-[2px] bg-[#4F46E5]"
-                      transition={{ type: "spring", bounce: 0, duration: 0.35 }}
-                    />
-                  )}
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+                  {tab.count}
+                </span>
+              )}
+              {tab.isDirty && (
+                <span className="w-2 h-2 rounded-full bg-[#4F46E5] animate-pulse" />
+              )}
+            </button>
+          );
+        })}
       </div>
 
-      {/* MAIN TAB CONTENT REGION */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-8">
+      {/* ── Tab Content Region ───────────────────────────────────────────── */}
+      <main className="mt-2">
         {activeTab === "profile" && (
-          <div
-            role="tabpanel"
-            id="tabpanel-profile"
-            aria-labelledby="tab-profile"
-          >
-            <ProfileTab
-              staff={staff}
-              grossSalary={liveGrossSalary}
-              estNetSalary={liveEstNetSalary}
-              onOpenEditProfile={handleOpenEditProfile}
-              onSwitchTab={handleTabChange}
-            />
-          </div>
+          <ProfileTab
+            staff={staff}
+            grossSalary={liveGrossSalary}
+            estNetSalary={liveEstNetSalary}
+            onOpenEditProfile={handleOpenEditProfile}
+            onSwitchTab={handleTabChange}
+          />
         )}
 
         {activeTab === "salary" && (
-          <div
-            role="tabpanel"
-            id="tabpanel-salary"
-            aria-labelledby="tab-salary"
-          >
-            <SalaryTab
-              basicSalary={basicSalaryInput}
-              onBasicSalaryChange={handleBasicSalaryChange}
-              earnings={earningsStructure}
-              onEarningChange={handleEarningChange}
-              deductions={deductionsStructure}
-            />
-          </div>
+          <SalaryTab
+            basicSalary={basicSalaryInput}
+            onBasicSalaryChange={handleBasicSalaryChange}
+            earnings={earningsStructure}
+            onEarningChange={handleEarningChange}
+            deductions={deductionsStructure}
+          />
         )}
 
         {activeTab === "deductions" && (
-          <div
-            role="tabpanel"
-            id="tabpanel-deductions"
-            aria-labelledby="tab-deductions"
-          >
-            <DeductionsTab
-              basicSalary={basicSalaryInput}
-              earnings={earningsStructure}
-              deductions={deductionsStructure}
-              onDeductionChange={handleDeductionChange}
-            />
-          </div>
+          <DeductionsTab
+            basicSalary={basicSalaryInput}
+            earnings={earningsStructure}
+            deductions={deductionsStructure}
+            onDeductionChange={handleDeductionChange}
+          />
         )}
 
         {activeTab === "attendance" && (
-          <div
-            role="tabpanel"
-            id="tabpanel-attendance"
-            aria-labelledby="tab-attendance"
-          >
-            <AttendanceTab
-              attendanceMetrics={attendanceMetrics}
-              month={attendanceMonth}
-              year={attendanceYear}
-              onMonthChange={handleAttendanceMonthChange}
-              loading={attendanceLoading}
-            />
-          </div>
+          <AttendanceTab
+            attendanceMetrics={attendanceMetrics}
+            month={attendanceMonth}
+            year={attendanceYear}
+            onMonthChange={handleAttendanceMonthChange}
+            loading={attendanceLoading}
+          />
         )}
 
         {activeTab === "payslips" && (
-          <div
-            role="tabpanel"
-            id="tabpanel-payslips"
-            aria-labelledby="tab-payslips"
-          >
-            <PayslipsTab
-              payslips={payslips}
-              staffId={staff._id}
-            />
-          </div>
+          <PayslipsTab
+            payslips={payslips}
+            staffId={staff._id}
+          />
         )}
       </main>
 
-      {/* STICKY ACTION BAR FOR SALARY TAB */}
+      {/* ── Sticky Action Bar for Salary Tab ────────────────────────────── */}
       {activeTab === "salary" && (
         <ActionBar
           dirtyCount={isSalaryDirty ? 1 : 0}
@@ -1185,7 +1080,7 @@ export default function StaffProfilePage({ params }) {
         />
       )}
 
-      {/* STICKY ACTION BAR FOR DEDUCTIONS TAB */}
+      {/* ── Sticky Action Bar for Deductions Tab ────────────────────────── */}
       {activeTab === "deductions" && (
         <ActionBar
           dirtyCount={isDeductionsDirty ? 1 : 0}
@@ -1197,7 +1092,7 @@ export default function StaffProfilePage({ params }) {
         />
       )}
 
-      {/* PRESERVED EDIT PROFILE MODAL */}
+      {/* ── Edit Profile Modal ─────────────────────────────────────────── */}
       <EditProfileModal
         isOpen={isEditProfileOpen}
         onClose={() => setIsEditProfileOpen(false)}

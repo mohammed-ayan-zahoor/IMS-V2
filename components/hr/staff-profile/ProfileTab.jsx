@@ -19,7 +19,6 @@ export function ProfileTab({
   const [isBankRevealed, setIsBankRevealed] = useState(false);
   const [isPanRevealed, setIsPanRevealed] = useState(false);
 
-  // Auto-mask after 30 seconds
   useEffect(() => {
     if (isBankRevealed) {
       const timer = setTimeout(() => setIsBankRevealed(false), 30000);
@@ -105,9 +104,9 @@ export function ProfileTab({
   const roleName =
     staff?.role === "admin"
       ? "Admin"
-      : staff?.role === "faculty"
-      ? "Faculty"
-      : "Staff";
+      : staff?.role === "faculty" || staff?.role === "instructor"
+      ? "Teaching faculty"
+      : "Support staff";
 
   const joiningFormatted = formatIndianDate(staff?.hrDetails?.joiningDate);
   const tenure = calculateTenure(staff?.hrDetails?.joiningDate);
@@ -152,13 +151,13 @@ export function ProfileTab({
       {/* LEFT 60% — Personal & Employment */}
       <div className="lg:col-span-7 space-y-6">
         <div className="flex items-center justify-between pb-1">
-          <h2 className="text-[15px] font-semibold tracking-tight text-[#101323] dark:text-gray-100">
-            Personal & employment
+          <h2 className="text-[17px] font-semibold tracking-tight text-[#14161A]">
+            Personal &amp; employment
           </h2>
           <button
             type="button"
             onClick={onOpenEditProfile}
-            className="text-xs font-medium text-[#4F46E5] dark:text-indigo-400 hover:underline cursor-pointer"
+            className="text-[13px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
           >
             Edit
           </button>
@@ -173,13 +172,15 @@ export function ProfileTab({
             value={
               employeeCode ? (
                 <span className="inline-flex items-center gap-2">
-                  <span>{employeeCode}</span>
+                  <span className="bg-[#F2F3F5] text-[#14161A] font-mono text-[12px] font-semibold px-2 py-0.5 rounded border border-[#E6E8EC]">
+                    {employeeCode}
+                  </span>
                   <button
                     type="button"
                     onClick={() => handleCopyCode(employeeCode)}
                     title="Copy employee code"
                     aria-label="Copy employee code"
-                    className="text-[#6B7280] hover:text-[#101323] dark:hover:text-white transition-colors cursor-pointer p-0.5"
+                    className="text-[#5F6673] hover:text-[#14161A] transition-colors cursor-pointer p-0.5"
                   >
                     {copiedCode ? (
                       <Check className="w-3.5 h-3.5 text-[#047857]" />
@@ -216,7 +217,7 @@ export function ProfileTab({
               staff?.profile?.phone ? (
                 <a
                   href={`tel:${staff.profile.phone}`}
-                  className="hover:underline text-[#101323] dark:text-gray-200"
+                  className="hover:underline text-[#14161A] font-medium"
                 >
                   {staff.profile.phone}
                 </a>
@@ -229,7 +230,7 @@ export function ProfileTab({
               staff?.email ? (
                 <a
                   href={`mailto:${staff.email}`}
-                  className="hover:underline text-[#101323] dark:text-gray-200"
+                  className="hover:underline text-[#14161A] font-medium"
                 >
                   {staff.email}
                 </a>
@@ -247,11 +248,11 @@ export function ProfileTab({
                 />
                 {staff?.allowLogin !== false && (
                   <>
-                    <span className="text-[#6B7280]">·</span>
+                    <span className="text-[#8A909C]">·</span>
                     <button
                       type="button"
                       onClick={handleCopyLoginLink}
-                      className="text-xs font-medium text-[#4F46E5] dark:text-indigo-400 hover:underline cursor-pointer"
+                      className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
                     >
                       {copiedLoginLink ? "Copied link!" : "Copy sign-in link"}
                     </button>
@@ -264,45 +265,45 @@ export function ProfileTab({
       </div>
 
       {/* RIGHT 40% — Bank Account, Statutory IDs, Compensation */}
-      <div className="lg:col-span-5 space-y-6">
-        {/* BANK ACCOUNT (The one bordered panel, r10) */}
+      <div className="lg:col-span-5 space-y-5">
+        {/* BANK ACCOUNT CARD */}
         <div
-          className={`rounded-[10px] bg-white dark:bg-gray-900 border p-4 sm:p-5 transition-all ${
+          className={`rounded-xl bg-white border p-5 shadow-xs transition-all ${
             hasBankDetails
-              ? "border-[#E9E9F1] dark:border-gray-800"
-              : "border-[#E9E9F1] dark:border-gray-800 border-l-[3px] border-l-[#B45309]"
+              ? "border-[#E6E8EC]"
+              : "border-[#E6E8EC] border-l-4 border-l-[#B45309]"
           }`}
         >
-          <div className="flex items-center justify-between pb-3 border-b border-[#E9E9F1] dark:border-gray-800">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#101323] dark:text-gray-200">
+          <div className="flex items-center justify-between pb-3 border-b border-[#E6E8EC]">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#14161A]">
               Bank account
             </h3>
             <button
               type="button"
               onClick={onOpenEditProfile}
-              className="text-xs font-medium text-[#4F46E5] dark:text-indigo-400 hover:underline cursor-pointer"
+              className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
             >
               {hasBankDetails ? "Edit" : "Configure"}
             </button>
           </div>
 
           {hasBankDetails ? (
-            <div className="pt-2 divide-y divide-[#E9E9F1] dark:divide-gray-800/60 text-xs">
+            <div className="pt-2 divide-y divide-[#E6E8EC]/60 text-[13px]">
               <div className="py-2 flex justify-between">
-                <span className="text-[#6B7280]">Bank name</span>
-                <span className="font-medium text-[#101323] dark:text-gray-100">
+                <span className="text-[#5F6673]">Bank name</span>
+                <span className="font-semibold text-[#14161A]">
                   {bank.bankName || <EmptyValue />}
                 </span>
               </div>
               <div className="py-2 flex justify-between">
-                <span className="text-[#6B7280]">Account holder</span>
-                <span className="font-medium text-[#101323] dark:text-gray-100">
+                <span className="text-[#5F6673]">Account holder</span>
+                <span className="font-semibold text-[#14161A]">
                   {bank.accountName || fullName}
                 </span>
               </div>
               <div className="py-2 flex items-center justify-between">
-                <span className="text-[#6B7280]">Account number</span>
-                <span className="font-mono text-[13px] font-medium text-[#101323] dark:text-gray-100 flex items-center gap-1.5">
+                <span className="text-[#5F6673]">Account number</span>
+                <span className="font-mono text-[13px] font-bold text-[#14161A] flex items-center gap-1.5">
                   {isBankRevealed
                     ? bank.accountNumber
                     : maskAccount(bank.accountNumber)}
@@ -310,7 +311,7 @@ export function ProfileTab({
                     type="button"
                     onClick={() => setIsBankRevealed(!isBankRevealed)}
                     title={isBankRevealed ? "Hide account" : "Reveal account (30s)"}
-                    className="text-[#6B7280] hover:text-[#101323] dark:hover:text-white p-0.5"
+                    className="text-[#5F6673] hover:text-[#14161A] p-0.5"
                   >
                     {isBankRevealed ? (
                       <EyeOff className="w-3.5 h-3.5" />
@@ -321,15 +322,15 @@ export function ProfileTab({
                 </span>
               </div>
               <div className="py-2 flex justify-between">
-                <span className="text-[#6B7280]">IFSC code</span>
-                <span className="font-mono text-[13px] font-medium text-[#101323] dark:text-gray-100 uppercase">
+                <span className="text-[#5F6673]">IFSC code</span>
+                <span className="font-mono text-[13px] font-bold text-[#14161A] uppercase">
                   {bank.ifscCode || <EmptyValue />}
                 </span>
               </div>
               {bank.branch && (
                 <div className="py-2 flex justify-between">
-                  <span className="text-[#6B7280]">Branch</span>
-                  <span className="font-medium text-[#101323] dark:text-gray-100">
+                  <span className="text-[#5F6673]">Branch</span>
+                  <span className="font-semibold text-[#14161A]">
                     {bank.branch}
                   </span>
                 </div>
@@ -339,17 +340,17 @@ export function ProfileTab({
             <div className="py-3 space-y-3">
               <div className="flex items-center gap-2">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#B45309]" />
-                <span className="text-xs font-semibold text-[#B45309] dark:text-amber-400">
+                <span className="text-[12px] font-bold text-[#B45309]">
                   Not set up
                 </span>
               </div>
-              <p className="text-xs text-[#6B7280] dark:text-gray-400 leading-relaxed">
+              <p className="text-[12px] text-[#5F6673] leading-relaxed">
                 Salary cannot be paid by bank transfer until direct deposit details are added.
               </p>
               <button
                 type="button"
                 onClick={onOpenEditProfile}
-                className="h-8 px-3 rounded-[8px] border border-[#8E93A8]/40 dark:border-gray-700 bg-transparent hover:bg-[#F1F1F8] dark:hover:bg-gray-800 text-xs font-medium text-[#101323] dark:text-gray-200 transition-colors cursor-pointer active:scale-97"
+                className="h-8 px-3 rounded-lg border border-[#E6E8EC] bg-white hover:bg-[#F2F3F5] text-[12px] font-semibold text-[#14161A] transition-colors cursor-pointer active:scale-97"
               >
                 Add bank details
               </button>
@@ -357,25 +358,32 @@ export function ProfileTab({
           )}
         </div>
 
-        {/* STATUTORY IDS (Unboxed) */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between pb-2 border-b border-[#E9E9F1] dark:border-gray-800">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#6B7280] dark:text-gray-400">
+        {/* STATUTORY IDS CARD */}
+        <div className="rounded-xl bg-white border border-[#E6E8EC] p-5 shadow-xs">
+          <div className="flex items-center justify-between pb-3 border-b border-[#E6E8EC]">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#14161A]">
               Statutory IDs
             </h3>
+            <button
+              type="button"
+              onClick={onOpenEditProfile}
+              className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
+            >
+              Edit
+            </button>
           </div>
-          <div className="divide-y divide-[#E9E9F1] dark:divide-gray-800/60 text-xs">
+          <div className="divide-y divide-[#E6E8EC]/60 text-[13px] pt-1">
             {/* PAN */}
-            <div className="min-h-[40px] py-2 flex items-center justify-between">
-              <span className="text-[#6B7280]">PAN</span>
+            <div className="min-h-[38px] py-2 flex items-center justify-between">
+              <span className="text-[#5F6673]">PAN</span>
               {panNumber ? (
-                <span className="font-mono text-[13px] font-medium text-[#101323] dark:text-gray-100 flex items-center gap-1.5 uppercase">
+                <span className="font-mono text-[13px] font-bold text-[#14161A] flex items-center gap-1.5 uppercase">
                   {isPanRevealed ? panNumber : maskPan(panNumber)}
                   <button
                     type="button"
                     onClick={() => setIsPanRevealed(!isPanRevealed)}
                     title={isPanRevealed ? "Hide PAN" : "Reveal PAN (30s)"}
-                    className="text-[#6B7280] hover:text-[#101323] dark:hover:text-white p-0.5"
+                    className="text-[#5F6673] hover:text-[#14161A] p-0.5"
                   >
                     {isPanRevealed ? (
                       <EyeOff className="w-3.5 h-3.5" />
@@ -388,7 +396,7 @@ export function ProfileTab({
                 <button
                   type="button"
                   onClick={onOpenEditProfile}
-                  className="text-xs font-medium text-[#4F46E5] dark:text-indigo-400 hover:underline cursor-pointer"
+                  className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
                 >
                   Add
                 </button>
@@ -396,17 +404,17 @@ export function ProfileTab({
             </div>
 
             {/* UAN / EPF */}
-            <div className="min-h-[40px] py-2 flex items-center justify-between">
-              <span className="text-[#6B7280]">UAN / EPF</span>
+            <div className="min-h-[38px] py-2 flex items-center justify-between">
+              <span className="text-[#5F6673]">UAN / EPF</span>
               {uanNumber ? (
-                <span className="font-mono text-[13px] font-medium text-[#101323] dark:text-gray-100">
+                <span className="font-mono text-[13px] font-bold text-[#14161A]">
                   {uanNumber}
                 </span>
               ) : (
                 <button
                   type="button"
                   onClick={onOpenEditProfile}
-                  className="text-xs font-medium text-[#4F46E5] dark:text-indigo-400 hover:underline cursor-pointer"
+                  className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
                 >
                   Add
                 </button>
@@ -414,17 +422,17 @@ export function ProfileTab({
             </div>
 
             {/* ESI */}
-            <div className="min-h-[40px] py-2 flex items-center justify-between">
-              <span className="text-[#6B7280]">ESI</span>
+            <div className="min-h-[38px] py-2 flex items-center justify-between">
+              <span className="text-[#5F6673]">ESI</span>
               {esiNumber ? (
-                <span className="font-mono text-[13px] font-medium text-[#101323] dark:text-gray-100">
+                <span className="font-mono text-[13px] font-bold text-[#14161A]">
                   {esiNumber}
                 </span>
               ) : (
                 <button
                   type="button"
                   onClick={onOpenEditProfile}
-                  className="text-xs font-medium text-[#4F46E5] dark:text-indigo-400 hover:underline cursor-pointer"
+                  className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
                 >
                   Add
                 </button>
@@ -433,37 +441,37 @@ export function ProfileTab({
           </div>
         </div>
 
-        {/* COMPENSATION SUMMARY (Unboxed, 2 rows) */}
-        <div className="space-y-1">
-          <div className="flex items-center justify-between pb-2 border-b border-[#E9E9F1] dark:border-gray-800">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#6B7280] dark:text-gray-400">
+        {/* COMPENSATION CARD */}
+        <div className="rounded-xl bg-white border border-[#E6E8EC] p-5 shadow-xs">
+          <div className="flex items-center justify-between pb-3 border-b border-[#E6E8EC]">
+            <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#14161A]">
               Compensation
             </h3>
             {onSwitchTab && (
               <button
                 type="button"
                 onClick={() => onSwitchTab("salary")}
-                className="text-xs font-medium text-[#4F46E5] dark:text-indigo-400 hover:underline cursor-pointer"
+                className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
               >
                 Open salary →
               </button>
             )}
           </div>
-          <div className="divide-y divide-[#E9E9F1] dark:divide-gray-800/60 text-xs">
-            <div className="min-h-[40px] py-2 flex items-baseline justify-between">
-              <span className="text-[#6B7280]">Gross / month</span>
+          <div className="divide-y divide-[#E6E8EC]/60 text-[13px] pt-1">
+            <div className="min-h-[38px] py-2 flex items-baseline justify-between">
+              <span className="text-[#5F6673]">Gross / month</span>
               <Money
                 value={grossSalary}
                 fixed
-                className="text-sm font-semibold text-[#101323] dark:text-gray-100"
+                className="text-[14px] font-bold text-[#14161A]"
               />
             </div>
-            <div className="min-h-[40px] py-2 flex items-baseline justify-between">
-              <span className="text-[#6B7280]">Est. net take-home</span>
+            <div className="min-h-[38px] py-2 flex items-baseline justify-between">
+              <span className="text-[#5F6673]">Est. net take-home</span>
               <Money
                 value={estNetSalary}
                 fixed
-                className="text-sm font-semibold text-[#047857] dark:text-emerald-400"
+                className="text-[14px] font-bold text-[#047857]"
               />
             </div>
           </div>

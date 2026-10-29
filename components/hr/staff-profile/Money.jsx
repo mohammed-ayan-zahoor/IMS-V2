@@ -23,7 +23,6 @@ export function Money({ value, fixed = false, className = "" }) {
   }
 
   let num = Number(value);
-  // Normalize -0 to 0
   if (Object.is(num, -0) || num === 0) {
     num = 0;
   }
@@ -32,7 +31,7 @@ export function Money({ value, fixed = false, className = "" }) {
   const formatted = formatter.format(num);
 
   return (
-    <span className={`tabular-nums font-medium ${className}`}>
+    <span className={`tabular-nums font-medium text-inherit ${className}`}>
       {formatted}
     </span>
   );

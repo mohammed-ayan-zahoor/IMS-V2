@@ -6,27 +6,27 @@ const TONE_STYLES = {
   positive: {
     dot: "bg-[#047857]",
     ring: "border-[#047857]",
-    text: "text-[#047857] dark:text-emerald-400 font-medium",
+    text: "text-[#047857] font-semibold",
   },
   warning: {
     dot: "bg-[#B45309]",
     ring: "border-[#B45309]",
-    text: "text-[#B45309] dark:text-amber-400 font-medium",
+    text: "text-[#B45309] font-semibold",
   },
   alert: {
-    dot: "bg-[#B42318]",
-    ring: "border-[#B42318]",
-    text: "text-[#B42318] dark:text-rose-400 font-semibold",
+    dot: "bg-[#DC2626]",
+    ring: "border-[#DC2626]",
+    text: "text-[#DC2626] font-semibold",
   },
   accent: {
     dot: "bg-[#4F46E5]",
     ring: "border-[#4F46E5]",
-    text: "text-[#4F46E5] dark:text-indigo-400 font-medium",
+    text: "text-[#4F46E5] font-semibold",
   },
   muted: {
-    dot: "bg-[#6B7280]",
-    ring: "border-[#6B7280]",
-    text: "text-[#6B7280] dark:text-gray-400",
+    dot: "bg-[#7E8695]",
+    ring: "border-[#7E8695]",
+    text: "text-[#5F6673] font-medium",
   },
 };
 
@@ -40,7 +40,7 @@ export function StatusDot({
   const styles = TONE_STYLES[tone] || TONE_STYLES.muted;
 
   return (
-    <span className={`inline-flex items-center gap-1.5 text-xs ${className}`}>
+    <span className={`inline-flex items-center gap-1.5 text-[12px] leading-tight ${className}`}>
       {variant === "ring" ? (
         <span
           className={`w-1.5 h-1.5 rounded-full border-[1.5px] bg-transparent ${styles.ring} shrink-0`}

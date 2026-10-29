@@ -7,14 +7,14 @@ export function DefinitionList({ eyebrow, action, children, className = "" }) {
   return (
     <div className={`space-y-0.5 ${className}`}>
       {eyebrow && (
-        <div className="flex items-center justify-between pt-4 pb-2 border-b border-[#E9E9F1] dark:border-gray-800/80">
-          <span className="text-[11px] font-semibold tracking-[0.06em] text-[#6B7280] dark:text-gray-400 uppercase">
+        <div className="flex items-center justify-between pt-4 pb-2 border-b border-[#E6E8EC]">
+          <span className="text-[11px] font-semibold tracking-[0.06em] text-[#5F6673] uppercase">
             {eyebrow}
           </span>
           {action}
         </div>
       )}
-      <div className="divide-y divide-[#E9E9F1] dark:divide-gray-800/60">
+      <div className="divide-y divide-[#E6E8EC]/80">
         {children}
       </div>
     </div>
@@ -33,15 +33,15 @@ export function DefinitionRow({
 
   return (
     <div
-      className={`min-h-[44px] py-2.5 flex items-baseline justify-between gap-4 text-sm ${className}`}
+      className={`min-h-[44px] py-2.5 flex items-baseline justify-between gap-4 text-[13px] ${className}`}
     >
       <div className="flex items-baseline gap-4 min-w-0 flex-1">
-        <span className="w-[168px] shrink-0 text-xs font-medium text-[#6B7280] dark:text-gray-400">
+        <span className="w-[168px] shrink-0 text-[12px] font-medium text-[#5F6673]">
           {label}
         </span>
         <div
-          className={`min-w-0 flex-1 text-sm font-medium text-[#101323] dark:text-gray-100 ${
-            mono ? "font-mono text-[13px] tracking-tight" : ""
+          className={`min-w-0 flex-1 text-[13px] font-medium text-[#14161A] ${
+            mono ? "font-mono text-[12px] tracking-tight" : ""
           } ${valueClassName}`}
         >
           {isValueEmpty ? <EmptyValue /> : value}

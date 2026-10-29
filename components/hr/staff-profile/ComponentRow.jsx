@@ -15,12 +15,10 @@ export function ComponentRow({
     ? Math.round((Number(basicSalary || 0) * (Number(item.defaultValue || 0))) / 100)
     : Number(item.defaultValue || 0);
 
-  // Is this item manually overridden?
   const [isOverridden, setIsOverridden] = useState(
     item.isOverridden || (!isPercentage && item.amount !== item.defaultValue)
   );
 
-  // Sync amount when basic changes in auto mode
   useEffect(() => {
     if (isPercentage && !isOverridden && item.isIncluded) {
       if (item.amount !== ruleAmount) {
@@ -61,10 +59,8 @@ export function ComponentRow({
 
   const handleInputChange = (e) => {
     let raw = e.target.value.replace(/[^0-9.]/g, "");
-    // Prevent multiple dots
     const parts = raw.split(".");
     if (parts.length > 2) raw = parts[0] + "." + parts.slice(1).join("");
-    // Limit to 2 decimals
     if (parts[1] && parts[1].length > 2) {
       raw = parts[0] + "." + parts[1].slice(0, 2);
     }
@@ -79,9 +75,7 @@ export function ComponentRow({
 
   return (
     <div
-      className={`min-h-[56px] py-3 flex items-center justify-between gap-4 border-b border-[#E9E9F1] dark:border-gray-800/80 transition-colors ${
-        !isIncluded ? "opacity-60" : ""
-      } ${className}`}
+      className={`min-h-[52px] py-2.5 flex items-center justify-between gap-4 border-b border-[#E6E8EC]/80 transition-colors ${className}`}
     >
       {/* Checkbox + Details */}
       <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -90,21 +84,21 @@ export function ComponentRow({
           checked={isIncluded}
           onChange={handleCheckboxChange}
           aria-label={`Include ${item.name}`}
-          className="mt-1 w-4 h-4 rounded-[5px] border-[#8E93A8] text-[#4F46E5] focus:ring-[#4F46E5] focus:ring-offset-1 shrink-0 cursor-pointer"
+          className="mt-1 w-4 h-4 rounded text-[#4F46E5] border-[#D1D5DB] focus:ring-[#4F46E5] focus:ring-offset-1 shrink-0 cursor-pointer accent-[#4F46E5]"
         />
 
         <div className="min-w-0">
           <div
-            className={`text-sm font-medium leading-tight ${
+            className={`text-[13px] leading-snug ${
               isIncluded
-                ? "text-[#101323] dark:text-gray-100"
-                : "text-[#6B7280] dark:text-gray-400"
+                ? "font-semibold text-[#14161A]"
+                : "font-medium text-[#5F6673]"
             }`}
           >
             {item.name}
           </div>
 
-          <div className="text-xs text-[#6B7280] dark:text-gray-400 mt-0.5 flex flex-wrap items-center gap-1.5">
+          <div className="text-[12px] text-[#5F6673] mt-0.5 flex flex-wrap items-center gap-1.5 font-normal">
             {isPercentage ? (
               <>
                 <span>
@@ -115,12 +109,12 @@ export function ComponentRow({
                     <span>·</span>
                     {isOverridden ? (
                       <span className="inline-flex items-center gap-1">
-                        <span className="text-amber-600 dark:text-amber-400 font-medium">Custom</span>
+                        <span className="text-[#B45309] font-medium">Custom</span>
                         <span>(rule gives ₹{ruleAmount.toLocaleString("en-IN")})</span>
                         <button
                           type="button"
                           onClick={handleResetToAuto}
-                          className="text-[#4F46E5] dark:text-indigo-400 hover:underline font-semibold cursor-pointer ml-1"
+                          className="text-[#4F46E5] hover:underline font-semibold cursor-pointer ml-1"
                         >
                           Reset
                         </button>
@@ -129,7 +123,7 @@ export function ComponentRow({
                       <button
                         type="button"
                         onClick={handleOverrideToggle}
-                        className="text-[#4F46E5] dark:text-indigo-400 hover:underline font-medium cursor-pointer"
+                        className="text-[#4F46E5] hover:underline font-medium cursor-pointer"
                       >
                         Override
                       </button>
@@ -149,16 +143,16 @@ export function ComponentRow({
       {/* Amount Display or Input */}
       <div className="shrink-0 flex items-center justify-end">
         {!isIncluded ? (
-          <div className="w-[140px] text-right">
+          <div className="w-[130px] text-right">
             <EmptyValue />
           </div>
         ) : isPercentage && !isOverridden ? (
-          <div className="w-[140px] text-right text-sm font-semibold text-[#101323] dark:text-gray-100 tabular-nums">
+          <div className="w-[130px] text-right text-[13px] font-semibold text-[#14161A] tabular-nums">
             <Money value={ruleAmount} fixed />
           </div>
         ) : (
-          <div className="relative w-[140px]">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-[#6B7280] select-none pointer-events-none">
+          <div className="relative w-[130px]">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[12px] font-semibold text-[#5F6673] select-none pointer-events-none">
               ₹
             </span>
             <input
@@ -168,7 +162,7 @@ export function ComponentRow({
               placeholder="0"
               onChange={handleInputChange}
               onWheel={(e) => e.target.blur()}
-              className="w-full h-9 pl-7 pr-3 text-right text-sm font-medium tabular-nums rounded-[8px] border border-[#8E93A8] dark:border-gray-700 bg-white dark:bg-gray-900 text-[#101323] dark:text-gray-100 focus:outline-none focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="w-full h-8 pl-6 pr-2.5 text-right text-[13px] font-semibold tabular-nums rounded-lg border border-[#E6E8EC] bg-white text-[#14161A] focus:outline-none focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
         )}

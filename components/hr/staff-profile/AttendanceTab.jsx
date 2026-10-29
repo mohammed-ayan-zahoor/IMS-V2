@@ -25,7 +25,6 @@ export function AttendanceTab({
     }));
   };
 
-  // Build calendar days for the selected month
   const { dayRows, hasPunchTimes, notMarkedCount } = useMemo(() => {
     const logs = attendanceMetrics?.currentMonthLogs || [];
     const logMap = new Map();
@@ -44,7 +43,6 @@ export function AttendanceTab({
     const now = new Date();
     const isCurrentMonth = month === (now.getMonth() + 1) && year === now.getFullYear();
     const totalDaysInMonth = new Date(year, month, 0).getDate();
-    // If current month, only evaluate days up to today
     const maxDay = isCurrentMonth ? Math.min(totalDaysInMonth, now.getDate()) : totalDaysInMonth;
 
     const list = [];
@@ -107,7 +105,6 @@ export function AttendanceTab({
     };
   }, [attendanceMetrics, month, year]);
 
-  // Group consecutive unmarked day runs (>= 3 days)
   const groupedDisplayRows = useMemo(() => {
     const result = [];
     let currentUnmarkedRun = [];
@@ -153,10 +150,10 @@ export function AttendanceTab({
       {/* Header Row */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-[15px] font-semibold tracking-tight text-[#101323] dark:text-gray-100">
+          <h2 className="text-[17px] font-semibold tracking-tight text-[#14161A]">
             Attendance
           </h2>
-          <p className="text-xs text-[#6B7280] dark:text-gray-400 mt-0.5">
+          <p className="text-[13px] text-[#5F6673] mt-0.5">
             Biometric records used directly for payroll calculation.
           </p>
         </div>
@@ -170,15 +167,15 @@ export function AttendanceTab({
 
           <Link
             href="/admin/hr/attendance"
-            className="h-9 px-3 rounded-[8px] border border-[#8E93A8]/40 dark:border-gray-700 bg-white dark:bg-gray-900 hover:bg-[#F1F1F8] dark:hover:bg-gray-800 text-xs font-medium text-[#101323] dark:text-gray-200 transition-colors inline-flex items-center gap-1.5 cursor-pointer active:scale-97 shadow-sm"
+            className="h-8 px-3 rounded-lg border border-[#E6E8EC] bg-white hover:bg-[#F2F3F5] text-[13px] font-medium text-[#14161A] transition-colors inline-flex items-center gap-1.5 cursor-pointer active:scale-97 shadow-xs"
           >
             <span>Daily sheet</span>
-            <ExternalLink className="w-3.5 h-3.5 text-[#6B7280]" />
+            <ExternalLink className="w-3.5 h-3.5 text-[#5F6673]" />
           </Link>
         </div>
       </div>
 
-      {/* Unboxed Asymmetric Stat Strip */}
+      {/* High-Contrast Stat Strip */}
       <StatStrip
         present={summary.present || 0}
         absent={summary.absent || 0}
@@ -189,37 +186,37 @@ export function AttendanceTab({
         notMarked={notMarkedCount}
       />
 
-      {/* Daily Attendance Table (Unboxed on page bg) */}
-      <div className="pt-2">
+      {/* Daily Attendance Table */}
+      <div className="pt-1">
         {!hasPunchTimes && (
-          <p className="text-xs text-[#6B7280] dark:text-gray-400 pb-3 italic">
+          <p className="text-[12px] text-[#5F6673] pb-3 italic">
             Punch times aren&apos;t recorded for this month.
           </p>
         )}
 
-        <div className="w-full overflow-x-auto">
+        <div className="w-full overflow-x-auto rounded-xl bg-white border border-[#E6E8EC] shadow-xs">
           {loading ? (
-            <div className="py-16 flex items-center justify-center text-xs text-[#6B7280]">
+            <div className="py-16 flex items-center justify-center text-[13px] text-[#5F6673]">
               <Loader2 className="w-5 h-5 animate-spin mr-2 text-[#4F46E5]" />
               Loading month attendance…
             </div>
           ) : (
             <table className="w-full text-left border-collapse min-w-[620px]">
               <thead>
-                <tr className="border-b border-[#E9E9F1] dark:border-gray-800 text-xs text-[#6B7280] dark:text-gray-400">
-                  <th className="py-2.5 font-medium w-[180px]">Date</th>
-                  <th className="py-2.5 font-medium w-[140px]">Status</th>
+                <tr className="border-b border-[#E6E8EC] text-[11px] font-semibold text-[#5F6673] uppercase tracking-wider bg-[#F8F9FA]">
+                  <th className="py-3 px-4 w-[180px]">Date</th>
+                  <th className="py-3 px-4 w-[140px]">Status</th>
                   {hasPunchTimes && (
                     <>
-                      <th className="py-2.5 font-medium w-[90px]">In</th>
-                      <th className="py-2.5 font-medium w-[90px]">Out</th>
+                      <th className="py-3 px-4 w-[100px]">In</th>
+                      <th className="py-3 px-4 w-[100px]">Out</th>
                     </>
                   )}
-                  <th className="py-2.5 font-medium">Note</th>
+                  <th className="py-3 px-4">Note</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#E9E9F1]/80 dark:divide-gray-800/60 text-xs">
-                {groupedDisplayRows.map((entry, idx) => {
+              <tbody className="divide-y divide-[#E6E8EC]/80 text-[13px]">
+                {groupedDisplayRows.map((entry) => {
                   if (entry.type === "cluster") {
                     const isExpanded = !!expandedClusters[entry.clusterId];
                     const rangeLabel = `${format(entry.firstDate, "EEE, d MMM")} – ${format(
@@ -229,23 +226,23 @@ export function AttendanceTab({
 
                     return (
                       <React.Fragment key={entry.clusterId}>
-                        <tr className="bg-[#F8F8FC]/60 dark:bg-gray-900/40 hover:bg-[#F1F1F8] dark:hover:bg-gray-800/50 transition-colors">
-                          <td colSpan={hasPunchTimes ? 5 : 3} className="py-2.5 px-1">
+                        <tr className="bg-[#F8F9FA] hover:bg-[#F2F3F5] transition-colors">
+                          <td colSpan={hasPunchTimes ? 5 : 3} className="py-2.5 px-4">
                             <button
                               type="button"
                               onClick={() => toggleCluster(entry.clusterId)}
-                              className="w-full text-left flex items-center justify-between text-xs font-medium text-[#6B7280] dark:text-gray-400 hover:text-[#101323] dark:hover:text-gray-200 cursor-pointer py-1"
+                              className="w-full text-left flex items-center justify-between text-[12px] font-medium text-[#5F6673] hover:text-[#14161A] cursor-pointer py-1"
                             >
                               <span className="flex items-center gap-2">
-                                <span className="font-medium text-[#101323] dark:text-gray-200">
+                                <span className="font-semibold text-[#14161A]">
                                   {rangeLabel}
                                 </span>
                                 <span>·</span>
-                                <span className="text-[#B45309] dark:text-amber-400">
+                                <span className="text-[#B45309] font-medium">
                                   {entry.count} days not marked
                                 </span>
                               </span>
-                              <span className="text-[#4F46E5] dark:text-indigo-400 flex items-center gap-1 text-[11px] font-semibold">
+                              <span className="text-[#4F46E5] flex items-center gap-1 text-[11px] font-semibold">
                                 {isExpanded ? (
                                   <>
                                     Collapse <ChevronDown className="w-3.5 h-3.5" />
@@ -338,54 +335,54 @@ function AttendanceDayRow({ day, hasPunchTimes, indent = false }) {
 
   return (
     <tr
-      className={`h-11 hover:bg-[#F1F1F8] dark:hover:bg-gray-800/40 transition-colors ${
-        indent ? "bg-[#F8F8FC]/30 pl-4" : ""
+      className={`h-12 hover:bg-[#F2F3F5]/60 transition-colors ${
+        indent ? "bg-[#F8F9FA]/60 pl-4" : ""
       }`}
     >
-      <td className="py-2.5 font-medium whitespace-nowrap">
+      <td className="py-2.5 px-4 font-semibold whitespace-nowrap">
         <span
           className={
             day.isToday
-              ? "text-[#4F46E5] dark:text-indigo-400 font-bold"
-              : "text-[#101323] dark:text-gray-200"
+              ? "text-[#4F46E5] font-bold"
+              : "text-[#14161A]"
           }
         >
           {formattedDate}
         </span>
         {day.isToday && (
-          <span className="ml-1.5 text-[10px] uppercase font-bold text-[#4F46E5]">
+          <span className="ml-2 text-[10px] uppercase font-bold text-[#4F46E5] bg-[#EEF0FF] px-1.5 py-0.5 rounded">
             Today
           </span>
         )}
       </td>
 
-      <td className="py-2.5 whitespace-nowrap">
+      <td className="py-2.5 px-4 whitespace-nowrap">
         <StatusDot
           tone={statusTone}
           label={statusLabel}
           variant={statusVariant}
           labelClassName={
             day.status === "absent"
-              ? "text-[#101323] dark:text-white font-semibold"
+              ? "text-[#DC2626] font-bold"
               : day.status === "present"
-              ? "text-[#6B7280] dark:text-gray-400"
-              : ""
+              ? "text-[#047857] font-semibold"
+              : "text-[#14161A] font-medium"
           }
         />
       </td>
 
       {hasPunchTimes && (
         <>
-          <td className="py-2.5 tabular-nums text-[#101323] dark:text-gray-300">
+          <td className="py-2.5 px-4 tabular-nums font-semibold text-[#14161A]">
             {day.inTime || "—"}
           </td>
-          <td className="py-2.5 tabular-nums text-[#101323] dark:text-gray-300">
+          <td className="py-2.5 px-4 tabular-nums font-semibold text-[#14161A]">
             {day.outTime || "—"}
           </td>
         </>
       )}
 
-      <td className="py-2.5 text-[#6B7280] dark:text-gray-400 truncate max-w-[220px]">
+      <td className="py-2.5 px-4 text-[#5F6673] truncate max-w-[220px]">
         {day.note || (day.shift ? `Shift: ${day.shift}` : "—")}
       </td>
     </tr>

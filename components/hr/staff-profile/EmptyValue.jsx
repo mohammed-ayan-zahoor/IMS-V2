@@ -5,7 +5,7 @@ import React from "react";
 export function EmptyValue({ className = "" }) {
   return (
     <span
-      className={`text-[#6B7280] dark:text-gray-400 select-none ${className}`}
+      className={`text-[#7E8695] select-none font-normal ${className}`}
       aria-label="Not provided"
     >
       —

@@ -20,10 +20,10 @@ export function DeductionsTab({
       {/* LEFT 62% — Deductions list */}
       <div className="lg:col-span-7 space-y-6">
         <div>
-          <h2 className="text-[15px] font-semibold tracking-tight text-[#101323] dark:text-gray-100">
+          <h2 className="text-[17px] font-semibold tracking-tight text-[#14161A]">
             Statutory deductions
           </h2>
-          <p className="text-xs text-[#6B7280] dark:text-gray-400 mt-0.5">
+          <p className="text-[13px] text-[#5F6673] mt-0.5">
             Fixed monthly deductions applied to every payslip.
           </p>
 
@@ -32,7 +32,7 @@ export function DeductionsTab({
             <button
               type="button"
               onClick={() => setIsExplainerOpen(!isExplainerOpen)}
-              className="text-xs font-medium text-[#4F46E5] dark:text-indigo-400 hover:underline inline-flex items-center gap-1 cursor-pointer"
+              className="text-[13px] font-semibold text-[#4F46E5] hover:underline inline-flex items-center gap-1 cursor-pointer"
             >
               <span>How are late cuts and advances handled?</span>
               {isExplainerOpen ? (
@@ -43,7 +43,7 @@ export function DeductionsTab({
             </button>
 
             {isExplainerOpen && (
-              <p className="mt-1.5 p-3 rounded-[8px] bg-[#F8F8FC] dark:bg-gray-800/60 border border-[#E9E9F1] dark:border-gray-800 text-xs text-[#6B7280] dark:text-gray-300 leading-relaxed">
+              <p className="mt-2 p-3 rounded-lg bg-[#F2F3F5] border border-[#E6E8EC] text-[12px] text-[#14161A] leading-relaxed">
                 Variable items — attendance LWP, late-in penalties, performance cuts and advance recovery — are applied per month when a payslip is generated based on biometric logs and gate passes.
               </p>
             )}
@@ -52,19 +52,19 @@ export function DeductionsTab({
 
         {/* Deductions Group */}
         <div className="pt-2">
-          <div className="flex items-center justify-between pb-2 border-b border-[#E9E9F1] dark:border-gray-800">
-            <span className="text-[11px] font-semibold tracking-[0.06em] text-[#6B7280] dark:text-gray-400 uppercase">
+          <div className="flex items-center justify-between pb-2 border-b border-[#E6E8EC]">
+            <span className="text-[11px] font-semibold tracking-[0.06em] text-[#5F6673] uppercase">
               RECURRING DEDUCTIONS
             </span>
             {(deductions || []).length > 0 && (
-              <span className="text-[11px] text-[#6B7280]">
+              <span className="text-[12px] text-[#5F6673]">
                 Uncheck a component to exempt this staff member
               </span>
             )}
           </div>
 
           {(deductions || []).length > 0 ? (
-            <div className="divide-y divide-[#E9E9F1] dark:divide-gray-800/80">
+            <div className="divide-y divide-[#E6E8EC]/80">
               {deductions.map((item, index) => (
                 <ComponentRow
                   key={item.componentId || item._id || index}
@@ -75,20 +75,20 @@ export function DeductionsTab({
               ))}
             </div>
           ) : (
-            /* Unboxed, left-aligned empty state (§7.3) */
+            /* Unboxed, left-aligned empty state */
             <div className="py-8 space-y-2 text-left">
-              <h3 className="text-sm font-semibold text-[#101323] dark:text-gray-100">
+              <h3 className="text-[14px] font-semibold text-[#14161A]">
                 No deduction components set up
               </h3>
-              <p className="text-xs text-[#6B7280] dark:text-gray-400 max-w-md">
+              <p className="text-[13px] text-[#5F6673] max-w-md">
                 Add PF, ESI or Professional Tax once and they&apos;ll appear here for every staff member.
               </p>
               <div className="pt-2">
                 <Link
                   href="/admin/hr/salary-components"
-                  className="inline-flex items-center h-8 px-3 rounded-[8px] border border-[#8E93A8]/40 dark:border-gray-700 bg-transparent hover:bg-[#F1F1F8] dark:hover:bg-gray-800 text-xs font-semibold text-[#101323] dark:text-gray-200 transition-colors"
+                  className="inline-flex items-center h-8 px-3 rounded-lg border border-[#E6E8EC] bg-white hover:bg-[#F2F3F5] text-[13px] font-medium text-[#14161A] transition-colors"
                 >
-                  Open Earnings & Deductions
+                  Open Earnings &amp; Deductions
                 </Link>
               </div>
             </div>
@@ -98,9 +98,9 @@ export function DeductionsTab({
             <div className="pt-4">
               <Link
                 href="/admin/hr/salary-components"
-                className="text-xs font-medium text-[#4F46E5] dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
+                className="text-[13px] font-semibold text-[#4F46E5] hover:underline inline-flex items-center gap-1"
               >
-                Manage components in Earnings & Deductions →
+                Manage components in Earnings &amp; Deductions →
               </Link>
             </div>
           )}

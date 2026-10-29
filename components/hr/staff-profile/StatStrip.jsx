@@ -67,21 +67,21 @@ export function StatStrip({
 
   return (
     <div
-      className={`w-full overflow-x-auto py-3 border-y border-[#E9E9F1] dark:border-gray-800 bg-transparent ${className}`}
+      className={`w-full overflow-x-auto p-4 rounded-xl bg-white border border-[#E6E8EC] shadow-xs ${className}`}
     >
-      <div className="flex items-stretch divide-x divide-[#E9E9F1] dark:divide-gray-800/80 min-w-[680px]">
+      <div className="flex items-stretch divide-x divide-[#E6E8EC] min-w-[680px]">
         {items.map((stat) => {
-          let valueColor = "text-[#101323] dark:text-gray-100";
+          let valueColor = "text-[#14161A]";
           if (stat.tone === "alert") {
-            valueColor = "text-[#B42318] dark:text-rose-400 font-semibold";
+            valueColor = "text-[#DC2626] font-bold";
           } else if (stat.tone === "warning") {
-            valueColor = "text-[#B45309] dark:text-amber-500 font-semibold";
+            valueColor = "text-[#B45309] font-bold";
           } else if (stat.tone === "accent") {
-            valueColor = "text-[#4F46E5] dark:text-indigo-400 font-semibold";
+            valueColor = "text-[#4F46E5] font-bold";
           } else if (stat.tone === "positive") {
-            valueColor = "text-[#047857] dark:text-emerald-400 font-semibold";
+            valueColor = "text-[#047857] font-bold";
           } else if (stat.tone === "muted") {
-            valueColor = "text-[#6B7280] dark:text-gray-400 font-normal";
+            valueColor = "text-[#7E8695] font-medium";
           }
 
           return (
@@ -94,13 +94,13 @@ export function StatStrip({
               <div
                 className={`tabular-nums tracking-tight leading-none ${
                   stat.hero
-                    ? "text-[28px] font-semibold text-[#101323] dark:text-white"
-                    : `text-[20px] font-medium ${valueColor}`
+                    ? "text-[28px] font-bold text-[#14161A]"
+                    : `text-[20px] ${valueColor}`
                 }`}
               >
                 {stat.value}
               </div>
-              <div className="text-xs font-medium text-[#6B7280] dark:text-gray-400 mt-2 truncate">
+              <div className="text-[12px] font-semibold text-[#5F6673] mt-2 truncate">
                 {stat.label}
               </div>
             </div>
