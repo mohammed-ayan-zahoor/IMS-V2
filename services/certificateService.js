@@ -49,11 +49,6 @@ async function getCanvas() {
     }
     return _canvasModule;
 }
-        }
-    } catch (error) {
-        console.warn(`⚠ Could not register font ${font.family}: ${error.message}`);
-    }
-});
 
 // Custom Handlebars Helpers
 Handlebars.registerHelper('formatDate', (date) => {
