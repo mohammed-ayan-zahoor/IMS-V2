@@ -23,7 +23,12 @@ Handlebars.registerHelper('formatDate', (date) => {
     });
 });
 
-export default function HtmlCertificateEditor() {
+export default function HtmlCertificateEditor({
+    initialEditingTemplate = undefined,
+    isOpen = false,
+    onClose = undefined,
+    onSaveSuccess = undefined
+} = {}) {
     const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [templates, setTemplates] = useState([]);
@@ -349,18 +354,18 @@ export default function HtmlCertificateEditor() {
     if (loading) {
         return (
             <div className="flex justify-center items-center h-48">
-                <Loader2 className="animate-spin text-premium-blue" size={32} />
+                <Loader2 className="animate-spin text-slate-900" size={32} />
             </div>
         );
     }
 
     return (
-        <Card className="overflow-hidden border-none shadow-xl bg-slate-50/30">
+        <Card className="overflow-hidden border-none shadow-sm bg-slate-50/30">
             <div className="space-y-6">
                 <div className="flex items-center justify-between border-b bg-white -mx-6 -mt-6 px-6 py-4">
                     <div>
                         <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
-                            <BookOpen className="text-premium-blue" size={24} />
+                            <BookOpen className="text-slate-900" size={24} />
                             HTML Certificate Templates
                         </h3>
                         <p className="text-xs text-slate-500 mt-1 font-medium">Create formal certificates with pixel-perfect HTML & Handlebars</p>
@@ -369,7 +374,7 @@ export default function HtmlCertificateEditor() {
                         <button 
                             type="button" 
                             onClick={() => setShowEditor(true)} 
-                            className="flex items-center gap-2 px-6 py-2.5 bg-premium-blue text-white rounded-xl font-bold hover:shadow-lg hover:shadow-blue-200 transition-all active:scale-95"
+                            className="flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-none transition-all active:scale-95"
                         >
                             <Plus size={18} /> New Template
                         </button>
@@ -380,7 +385,7 @@ export default function HtmlCertificateEditor() {
                     <div className="space-y-4 animate-in fade-in duration-300">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                                <div className="w-10 h-10 rounded-xl bg-premium-blue/10 flex items-center justify-center text-premium-blue">
+                                <div className="w-10 h-10 rounded-xl bg-slate-900/10 flex items-center justify-center text-slate-900">
                                     <Settings size={20} />
                                 </div>
                                 <div>
@@ -395,7 +400,7 @@ export default function HtmlCertificateEditor() {
                             <button 
                                 type="button" 
                                 onClick={() => { setShowEditor(false); resetForm(); }}
-                                className="p-2 rounded-full hover:bg-slate-100 transition-colors"
+                                className="p-2 rounded-md hover:bg-slate-100 transition-colors"
                             >
                                 <X size={20} className="text-slate-400 hover:text-slate-600" />
                             </button>
@@ -404,7 +409,7 @@ export default function HtmlCertificateEditor() {
                         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                             {/* ─── Sidebar Controls (4 cols) ─── */}
                             <div className="lg:col-span-3 space-y-5">
-                                <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                                <div className="p-4 bg-white rounded-lg border border-slate-200 shadow-sm space-y-4">
                                     <div className="space-y-1.5">
                                         <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Template Name</label>
                                         <Input
@@ -430,7 +435,7 @@ export default function HtmlCertificateEditor() {
                                     </div>
                                 </div>
 
-                                <div className="p-4 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-3">
+                                <div className="p-4 bg-blue-50/50 rounded-lg border border-blue-100 space-y-3">
                                     <p className="text-[10px] font-black text-blue-600 uppercase tracking-widest flex items-center gap-2">
                                         <Star size={12} /> Load Preset
                                     </p>
@@ -449,7 +454,7 @@ export default function HtmlCertificateEditor() {
                                     </div>
                                 </div>
 
-                                <div className="p-4 bg-amber-50/50 rounded-2xl border border-amber-100 space-y-3">
+                                <div className="p-4 bg-amber-50/50 rounded-lg border border-amber-100 space-y-3">
                                     <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest flex items-center gap-2">
                                         <Maximize size={12} /> Page Setup
                                     </p>
@@ -475,7 +480,7 @@ export default function HtmlCertificateEditor() {
                                 <div className="flex flex-col gap-3 pt-2">
                                     <button 
                                         onClick={handleSave} 
-                                        className="w-full py-3.5 bg-premium-blue text-white rounded-2xl font-black shadow-lg shadow-blue-100 hover:shadow-blue-200 hover:-translate-y-0.5 transition-all active:scale-95 flex items-center justify-center gap-2"
+                                        className="w-full py-3.5 bg-slate-900 text-white rounded-lg font-black shadow-lg shadow-none hover:shadow-none hover:-translate-y-0.5 transition-all active:scale-95 flex items-center justify-center gap-2"
                                     >
                                         <Check size={18} /> {editingId ? "Update Template" : "Create Template"}
                                     </button>
@@ -493,12 +498,12 @@ export default function HtmlCertificateEditor() {
                             <div className={cn(
                                 "lg:col-span-9 flex flex-col",
                                 isPreviewExpanded 
-                                    ? "fixed inset-4 z-50 bg-slate-50 rounded-3xl p-6 shadow-2xl" 
+                                    ? "fixed inset-4 z-50 bg-slate-50 rounded-lg p-6 shadow-md" 
                                     : ""
                             )}
                             style={!isPreviewExpanded ? { height: 'calc(100vh - 200px)', minHeight: '500px' } : {}}
                             >
-                                <div className="flex items-center justify-between bg-slate-100/80 p-1.5 rounded-2xl border border-slate-200">
+                                <div className="flex items-center justify-between bg-slate-100/80 p-1.5 rounded-lg border border-slate-200">
                                     <div className="flex gap-1">
                                         {[
                                             { id: "html", label: "HTML Template", icon: Type },
@@ -513,7 +518,7 @@ export default function HtmlCertificateEditor() {
                                                 className={cn(
                                                     "flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all",
                                                     activeTab === tab.id
-                                                        ? "bg-white text-premium-blue shadow-sm border border-slate-200/50"
+                                                        ? "bg-white text-slate-900 shadow-sm border border-slate-200/50"
                                                         : "text-slate-500 hover:text-slate-700"
                                                 )}
                                             >
@@ -542,7 +547,7 @@ export default function HtmlCertificateEditor() {
                                         <button 
                                             type="button" 
                                             onClick={() => setIsPreviewExpanded(!isPreviewExpanded)}
-                                            className="p-2 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-premium-blue transition-colors"
+                                            className="p-2 rounded-lg bg-white border border-slate-200 text-slate-500 hover:text-slate-900 transition-colors"
                                         >
                                             {isPreviewExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
                                         </button>
@@ -551,7 +556,7 @@ export default function HtmlCertificateEditor() {
 
                                 <div className="flex flex-col xl:flex-row gap-4 flex-1 min-h-0 overflow-hidden">
                                     {/* Editor Side */}
-                                    <div className="flex-1 min-w-0 bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-inner flex flex-col">
+                                    <div className="flex-1 min-w-0 bg-white border border-slate-200 rounded-lg overflow-hidden shadow-inner flex flex-col">
                                         <div className="flex-1 min-h-0 overflow-auto">
                                             {activeTab === "html" && (
                                                 <textarea
@@ -594,7 +599,7 @@ export default function HtmlCertificateEditor() {
                                                         </div>
                                                     </div>
                                                     
-                                                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 border-dashed">
+                                                    <div className="p-4 bg-slate-50 rounded-lg border border-slate-100 border-dashed">
                                                         <p className="text-[10px] text-slate-500 leading-relaxed">
                                                             <span className="font-bold text-slate-700 block mb-1 underline">A4 Standards</span>
                                                             Portrait: 210mm × 297mm<br/>
@@ -606,7 +611,7 @@ export default function HtmlCertificateEditor() {
                                             )}
                                             {activeTab === "placeholders" && (
                                                 <div className="p-6 space-y-4 h-full flex flex-col">
-                                                    <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex gap-3">
+                                                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-100 flex gap-3">
                                                         <div className="w-8 h-8 rounded-lg bg-blue-500 text-white flex items-center justify-center shrink-0">
                                                             <Hash size={16} />
                                                         </div>
@@ -624,7 +629,7 @@ export default function HtmlCertificateEditor() {
                                                                 className="text-left p-3 rounded-xl border border-slate-100 bg-white hover:border-premium-blue hover:shadow-md transition-all group"
                                                             >
                                                                 <span className="text-[10px] font-black text-slate-700 block uppercase tracking-tight">{meta.label}</span>
-                                                                <code className="text-[11px] text-premium-blue font-mono mt-1 block">{"{{"}{meta.path}{"}}"}</code>
+                                                                <code className="text-[11px] text-slate-900 font-mono mt-1 block">{"{{"}{meta.path}{"}}"}</code>
                                                             </button>
                                                         ))}
                                                     </div>
@@ -634,7 +639,7 @@ export default function HtmlCertificateEditor() {
                                     </div>
 
                                     {/* Preview Side */}
-                                    <div className="flex-1 min-w-0 min-h-0 bg-slate-200 rounded-2xl overflow-hidden relative border border-slate-300 shadow-inner group">
+                                    <div className="flex-1 min-w-0 min-h-0 bg-slate-200 rounded-lg overflow-hidden relative border border-slate-300 shadow-inner group">
                                         {/* Blueprint Background */}
                                         <div 
                                             className="absolute inset-0 opacity-40 pointer-events-none"
@@ -657,7 +662,7 @@ export default function HtmlCertificateEditor() {
                                                 margin: '0 auto',
                                             }}>
                                                 <div 
-                                                    className="bg-white shadow-2xl transition-all duration-300"
+                                                    className="bg-white shadow-md transition-all duration-300"
                                                     style={{
                                                         width: form.pageConfig.orientation === 'portrait' ? '210mm' : '297mm',
                                                         height: form.pageConfig.orientation === 'portrait' ? '297mm' : '210mm',
@@ -677,11 +682,11 @@ export default function HtmlCertificateEditor() {
 
                                         <div className="absolute bottom-4 left-4 right-4 flex justify-between items-center">
                                             <div className="flex gap-2">
-                                                <div className="px-3 py-1.5 bg-black/70 backdrop-blur-md rounded-full text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-2 pointer-events-none">
-                                                    <div className={cn("w-1.5 h-1.5 rounded-full", previewData ? "bg-blue-400 animate-pulse" : "bg-emerald-400 animate-pulse")} />
+                                                <div className="px-3 py-1.5 bg-black/70 backdrop-blur-md rounded-md text-white text-[9px] font-black uppercase tracking-widest flex items-center gap-2 pointer-events-none">
+                                                    <div className={cn("w-1.5 h-1.5 rounded-md", previewData ? "bg-blue-400 animate-pulse" : "bg-emerald-400 animate-pulse")} />
                                                     {previewData ? `Real Data: ${previewStudentName}` : 'Mock Data Preview'}
                                                 </div>
-                                                <div className="px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-full text-slate-600 text-[9px] font-black uppercase tracking-widest border border-slate-200 pointer-events-none">
+                                                <div className="px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-md text-slate-600 text-[9px] font-black uppercase tracking-widest border border-slate-200 pointer-events-none">
                                                     {form.pageConfig.orientation} • A4
                                                 </div>
                                             </div>
@@ -689,7 +694,7 @@ export default function HtmlCertificateEditor() {
                                                 type="button"
                                                 onClick={fetchRandomStudent}
                                                 disabled={loadingPreview}
-                                                className="px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-full text-slate-700 text-[9px] font-black uppercase tracking-widest border border-slate-200 hover:bg-white hover:shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
+                                                className="px-3 py-1.5 bg-white/90 backdrop-blur-md rounded-md text-slate-700 text-[9px] font-black uppercase tracking-widest border border-slate-200 hover:bg-white hover:shadow-md transition-all flex items-center gap-1.5 cursor-pointer"
                                                 title="Load a random student's real data"
                                             >
                                                 {loadingPreview ? <Loader2 size={10} className="animate-spin" /> : <RefreshCw size={10} />}
@@ -704,22 +709,22 @@ export default function HtmlCertificateEditor() {
                 ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         {templates.length === 0 ? (
-                            <div className="col-span-full py-20 text-center bg-white rounded-3xl border-2 border-dashed border-slate-200">
-                                <div className="w-20 h-20 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <div className="col-span-full py-20 text-center bg-white rounded-lg border-2 border-dashed border-slate-200">
+                                <div className="w-20 h-20 bg-slate-50 rounded-md flex items-center justify-center mx-auto mb-4">
                                     <Plus size={32} className="text-slate-300" />
                                 </div>
                                 <p className="text-slate-500 font-bold">No HTML templates yet.</p>
                                 <p className="text-xs text-slate-400 mt-1">Create your first pixel-perfect certificate template!</p>
                                 <button 
                                     onClick={() => setShowEditor(true)}
-                                    className="mt-6 px-6 py-2.5 bg-premium-blue text-white rounded-xl font-bold hover:shadow-lg transition-all"
+                                    className="mt-6 px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:shadow-lg transition-all"
                                 >
                                     Create Template
                                 </button>
                             </div>
                         ) : (
                             templates.map(template => (
-                                <div key={template._id} className="group bg-white rounded-3xl border border-slate-200 overflow-hidden hover:shadow-2xl hover:shadow-blue-100 hover:-translate-y-1 transition-all duration-300">
+                                <div key={template._id} className="group bg-white rounded-lg border border-slate-200 overflow-hidden hover:shadow-md hover:shadow-none hover:-translate-y-1 transition-all duration-300">
                                     <div className="aspect-[4/3] bg-slate-50 border-b border-slate-100 relative overflow-hidden flex items-center justify-center p-4">
                                         <div className="w-full h-full bg-white shadow-lg rounded-sm border border-slate-200 overflow-hidden scale-75 group-hover:scale-90 transition-transform duration-500">
                                             {/* Mini Preview Iframe */}

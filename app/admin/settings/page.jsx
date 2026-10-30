@@ -10,8 +10,9 @@ import Button from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
 import Input from "@/components/ui/Input";
 import { useToast } from "@/contexts/ToastContext";
-import CertificateTemplateManager from "@/components/admin/CertificateTemplateManager";
-import HtmlCertificateEditor from "@/components/admin/HtmlCertificateEditor";
+import PageHeader from "@/components/ui/PageHeader";
+import FeeReceiptTemplateSelector from "@/components/admin/settings/FeeReceiptTemplateSelector";
+import CertificateTemplateSection from "@/components/admin/settings/CertificateTemplateSection";
 import SessionManager from "@/components/admin/SessionManager";
 import CloudinarySettingsForm from "@/components/CloudinarySettingsForm";
 import PusherSettingsForm from "@/components/PusherSettingsForm";
@@ -840,81 +841,29 @@ export default function SettingsPage() {
                 {/* TAB 4: Receipts & Templates */}
                 {activeTab === 'receipts' && (
                     <div className="space-y-8 animate-in fade-in duration-150">
-                        <div className="pb-4 border-b border-[#E4E7EC]">
-                            <h2 className="text-base font-semibold text-[#101828]">Fee Receipts & Certificate Design</h2>
-                            <p className="text-xs text-[#667085] mt-0.5">Configure fee receipt layouts and custom certificate templates.</p>
-                        </div>
+                        <PageHeader
+                            title="Fee Receipts & Certificate Design"
+                            description="Configure fee receipt layouts and custom certificate templates."
+                        />
 
                         {/* Receipt Design Selection */}
-                        <div className="space-y-3">
-                            <label className="text-xs font-semibold text-[#101828]">Fee Receipt Template Selection</label>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <button
-                                    type="button"
-                                    onClick={() => setInstitute({ ...institute, settings: { ...institute.settings, receiptTemplate: 'classic' } })}
-                                    className={cn(
-                                        "relative flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all cursor-pointer",
-                                        institute.settings?.receiptTemplate === 'classic'
-                                            ? "border-[#444CE7] bg-[#444CE7]/5"
-                                            : "border-[#E4E7EC] bg-white hover:border-slate-300"
-                                    )}
-                                >
-                                    <div className="w-16 h-20 bg-[#F9FAFB] rounded-lg flex flex-col p-1.5 border border-[#E4E7EC] shrink-0">
-                                        <div className="h-2 w-1/2 bg-slate-300 rounded mb-1" />
-                                        <div className="h-1.5 w-full bg-slate-200 rounded mb-1" />
-                                        <div className="h-6 w-full bg-white rounded mt-auto border border-slate-200" />
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className="text-xs font-semibold text-[#101828]">Classic Full-Page Receipt</h3>
-                                        <p className="text-xs text-[#667085] mt-1 leading-relaxed">Full A4 size layout showing itemized fee breakdown, logo, and terms.</p>
-                                    </div>
-                                    {institute.settings?.receiptTemplate === 'classic' && (
-                                        <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#444CE7] text-white flex items-center justify-center shadow-xs">
-                                            <Check size={12} strokeWidth={3} />
-                                        </span>
-                                    )}
-                                </button>
+                        <FeeReceiptTemplateSelector
+                            value={institute.settings?.receiptTemplate || 'classic'}
+                            onChange={(val) => {
+                                setInstitute(prev => ({
+                                    ...prev,
+                                    settings: {
+                                        ...prev.settings,
+                                        receiptTemplate: val
+                                    }
+                                }));
+                            }}
+                        />
 
-                                <button
-                                    type="button"
-                                    onClick={() => setInstitute({ ...institute, settings: { ...institute.settings, receiptTemplate: 'compact' } })}
-                                    className={cn(
-                                        "relative flex items-start gap-4 p-4 rounded-xl border-2 text-left transition-all cursor-pointer",
-                                        institute.settings?.receiptTemplate === 'compact'
-                                            ? "border-[#444CE7] bg-[#444CE7]/5"
-                                            : "border-[#E4E7EC] bg-white hover:border-slate-300"
-                                    )}
-                                >
-                                    <div className="w-16 h-20 bg-[#F9FAFB] rounded-lg flex flex-col p-1.5 border border-[#E4E7EC] shrink-0 justify-center">
-                                        <div className="h-8 w-full bg-white rounded border border-slate-200 p-1 flex flex-col justify-between">
-                                            <div className="h-1.5 w-1/2 bg-slate-300 rounded" />
-                                            <div className="h-1.5 w-full bg-slate-200 rounded" />
-                                        </div>
-                                    </div>
-                                    <div className="flex-1">
-                                        <h3 className="text-xs font-semibold text-[#101828]">Compact Slip-Style Receipt</h3>
-                                        <p className="text-xs text-[#667085] mt-1 leading-relaxed">Compact half-page receipt slip designed for quick printing and paper saving.</p>
-                                    </div>
-                                    {institute.settings?.receiptTemplate === 'compact' && (
-                                        <span className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-[#444CE7] text-white flex items-center justify-center shadow-xs">
-                                            <Check size={12} strokeWidth={3} />
-                                        </span>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
+                        <div className="border-t border-slate-200" />
 
-                        {/* Certificate Templates */}
-                        <div className="space-y-6 pt-6 border-t border-[#E4E7EC]">
-                            <div>
-                                <h3 className="text-xs font-semibold uppercase tracking-wider text-[#98A2B3] mb-4">Image-Based Certificate Templates</h3>
-                                <CertificateTemplateManager />
-                            </div>
-                            <div className="pt-6 border-t border-[#E4E7EC]">
-                                <h3 className="text-xs font-semibold uppercase tracking-wider text-[#98A2B3] mb-4">HTML Certificate Templates</h3>
-                                <HtmlCertificateEditor />
-                            </div>
-                        </div>
+                        {/* Unified Certificate Templates Section */}
+                        <CertificateTemplateSection />
                     </div>
                 )}
 

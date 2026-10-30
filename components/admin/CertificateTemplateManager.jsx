@@ -162,7 +162,7 @@ function StylePanel({ selectedPlaceholder, placeholder, meta, onChange }) {
                         max="72"
                         value={fontSize}
                         onChange={(e) => onChange("fontSize", parseInt(e.target.value))}
-                        className="flex-1 h-2 accent-premium-blue rounded-lg"
+                        className="flex-1 h-2 accent-slate-900 rounded-lg"
                     />
                     <input
                         type="number"
@@ -186,7 +186,7 @@ function StylePanel({ selectedPlaceholder, placeholder, meta, onChange }) {
                         className={cn(
                             "flex-1 py-2 rounded-lg font-medium text-sm transition-all border",
                             fontWeight === "normal"
-                                ? "bg-premium-blue text-white border-premium-blue"
+                                ? "bg-slate-900 text-white border-premium-blue"
                                 : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                         )}
                     >
@@ -198,7 +198,7 @@ function StylePanel({ selectedPlaceholder, placeholder, meta, onChange }) {
                         className={cn(
                             "flex-1 py-2 rounded-lg font-bold text-sm transition-all border",
                             fontWeight === "bold"
-                                ? "bg-premium-blue text-white border-premium-blue"
+                                ? "bg-slate-900 text-white border-premium-blue"
                                 : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                         )}
                     >
@@ -217,7 +217,7 @@ function StylePanel({ selectedPlaceholder, placeholder, meta, onChange }) {
                         className={cn(
                             "flex-1 py-2 rounded-lg font-medium text-sm transition-all border",
                             fontStyle === "normal"
-                                ? "bg-premium-blue text-white border-premium-blue"
+                                ? "bg-slate-900 text-white border-premium-blue"
                                 : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                         )}
                     >
@@ -229,7 +229,7 @@ function StylePanel({ selectedPlaceholder, placeholder, meta, onChange }) {
                         className={cn(
                             "flex-1 py-2 rounded-lg italic text-sm transition-all border",
                             fontStyle === "italic"
-                                ? "bg-premium-blue text-white border-premium-blue"
+                                ? "bg-slate-900 text-white border-premium-blue"
                                 : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                         )}
                     >
@@ -269,7 +269,7 @@ function StylePanel({ selectedPlaceholder, placeholder, meta, onChange }) {
                         className={cn(
                             "flex-1 py-2 rounded-lg text-sm transition-all border",
                             textAlign === "left"
-                                ? "bg-premium-blue text-white border-premium-blue"
+                                ? "bg-slate-900 text-white border-premium-blue"
                                 : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                         )}
                     >
@@ -281,7 +281,7 @@ function StylePanel({ selectedPlaceholder, placeholder, meta, onChange }) {
                         className={cn(
                             "flex-1 py-2 rounded-lg text-sm transition-all border",
                             textAlign === "center"
-                                ? "bg-premium-blue text-white border-premium-blue"
+                                ? "bg-slate-900 text-white border-premium-blue"
                                 : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                         )}
                     >
@@ -293,7 +293,7 @@ function StylePanel({ selectedPlaceholder, placeholder, meta, onChange }) {
                         className={cn(
                             "flex-1 py-2 rounded-lg text-sm transition-all border",
                             textAlign === "right"
-                                ? "bg-premium-blue text-white border-premium-blue"
+                                ? "bg-slate-900 text-white border-premium-blue"
                                 : "bg-white text-slate-600 border-slate-200 hover:border-slate-300"
                         )}
                     >
@@ -306,7 +306,12 @@ function StylePanel({ selectedPlaceholder, placeholder, meta, onChange }) {
 }
 
 // ─── Main Component ─────────────────────────────────────────────────────────
-export default function CertificateTemplateManager() {
+export default function CertificateTemplateManager({
+    initialEditingTemplate = undefined,
+    isOpen = false,
+    onClose = undefined,
+    onSaveSuccess = undefined
+} = {}) {
     const toast = useToast();
     const [loading, setLoading] = useState(true);
     const [templates, setTemplates] = useState([]);
@@ -339,8 +344,15 @@ export default function CertificateTemplateManager() {
     });
 
     useEffect(() => {
-        fetchTemplates();
-    }, []);
+        if (initialEditingTemplate) {
+            handleEditTemplate(initialEditingTemplate);
+        } else if (isOpen) {
+            resetForm();
+            setShowEditor(true);
+        } else {
+            fetchTemplates();
+        }
+    }, [initialEditingTemplate, isOpen]);
 
     const fetchTemplates = async () => {
         try {
@@ -441,6 +453,8 @@ export default function CertificateTemplateManager() {
                 fetchTemplates();
                 resetForm();
                 setShowEditor(false);
+                if (onSaveSuccess) onSaveSuccess();
+                if (onClose) onClose();
             } else {
                 toast.error(data.error || "Failed to save template");
             }
@@ -656,6 +670,57 @@ export default function CertificateTemplateManager() {
         );
     }
 
+    if (isOpen || initialEditingTemplate !== undefined) {
+        return (
+            <div className={cn(
+                "bg-white rounded-lg border border-slate-200 p-6 space-y-6",
+                isFullscreen && "fixed inset-0 z-50 bg-white p-6 overflow-auto rounded-none border-0"
+            )}>
+                {/* Editor Header Bar */}
+                <div className="flex items-center justify-between mb-4 sticky top-0 bg-white z-30 py-3 border-b border-slate-100">
+                    <div className="flex items-center gap-4">
+                        <h4 className="font-bold text-slate-900 text-lg">
+                            {editingId ? "Edit Template" : "Create New Template"}
+                        </h4>
+                        <div className="hidden md:flex items-center gap-1.5 text-[10px] text-slate-500 font-medium bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">
+                            <Move size={10} />
+                            Drag placeholders on canvas • Arrow keys for fine-tuning
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setIsFullscreen(!isFullscreen)}
+                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
+                            title={isFullscreen ? "Exit fullscreen" : "Fullscreen editor"}
+                        >
+                            {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShowEditor(false);
+                                setIsFullscreen(false);
+                                resetForm();
+                                if (onClose) onClose();
+                            }}
+                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                        >
+                            <X size={20} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Main Editor Layout: Sidebar + Canvas + Style Panel */}
+                <div className={cn(
+                    "flex gap-6",
+                    isFullscreen ? "flex-row h-[calc(100vh-120px)]" : "flex-col lg:flex-row"
+                )}>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <Card>
             <div className="space-y-6">
@@ -688,7 +753,7 @@ export default function CertificateTemplateManager() {
                                 <h4 className="font-bold text-slate-900 text-lg">
                                     {editingId ? "Edit Template" : "Create New Template"}
                                 </h4>
-                                <div className="hidden md:flex items-center gap-1.5 text-[10px] text-slate-400 font-medium bg-slate-50 px-3 py-1.5 rounded-full">
+                                <div className="hidden md:flex items-center gap-1.5 text-[10px] text-slate-400 font-medium bg-slate-50 px-3 py-1.5 rounded-md">
                                     <Move size={10} />
                                     Drag placeholders on canvas • Arrow keys for fine-tuning
                                 </div>
@@ -708,6 +773,7 @@ export default function CertificateTemplateManager() {
                                         setShowEditor(false);
                                         setIsFullscreen(false);
                                         resetForm();
+                                        if (onClose) onClose();
                                     }}
                                     className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
                                 >
@@ -747,7 +813,7 @@ export default function CertificateTemplateManager() {
                                             "border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all",
                                             form.imageUrl
                                                 ? "border-emerald-300 bg-emerald-50/50 hover:border-emerald-400"
-                                                : "border-slate-300 hover:border-premium-blue hover:bg-premium-blue/5"
+                                                : "border-slate-300 hover:border-premium-blue hover:bg-slate-900/5"
                                         )}
                                     >
                                         {uploadingImage ? (
@@ -910,7 +976,7 @@ export default function CertificateTemplateManager() {
                                     <button
                                         type="button"
                                         onClick={handleSaveTemplate}
-                                        className="flex-1 px-4 py-2.5 bg-premium-blue text-white font-bold rounded-xl hover:bg-premium-blue/90 transition-colors text-sm flex items-center justify-center gap-2"
+                                        className="flex-1 px-4 py-2.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-900/90 transition-colors text-sm flex items-center justify-center gap-2"
                                     >
                                         {editingId ? "Update" : "Create"} Template
                                     </button>
@@ -920,6 +986,7 @@ export default function CertificateTemplateManager() {
                                             setShowEditor(false);
                                             setIsFullscreen(false);
                                             resetForm();
+                                            if (onClose) onClose();
                                         }}
                                         className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors text-sm"
                                     >
@@ -951,7 +1018,7 @@ export default function CertificateTemplateManager() {
                                                 step="10"
                                                 value={zoom}
                                                 onChange={(e) => handleZoomChange(parseInt(e.target.value))}
-                                                className="w-28 h-2 accent-premium-blue rounded-lg"
+                                                className="w-28 h-2 accent-slate-900 rounded-lg"
                                                 title="Zoom slider (50-200%)"
                                             />
 
@@ -1107,7 +1174,7 @@ export default function CertificateTemplateManager() {
                                             isFullscreen ? "h-full" : "min-h-[400px]"
                                         )}>
                                             <div className="space-y-3">
-                                                <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto">
+                                                <div className="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center mx-auto">
                                                     <Upload size={28} className="text-slate-300" />
                                                 </div>
                                                 <div>
