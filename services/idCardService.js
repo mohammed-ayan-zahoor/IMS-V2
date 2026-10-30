@@ -1,14 +1,25 @@
-import { createCanvas, loadImage, registerFont } from "canvas";
+// canvas imported lazily via getCanvas()
 import QRCode from "qrcode";
 import path from "path";
 
-// Register fonts
-const fontDir = path.join(process.cwd(), "public/fonts");
-try {
-    registerFont(path.join(fontDir, "Roboto-Regular.ttf"), { family: "Roboto" });
-    registerFont(path.join(fontDir, "Roboto-Bold.ttf"), { family: "Roboto", weight: "bold" });
-} catch (err) {
-    console.warn("[IDCardService] Font registration warning:", err.message);
+let _canvasModule = null;
+let _idFontsRegistered = false;
+
+async function getCanvas() {
+    if (!_canvasModule) {
+        _canvasModule = await import('canvas');
+    }
+    if (!_idFontsRegistered && _canvasModule.registerFont) {
+        const fontDir = path.join(process.cwd(), "public/fonts");
+        try {
+            _canvasModule.registerFont(path.join(fontDir, "Roboto-Regular.ttf"), { family: "Roboto" });
+            _canvasModule.registerFont(path.join(fontDir, "Roboto-Bold.ttf"), { family: "Roboto", weight: "bold" });
+        } catch (err) {
+            console.warn("[IDCardService] Font registration warning:", err.message);
+        }
+        _idFontsRegistered = true;
+    }
+    return _canvasModule;
 }
 
 const DPI = 300; // High resolution for ID cards
@@ -96,6 +107,7 @@ export async function renderIDCardFront(student, template) {
         
         // Load front image
         const resolvedFrontUrl = resolveImagePath(template.frontImageUrl);
+        const { createCanvas, loadImage } = await getCanvas();
         const frontImage = await loadImage(resolvedFrontUrl);
         
         // Create canvas with actual image dimensions
@@ -232,6 +244,7 @@ export async function renderIDCardFront(student, template) {
 export async function renderIDCardBack(student, template, institute) {
     try {
         const resolvedBackUrl = resolveImagePath(template.backImageUrl);
+        const { createCanvas, loadImage } = await getCanvas();
         const backImage = await loadImage(resolvedBackUrl);
         
         const canvas = createCanvas(backImage.width, backImage.height);

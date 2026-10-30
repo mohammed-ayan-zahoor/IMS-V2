@@ -1,13 +1,17 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:student_app/features/dashboard/presentation/screens/dashboard_screen.dart';
-
 import 'package:provider/provider.dart';
 import 'package:student_app/core/auth/auth_provider.dart';
+import 'package:student_app/core/constants/api_endpoints.dart';
 import 'package:student_app/core/localization/language_picker_sheet.dart';
 import 'package:student_app/core/localization/locale_provider.dart';
 import 'package:student_app/core/services/app_update_service.dart';
+import 'package:student_app/features/dashboard/presentation/screens/app_shell.dart';
+import 'package:student_app/features/dashboard/presentation/screens/dashboard_screen.dart';
+import 'package:student_app/features/instructor/dashboard/presentation/screens/instructor_app_shell.dart';
+import 'package:student_app/features/subscription/presentation/screens/student_paywall_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,6 +23,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  Timer? _debounceTimer;
   
   bool _obscurePassword = true;
   bool _isAuthenticating = false;
@@ -41,6 +46,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   void initState() {
     super.initState();
     
+    _emailController.addListener(_onEmailChanged);
+
     _emailFocus.addListener(() {
       setState(() {
         _emailIconColor = _emailFocus.hasFocus ? const Color(0xFF002045) : const Color(0xFF545F72);
@@ -79,8 +86,26 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     });
   }
 
+  void _onEmailChanged() {
+    final text = _emailController.text.trim();
+    _debounceTimer?.cancel();
+    if (text.isEmpty || (!text.contains('@') && text.length < 3)) {
+      if (mounted) {
+        Provider.of<AuthProvider>(context, listen: false).clearDetectedInstitute();
+      }
+      return;
+    }
+    _debounceTimer = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) {
+        Provider.of<AuthProvider>(context, listen: false).lookupInstitute(text);
+      }
+    });
+  }
+
   @override
   void dispose() {
+    _debounceTimer?.cancel();
+    _emailController.removeListener(_onEmailChanged);
     _emailController.dispose();
     _passwordController.dispose();
     _emailFocus.dispose();
@@ -111,6 +136,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     final success = await authProvider.login(
       email: email,
       password: password,
+      instituteCode: authProvider.instituteCode,
     );
 
     if (mounted) {
@@ -122,8 +148,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
 
         Future.delayed(const Duration(milliseconds: 400), () {
           if (mounted) {
+            Widget destination;
+            if (authProvider.isInstructor) {
+              destination = const InstructorAppShell();
+            } else if (authProvider.needsSubscriptionPayment) {
+              destination = const StudentPaywallScreen();
+            } else {
+              destination = const AppShell();
+            }
             Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (context) => const DashboardScreen()),
+              MaterialPageRoute(builder: (context) => destination),
             );
           }
         });
@@ -145,6 +179,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
+    final authProvider = Provider.of<AuthProvider>(context);
+    final detectedName = authProvider.instituteName;
+    final detectedLogo = ApiEndpoints.resolveUrl(authProvider.instituteLogo);
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
       value: const SystemUiOverlayStyle(
@@ -291,7 +328,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                       const Icon(
                                         Icons.school,
                                         color: Colors.white,
-                                        size: 28,
+                                        size: 26,
                                       ),
                                       const SizedBox(width: 8),
                                       Text(
@@ -303,25 +340,95 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                                           letterSpacing: -0.5,
                                         ),
                                       ),
+                                      if (detectedName != null && detectedName.isNotEmpty) ...[
+                                        const SizedBox(width: 10),
+                                        Container(
+                                          width: 1.5,
+                                          height: 18,
+                                          color: Colors.white.withValues(alpha: 0.3),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        if (detectedLogo != null && detectedLogo.isNotEmpty)
+                                          Container(
+                                            width: 26,
+                                            height: 26,
+                                            padding: const EdgeInsets.all(2.5),
+                                            decoration: BoxDecoration(
+                                              color: Colors.white,
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Image.network(
+                                              detectedLogo,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (_, __, ___) => const Icon(
+                                                Icons.account_balance_rounded,
+                                                color: Color(0xFF002045),
+                                                size: 15,
+                                              ),
+                                            ),
+                                          )
+                                        else
+                                          Container(
+                                            width: 24,
+                                            height: 24,
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withValues(alpha: 0.2),
+                                              borderRadius: BorderRadius.circular(6),
+                                            ),
+                                            child: Center(
+                                              child: Text(
+                                                detectedName.substring(0, 1).toUpperCase(),
+                                                style: GoogleFonts.hankenGrotesk(
+                                                  color: Colors.white,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            detectedName,
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: GoogleFonts.hankenGrotesk(
+                                              color: Colors.white,
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
                                     ],
                                   ),
                                   const SizedBox(height: 12),
-                                  Text(
-                                    'Welcome Back.',
-                                    style: GoogleFonts.hankenGrotesk(
-                                      color: Colors.white,
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w600,
+                                  AnimatedSwitcher(
+                                    duration: const Duration(milliseconds: 300),
+                                    child: Text(
+                                      detectedName != null && detectedName.isNotEmpty
+                                          ? 'Welcome to $detectedName'
+                                          : 'Welcome Back.',
+                                      key: ValueKey(detectedName ?? 'default_welcome'),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: GoogleFonts.hankenGrotesk(
+                                        color: Colors.white,
+                                        fontSize: 26,
+                                        fontWeight: FontWeight.w600,
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(height: 8),
                                   Padding(
-                                    padding: const EdgeInsets.only(right: 32.0),
+                                    padding: const EdgeInsets.only(right: 24.0),
                                     child: Text(
-                                      'Securely access your academic resources and institutional management portal.',
+                                      detectedName != null && detectedName.isNotEmpty
+                                          ? 'Campus code: ${authProvider.instituteCode ?? ""}. Enter your password to continue.'
+                                          : 'Securely access your academic resources and institutional management portal.',
                                       style: GoogleFonts.inter(
                                         color: const Color(0xFF86A0CD), // on-primary-container
-                                        fontSize: 14,
+                                        fontSize: 13,
                                         fontWeight: FontWeight.w400,
                                         height: 1.45,
                                       ),

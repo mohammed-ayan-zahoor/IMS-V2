@@ -97,7 +97,7 @@ class ApiClient {
   }
 
   // Next-Auth 3-Step Login
-  Future<bool> login(String email, String password) async {
+  Future<bool> login(String email, String password, {String? instituteCode}) async {
     try {
       _log('[Auth] Step 1: Fetching CSRF token from ${ApiEndpoints.csrf}');
 
@@ -139,6 +139,8 @@ class ApiClient {
           'redirect': 'false',
           'json': 'true',
           'callbackUrl': ApiEndpoints.host,
+          if (instituteCode != null && instituteCode.trim().isNotEmpty)
+            'instituteCode': instituteCode.trim().toUpperCase(),
         },
         options: Options(
           contentType: Headers.formUrlEncodedContentType,
@@ -235,6 +237,46 @@ class ApiClient {
       }
     } catch (e) {
       _log('[Auth] checkSession exception: $e');
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> lookupInstitute({String? email, String? code}) async {
+    try {
+      final Map<String, dynamic> queryParams = {};
+      if (email != null && email.trim().isNotEmpty) {
+        queryParams['email'] = email.trim().toLowerCase();
+      }
+      if (code != null && code.trim().isNotEmpty) {
+        queryParams['code'] = code.trim().toUpperCase();
+      }
+
+      if (queryParams.isEmpty) return null;
+
+      final res = await _dio.get(
+        ApiEndpoints.lookupInstitute,
+        queryParameters: queryParams,
+        options: Options(
+          headers: {'Accept': 'application/json'},
+          validateStatus: (s) => s != null && s < 500,
+        ),
+      );
+
+      if (res.statusCode == 200 && res.data != null) {
+        Map<String, dynamic>? data;
+        if (res.data is Map) {
+          data = Map<String, dynamic>.from(res.data);
+        } else if (res.data is String && (res.data as String).isNotEmpty) {
+          try {
+            data = Map<String, dynamic>.from(jsonDecode(res.data));
+          } catch (_) {}
+        }
+        if (data != null && data['success'] == true && data['institute'] != null) {
+          return Map<String, dynamic>.from(data['institute']);
+        }
+      }
+    } catch (e) {
+      _log('[Auth] lookupInstitute error: $e');
     }
     return null;
   }

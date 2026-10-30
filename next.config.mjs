@@ -10,9 +10,7 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  // eslint handled via cli
 
   experimental: {
     webpackBuildWorker: false,

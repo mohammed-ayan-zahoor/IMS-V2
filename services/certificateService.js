@@ -1,7 +1,7 @@
 import puppeteer from 'puppeteer';
 import path from 'path';
 import fs from 'fs';
-import { createCanvas, loadImage, registerFont } from 'canvas';
+// canvas imported lazily via getCanvas() to avoid build-time native module binding errors
 import Handlebars from 'handlebars';
 import pLimit from 'p-limit';
 import User from '../models/User.js';
@@ -28,10 +28,27 @@ const fonts = [
     { family: 'Lora', path: path.join(fontDir, 'Lora-Bold.ttf'), weight: 'bold', style: 'normal' }
 ];
 
-fonts.forEach(font => {
-    try {
-        if (fs.existsSync(font.path)) {
-            registerFont(font.path, { family: font.family, weight: font.weight, style: font.style });
+let _canvasModule = null;
+let _fontsRegistered = false;
+
+async function getCanvas() {
+    if (!_canvasModule) {
+        _canvasModule = await import('canvas');
+    }
+    if (!_fontsRegistered && _canvasModule.registerFont) {
+        fonts.forEach(font => {
+            try {
+                if (fs.existsSync(font.path)) {
+                    _canvasModule.registerFont(font.path, { family: font.family, weight: font.weight, style: font.style });
+                }
+            } catch (error) {
+                console.warn(`⚠ Could not register font ${font.family}: ${error.message}`);
+            }
+        });
+        _fontsRegistered = true;
+    }
+    return _canvasModule;
+}
         }
     } catch (error) {
         console.warn(`⚠ Could not register font ${font.family}: ${error.message}`);
@@ -475,6 +492,7 @@ export const generateCertificatePDFFromTemplate = async (certificateData, browse
 
     // Original Canvas-based logic for Creative Certificates
     try {
+        const { createCanvas, loadImage } = await getCanvas();
         const image = await loadImage(source.imageUrl);
         const canvas = createCanvas(image.width, image.height);
         const ctx = canvas.getContext('2d');

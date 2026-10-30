@@ -168,7 +168,7 @@ class _CreateOfflineExamScreenState extends State<CreateOfflineExamScreen> {
 
       final payload = {
         'title': _titleController.text.trim(),
-        'session': _selectedSessionId,
+        'session': activeSessionId,
         'course': _selectedBatch!.courseId ?? _selectedBatch!.id,
         'batches': [_selectedBatch!.id],
         'examType': _examType,

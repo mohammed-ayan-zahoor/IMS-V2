@@ -6,6 +6,16 @@ class ApiEndpoints {
   static const String login = '$host/api/auth/callback/credentials';
   static const String session = '$host/api/auth/session';
   static const String csrf = '$host/api/auth/csrf';
+  static const String lookupInstitute = '/auth/lookup-institute';
+
+  /// Resolves relative image/asset URLs against host
+  static String? resolveUrl(String? url) {
+    if (url == null || url.trim().isEmpty) return null;
+    final trimmed = url.trim();
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) return trimmed;
+    if (trimmed.startsWith('/')) return '$host$trimmed';
+    return '$host/$trimmed';
+  }
 
   // Student details
   static const String dashboard = '/student/dashboard';
