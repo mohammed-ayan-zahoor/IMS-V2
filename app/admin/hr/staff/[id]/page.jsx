@@ -14,9 +14,11 @@ import {
   Phone,
   Mail,
   Calendar,
+  Shield,
 } from "lucide-react";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import EmptyState from "@/components/shared/EmptyState";
+import Badge from "@/components/ui/Badge";
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
 import { cn } from "@/lib/utils";
@@ -807,220 +809,198 @@ export default function StaffProfilePage({ params }) {
   ];
 
   return (
-    <div className="text-[#14161A] select-none min-h-[calc(100vh-64px)] pb-28 font-[-apple-system,BlinkMacSystemFont,'Inter',system-ui,sans-serif]">
+    <div className="space-y-6 w-full pb-20 select-none">
       {/* ── Breadcrumb Navigation ────────────────────────────────────────── */}
-      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-[12px] text-[#5F6673] mb-4">
-        <Link href="/admin/hr" className="hover:text-[#14161A] transition-colors">
+      <nav aria-label="Breadcrumb" className="flex items-center gap-1.5 text-xs text-slate-500 mb-4">
+        <Link href="/admin/hr" className="hover:text-slate-900 transition-colors">
           Human resources
         </Link>
         <span>›</span>
-        <Link href="/admin/hr/staff" className="hover:text-[#14161A] transition-colors">
+        <Link href="/admin/hr/staff" className="hover:text-slate-900 transition-colors">
           Staff directory
         </Link>
         <span>›</span>
-        <span className="font-semibold text-[#14161A] truncate max-w-[260px]">
+        <span className="font-semibold text-slate-900 truncate max-w-[260px]">
           {fullName}
         </span>
       </nav>
 
-      {/* ── Identity Block (Unboxed, razor sharp contrast) ──────────────── */}
-      <header className="pb-6 border-b border-[#E6E8EC]/80 mb-6">
-        <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-          {/* Identity details */}
-          <div className="flex items-start gap-4 sm:gap-5 min-w-0">
-            {/* Avatar with hover upload overlay */}
-            <div className="relative group shrink-0">
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={handlePhotoUpload}
-                disabled={uploadingPhoto}
+      {/* ── Profile Header & Integrated Tabs (Student Profile Style) ─── */}
+      <div className="bg-white rounded-lg border border-slate-100 overflow-hidden shadow-xs mb-6">
+        <div className="p-6 flex flex-col md:flex-row gap-6 items-start">
+          {/* Avatar with hover upload trigger */}
+          <div className="w-20 h-20 rounded-lg bg-blue-50/70 text-blue-600 font-bold border border-blue-100/70 flex items-center justify-center text-3xl shrink-0 relative group overflow-hidden">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              className="hidden"
+              onChange={handlePhotoUpload}
+              disabled={uploadingPhoto}
+            />
+            {staff.profile?.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={staff.profile.avatar}
+                alt={fullName}
+                className="w-full h-full object-cover"
               />
-              {staff.profile?.avatar ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={staff.profile.avatar}
-                  alt={fullName}
-                  className="w-[72px] h-[72px] rounded-2xl object-cover border border-[#E6E8EC] shadow-2xs"
-                />
+            ) : (
+              staff.profile?.firstName?.[0]?.toUpperCase() || "S"
+            )}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingPhoto}
+              className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+              title="Change Photo"
+            >
+              {uploadingPhoto ? (
+                <Loader2 size={20} className="text-white animate-spin" />
               ) : (
-                <div className="w-[72px] h-[72px] rounded-2xl bg-[#F2F3F5] text-[#14161A] border border-[#E6E8EC] flex items-center justify-center font-bold text-2xl shadow-2xs select-none">
-                  {staff.profile?.firstName?.[0]?.toUpperCase() || "S"}
-                </div>
+                <Camera size={20} className="text-white" />
               )}
+            </button>
+          </div>
 
-              {/* Hover Camera Overlay */}
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadingPhoto}
-                title="Change staff photo"
-                aria-label="Change staff photo"
-                className="absolute inset-0 bg-[#111827]/60 text-white rounded-2xl opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 flex flex-col items-center justify-center gap-0.5 transition-opacity backdrop-blur-[1px] cursor-pointer"
+          {/* Details */}
+          <div className="flex-1 space-y-1.5 min-w-0">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{fullName}</h1>
+              <Badge
+                variant={staff.isActive !== false ? "success" : "danger"}
+                className="text-[10px] px-2 py-0.5 font-bold"
               >
-                {uploadingPhoto ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  <>
-                    <Camera className="w-4 h-4" />
-                    <span className="text-[10px] font-semibold">Change</span>
-                  </>
-                )}
-              </button>
+                {staff.isActive !== false ? "Active Staff" : "Inactive"}
+              </Badge>
+              {isAdmin ? (
+                <Badge variant="secondary" className="text-[10px] px-2 py-0.5 font-bold">
+                  Admin
+                </Badge>
+              ) : isInstructor ? (
+                <Badge variant="primary" className="text-[10px] px-2 py-0.5 font-bold">
+                  Teaching faculty
+                </Badge>
+              ) : (
+                <Badge variant="neutral" className="text-[10px] px-2 py-0.5 font-bold">
+                  Support staff
+                </Badge>
+              )}
             </div>
 
-            {/* Name, Roles, and Metadata */}
-            <div className="space-y-1 min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-[24px] font-semibold text-[#14161A] tracking-[-0.015em] leading-tight truncate">
-                  {fullName}
-                </h1>
-                {isAdmin ? (
-                  <span className="px-2 py-0.5 rounded-md bg-[#EEF0FF] text-[#4F46E5] text-[11px] font-semibold select-none">
-                    Admin
+            <p className="text-xs font-semibold text-slate-500">
+              {designationName}
+              {departmentName ? ` • Department of ${departmentName}` : ""}
+            </p>
+
+            <div className="flex flex-wrap gap-4 text-xs text-slate-500 font-medium pt-0.5">
+              {staff.email && (
+                <div className="flex items-center gap-1.5">
+                  <Mail size={13} className="text-slate-400" />
+                  <a href={`mailto:${staff.email}`} className="hover:text-slate-900 hover:underline">
+                    {staff.email}
+                  </a>
+                </div>
+              )}
+              {employeeCode && (
+                <div className="flex items-center gap-1.5">
+                  <Shield size={13} className="text-slate-400" />
+                  <span className="font-mono font-semibold text-slate-700">{employeeCode}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyCode(employeeCode)}
+                    className="text-slate-400 hover:text-slate-700 p-0.5 transition-colors cursor-pointer"
+                    title="Copy employee code"
+                  >
+                    {copiedCode ? (
+                      <Check size={12} className="text-emerald-600" />
+                    ) : (
+                      <Copy size={12} />
+                    )}
+                  </button>
+                </div>
+              )}
+              {staff.profile?.phone && (
+                <div className="flex items-center gap-1.5">
+                  <Phone size={13} className="text-slate-400" />
+                  <a href={`tel:${staff.profile.phone}`} className="hover:text-slate-900">
+                    {staff.profile.phone}
+                  </a>
+                </div>
+              )}
+              {joiningFormatted && (
+                <div className="flex items-center gap-1.5">
+                  <Calendar size={13} className="text-slate-400" />
+                  <span>
+                    Joined {joiningFormatted}
+                    {tenure ? ` (${tenure})` : ""}
                   </span>
-                ) : isInstructor ? (
-                  <span className="px-2 py-0.5 rounded-md bg-[#E6F4EA] text-[#047857] text-[11px] font-semibold select-none">
-                    Teaching faculty
-                  </span>
-                ) : (
-                  <span className="px-2 py-0.5 rounded-md bg-[#F2F3F5] text-[#5F6673] text-[11px] font-semibold select-none border border-[#E6E8EC]">
-                    Staff
-                  </span>
-                )}
-              </div>
-
-              <div className="text-[13px] font-medium text-[#14161A]">
-                {designationName}
-                {departmentName ? ` · Department of ${departmentName}` : ""}
-              </div>
-
-              {/* Contact & Date Metadata Line */}
-              <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 text-[12px] text-[#5F6673] pt-1">
-                {employeeCode && (
-                  <span className="inline-flex items-center gap-1.5 font-mono text-[12px] font-semibold text-[#14161A] bg-[#F2F3F5] px-2 py-0.5 rounded border border-[#E6E8EC]">
-                    <span>{employeeCode}</span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyCode(employeeCode)}
-                      title="Copy employee code"
-                      aria-label="Copy employee code"
-                      className="text-[#5F6673] hover:text-[#14161A] cursor-pointer p-0.5"
-                    >
-                      {copiedCode ? (
-                        <Check className="w-3.5 h-3.5 text-[#047857]" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-                  </span>
-                )}
-
-                {staff.profile?.phone && (
-                  <>
-                    <span>·</span>
-                    <a
-                      href={`tel:${staff.profile.phone}`}
-                      className="hover:underline flex items-center gap-1 text-[#5F6673] hover:text-[#14161A]"
-                    >
-                      <Phone className="w-3 h-3 text-[#7E8695]" />
-                      <span>{staff.profile.phone}</span>
-                    </a>
-                  </>
-                )}
-
-                {staff.email && (
-                  <>
-                    <span>·</span>
-                    <a
-                      href={`mailto:${staff.email}`}
-                      className="hover:underline flex items-center gap-1 text-[#5F6673] hover:text-[#14161A] truncate max-w-[220px]"
-                    >
-                      <Mail className="w-3 h-3 text-[#7E8695]" />
-                      <span className="truncate">{staff.email}</span>
-                    </a>
-                  </>
-                )}
-
-                {joiningFormatted && (
-                  <>
-                    <span>·</span>
-                    <span className="flex items-center gap-1 text-[#5F6673]">
-                      <Calendar className="w-3 h-3 text-[#7E8695]" />
-                      <span>Joined {joiningFormatted}</span>
-                      {tenure ? <span>· {tenure}</span> : null}
-                    </span>
-                  </>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Header Action Buttons (Matching Staff Directory root) */}
-          <div className="flex items-center gap-2 shrink-0 self-start md:self-center">
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 shrink-0 self-start">
             <button
               type="button"
               onClick={handleOpenEditProfile}
-              className="h-8 px-3 rounded-lg border border-[#E6E8EC] bg-white hover:bg-[#F2F3F5] text-[13px] font-medium text-[#14161A] active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer shrink-0 shadow-2xs"
+              className="h-8 px-3 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-semibold text-slate-700 transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs"
             >
-              <Edit3 size={14} className="text-[#5F6673]" />
+              <Edit3 size={13} className="text-slate-500" />
               <span>Edit profile</span>
             </button>
 
             <Link href={`/admin/hr/payslips?staff=${staff._id}`}>
               <button
                 type="button"
-                className="h-8 px-3.5 rounded-lg bg-[#4F46E5] hover:bg-indigo-700 text-white active:scale-[0.98] transition-all text-[13px] font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs shrink-0"
+                className="h-8 px-3.5 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white transition-all text-xs font-semibold flex items-center gap-1.5 cursor-pointer shadow-xs"
               >
-                <FileSpreadsheet size={14} />
+                <FileSpreadsheet size={13} />
                 <span>Generate payslip</span>
               </button>
             </Link>
           </div>
         </div>
-      </header>
 
-      {/* ── Segmented Control Tab Bar (Matching Staff Directory root) ──── */}
-      <div className="flex items-center bg-[#F2F3F5] p-1 rounded-xl gap-0.5 overflow-x-auto max-w-full mb-6">
-        {tabs.map((tab) => {
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => handleTabChange(tab.id)}
-              className={cn(
-                "relative h-8 px-4 rounded-lg text-[13px] font-medium transition-all whitespace-nowrap flex items-center gap-1.5 cursor-pointer",
-                isActive
-                  ? "bg-white text-[#14161A] font-semibold shadow-[0_1px_3px_rgba(0,0,0,0.08)]"
-                  : "text-[#5F6673] hover:text-[#14161A] hover:bg-white/40"
-              )}
-            >
-              <span>{tab.label}</span>
-              {tab.count !== undefined && (
-                <span
-                  className={cn(
-                    "text-[11px] font-mono tabular-nums px-1.5 py-0.2 rounded-full",
-                    isActive
-                      ? "bg-[#F2F3F5] text-[#14161A] font-semibold"
-                      : "bg-[#E6E8EC] text-[#5F6673]"
-                  )}
-                >
-                  {tab.count}
-                </span>
-              )}
-              {tab.isDirty && (
-                <span className="w-2 h-2 rounded-full bg-[#4F46E5] animate-pulse" />
-              )}
-            </button>
-          );
-        })}
+        {/* Integrated Tabs Bar */}
+        <div className="flex border-t border-slate-100 px-4 overflow-x-auto">
+          {tabs.map((tab) => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => handleTabChange(tab.id)}
+                className={`px-4 py-3 text-xs font-bold uppercase tracking-wider border-b-2 transition-all whitespace-nowrap flex items-center gap-2 cursor-pointer ${
+                  isActive
+                    ? "border-slate-900 text-slate-900"
+                    : "border-transparent text-slate-400 hover:text-slate-700"
+                }`}
+              >
+                <span>{tab.label}</span>
+                {tab.count !== undefined && (
+                  <span
+                    className={`text-[10px] font-mono tabular-nums px-1.5 py-0.2 rounded-full ${
+                      isActive
+                        ? "bg-slate-900 text-white"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                )}
+                {tab.isDirty && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* ── Tab Content Region ───────────────────────────────────────────── */}
-      <main className="mt-2">
+      <main className="mt-6">
         {activeTab === "profile" && (
           <ProfileTab
             staff={staff}

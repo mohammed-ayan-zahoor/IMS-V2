@@ -1,11 +1,34 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { Copy, Check, Eye, EyeOff } from "lucide-react";
-import { DefinitionList, DefinitionRow } from "./DefinitionList";
-import { StatusDot } from "./StatusDot";
+import {
+  Mail,
+  Phone,
+  MapPin,
+  User,
+  Hash,
+  Shield,
+  Briefcase,
+  Building2,
+  Calendar,
+  GraduationCap,
+  UserCheck,
+  HeartHandshake,
+  Landmark,
+  CreditCard,
+  FileText,
+  Coins,
+  KeyRound,
+  Check,
+  Copy,
+  Eye,
+  EyeOff,
+  AlertCircle,
+  ExternalLink,
+} from "lucide-react";
+import { InfoRow } from "./InfoRow";
 import { Money } from "./Money";
-import { EmptyValue } from "./EmptyValue";
+import Badge from "@/components/ui/Badge";
 
 export function ProfileTab({
   staff,
@@ -19,6 +42,7 @@ export function ProfileTab({
   const [isBankRevealed, setIsBankRevealed] = useState(false);
   const [isPanRevealed, setIsPanRevealed] = useState(false);
 
+  // Auto-mask after 30 seconds
   useEffect(() => {
     if (isBankRevealed) {
       const timer = setTimeout(() => setIsBankRevealed(false), 30000);
@@ -103,7 +127,7 @@ export function ProfileTab({
     "";
   const roleName =
     staff?.role === "admin"
-      ? "Admin"
+      ? "Administrator"
       : staff?.role === "faculty" || staff?.role === "instructor"
       ? "Teaching faculty"
       : "Support staff";
@@ -111,19 +135,15 @@ export function ProfileTab({
   const joiningFormatted = formatIndianDate(staff?.hrDetails?.joiningDate);
   const tenure = calculateTenure(staff?.hrDetails?.joiningDate);
   const joiningText = joiningFormatted
-    ? `${joiningFormatted}${tenure ? ` · ${tenure}` : ""}`
+    ? `${joiningFormatted}${tenure ? ` (${tenure})` : ""}`
     : null;
 
   const dobFormatted = formatIndianDate(staff?.profile?.dateOfBirth);
 
   const address = staff?.profile?.address;
-  const addressParts = [
-    address?.street,
-    address?.city,
-    address?.state,
-    address?.pincode,
-  ].filter(Boolean);
-  const addressText = addressParts.length > 0 ? addressParts.join(", ") : null;
+  const street = address?.street;
+  const city = address?.city;
+  const stateAndPin = [address?.state, address?.pincode].filter(Boolean).join(" - ");
 
   const bank = staff?.hrDetails?.bankDetails || {};
   const hasBankDetails =
@@ -133,7 +153,7 @@ export function ProfileTab({
   const maskAccount = (num) => {
     if (!num) return "";
     if (num.length <= 4) return num;
-    return "••••" + num.slice(-4);
+    return "•••• " + num.slice(-4);
   };
 
   const maskPan = (pan) => {
@@ -147,333 +167,307 @@ export function ProfileTab({
   const esiNumber = staff?.hrDetails?.esiNumber?.trim() || "";
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-      {/* LEFT 60% — Personal & Employment */}
-      <div className="lg:col-span-7 space-y-6">
-        <div className="flex items-center justify-between pb-1">
-          <h2 className="text-[17px] font-semibold tracking-tight text-[#14161A]">
-            Personal &amp; employment
-          </h2>
-          <button
-            type="button"
-            onClick={onOpenEditProfile}
-            className="text-[13px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
-          >
-            Edit
-          </button>
-        </div>
-
-        {/* IDENTITY GROUP */}
-        <DefinitionList eyebrow="IDENTITY">
-          <DefinitionRow label="Full name" value={fullName} />
-          <DefinitionRow
-            label="Employee code"
-            mono
-            value={
-              employeeCode ? (
-                <span className="inline-flex items-center gap-2">
-                  <span className="bg-[#F2F3F5] text-[#14161A] font-mono text-[12px] font-semibold px-2 py-0.5 rounded border border-[#E6E8EC]">
-                    {employeeCode}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => handleCopyCode(employeeCode)}
-                    title="Copy employee code"
-                    aria-label="Copy employee code"
-                    className="text-[#5F6673] hover:text-[#14161A] transition-colors cursor-pointer p-0.5"
-                  >
-                    {copiedCode ? (
-                      <Check className="w-3.5 h-3.5 text-[#047857]" />
-                    ) : (
-                      <Copy className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                </span>
-              ) : null
-            }
-          />
-          <DefinitionRow label="Gender" value={staff?.profile?.gender} />
-          <DefinitionRow label="Date of birth" value={dobFormatted} />
-          <DefinitionRow label="Blood group" value={staff?.profile?.bloodGroup} />
-        </DefinitionList>
-
-        {/* EMPLOYMENT GROUP */}
-        <DefinitionList eyebrow="EMPLOYMENT">
-          <DefinitionRow label="Designation" value={designation} />
-          <DefinitionRow label="Role" value={roleName} />
-          <DefinitionRow label="Department" value={department} />
-          <DefinitionRow label="Joined" value={joiningText} />
-          <DefinitionRow
-            label="Qualification"
-            value={staff?.hrDetails?.qualification}
-          />
-        </DefinitionList>
-
-        {/* CONTACT & ACCESS GROUP */}
-        <DefinitionList eyebrow="CONTACT & ACCESS">
-          <DefinitionRow
-            label="Phone"
-            value={
-              staff?.profile?.phone ? (
-                <a
-                  href={`tel:${staff.profile.phone}`}
-                  className="hover:underline text-[#14161A] font-medium"
-                >
-                  {staff.profile.phone}
-                </a>
-              ) : null
-            }
-          />
-          <DefinitionRow
-            label="Email"
-            value={
-              staff?.email ? (
-                <a
-                  href={`mailto:${staff.email}`}
-                  className="hover:underline text-[#14161A] font-medium"
-                >
-                  {staff.email}
-                </a>
-              ) : null
-            }
-          />
-          <DefinitionRow label="Address" value={addressText} />
-          <DefinitionRow
-            label="Portal sign-in"
-            value={
-              <div className="flex flex-wrap items-center gap-2">
-                <StatusDot
-                  tone={staff?.allowLogin !== false ? "positive" : "muted"}
-                  label={staff?.allowLogin !== false ? "Enabled" : "Disabled"}
-                />
-                {staff?.allowLogin !== false && (
-                  <>
-                    <span className="text-[#8A909C]">·</span>
-                    <button
-                      type="button"
-                      onClick={handleCopyLoginLink}
-                      className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
-                    >
-                      {copiedLoginLink ? "Copied link!" : "Copy sign-in link"}
-                    </button>
-                  </>
-                )}
-              </div>
-            }
-          />
-        </DefinitionList>
-      </div>
-
-      {/* RIGHT 40% — Bank Account, Statutory IDs, Compensation */}
-      <div className="lg:col-span-5 space-y-5">
-        {/* BANK ACCOUNT CARD */}
-        <div
-          className={`rounded-xl bg-white border p-5 shadow-xs transition-all ${
-            hasBankDetails
-              ? "border-[#E6E8EC]"
-              : "border-[#E6E8EC] border-l-4 border-l-[#B45309]"
-          }`}
-        >
-          <div className="flex items-center justify-between pb-3 border-b border-[#E6E8EC]">
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#14161A]">
-              Bank account
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-fade-in">
+      {/* LEFT COLUMN */}
+      <div className="space-y-6">
+        {/* CONTACT & ADDRESS */}
+        <div className="bg-white rounded-lg border border-slate-100 overflow-hidden shadow-xs">
+          <div className="px-5 py-3.5 bg-[#F9FAFB] border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Contact &amp; Address
             </h3>
             <button
               type="button"
               onClick={onOpenEditProfile}
-              className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+            >
+              Edit
+            </button>
+          </div>
+          <div className="p-5 space-y-1">
+            <InfoRow
+              icon={Mail}
+              label="Email Address"
+              value={
+                staff?.email ? (
+                  <a
+                    href={`mailto:${staff.email}`}
+                    className="hover:underline text-slate-900"
+                  >
+                    {staff.email}
+                  </a>
+                ) : null
+              }
+            />
+            <InfoRow
+              icon={Phone}
+              label="Phone Number"
+              value={
+                staff?.profile?.phone ? (
+                  <a
+                    href={`tel:${staff.profile.phone}`}
+                    className="hover:underline text-slate-900"
+                  >
+                    {staff.profile.phone}
+                  </a>
+                ) : null
+              }
+            />
+            <InfoRow icon={MapPin} label="Street Address" value={street} />
+            <InfoRow icon={MapPin} label="City" value={city} />
+            <InfoRow icon={MapPin} label="State &amp; Pin" value={stateAndPin} />
+            <InfoRow
+              icon={KeyRound}
+              label="Portal Sign-in"
+              value={
+                <div className="flex items-center gap-2">
+                  <Badge
+                    variant={staff?.allowLogin !== false ? "success" : "neutral"}
+                    className="text-[10px] px-2 py-0.5 font-bold"
+                  >
+                    {staff?.allowLogin !== false ? "Enabled" : "Disabled"}
+                  </Badge>
+                  {staff?.allowLogin !== false && (
+                    <button
+                      type="button"
+                      onClick={handleCopyLoginLink}
+                      className="text-xs font-semibold text-indigo-600 hover:underline cursor-pointer ml-1"
+                    >
+                      {copiedLoginLink ? "Copied!" : "Copy Link"}
+                    </button>
+                  )}
+                </div>
+              }
+            />
+          </div>
+        </div>
+
+        {/* IDENTITY & EMPLOYMENT */}
+        <div className="bg-white rounded-lg border border-slate-100 overflow-hidden shadow-xs">
+          <div className="px-5 py-3.5 bg-[#F9FAFB] border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Identity &amp; Employment
+            </h3>
+            <button
+              type="button"
+              onClick={onOpenEditProfile}
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
+            >
+              Edit
+            </button>
+          </div>
+          <div className="p-5 space-y-1">
+            <InfoRow icon={User} label="Full Name" value={fullName} />
+            <InfoRow
+              icon={Hash}
+              label="Employee Code"
+              value={
+                employeeCode ? (
+                  <span className="inline-flex items-center gap-1.5 font-mono">
+                    <span>{employeeCode}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCode(employeeCode)}
+                      title="Copy employee code"
+                      className="text-slate-400 hover:text-slate-700 cursor-pointer p-0.5"
+                    >
+                      {copiedCode ? (
+                        <Check size={12} className="text-emerald-600" />
+                      ) : (
+                        <Copy size={12} />
+                      )}
+                    </button>
+                  </span>
+                ) : null
+              }
+            />
+            <InfoRow icon={Briefcase} label="Designation" value={designation} />
+            <InfoRow icon={Shield} label="Role / Category" value={roleName} />
+            <InfoRow icon={Building2} label="Department" value={department} />
+            <InfoRow icon={Calendar} label="Date of Joining" value={joiningText} />
+            <InfoRow
+              icon={GraduationCap}
+              label="Qualification"
+              value={staff?.hrDetails?.qualification}
+            />
+            <InfoRow icon={UserCheck} label="Gender" value={staff?.profile?.gender} />
+            <InfoRow icon={Calendar} label="Date of Birth" value={dobFormatted} />
+            <InfoRow
+              icon={HeartHandshake}
+              label="Blood Group"
+              value={staff?.profile?.bloodGroup}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* RIGHT COLUMN */}
+      <div className="space-y-6">
+        {/* BANK ACCOUNT */}
+        <div className="bg-white rounded-lg border border-slate-100 overflow-hidden shadow-xs">
+          <div className="px-5 py-3.5 bg-[#F9FAFB] border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Bank Account Details
+            </h3>
+            <button
+              type="button"
+              onClick={onOpenEditProfile}
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
             >
               {hasBankDetails ? "Edit" : "Configure"}
             </button>
           </div>
 
           {hasBankDetails ? (
-            <div className="pt-2 divide-y divide-[#E6E8EC]/60 text-[13px]">
-              <div className="py-2 flex justify-between">
-                <span className="text-[#5F6673]">Bank name</span>
-                <span className="font-semibold text-[#14161A]">
-                  {bank.bankName || <EmptyValue />}
-                </span>
-              </div>
-              <div className="py-2 flex justify-between">
-                <span className="text-[#5F6673]">Account holder</span>
-                <span className="font-semibold text-[#14161A]">
-                  {bank.accountName || fullName}
-                </span>
-              </div>
-              <div className="py-2 flex items-center justify-between">
-                <span className="text-[#5F6673]">Account number</span>
-                <span className="font-mono text-[13px] font-bold text-[#14161A] flex items-center gap-1.5">
-                  {isBankRevealed
-                    ? bank.accountNumber
-                    : maskAccount(bank.accountNumber)}
-                  <button
-                    type="button"
-                    onClick={() => setIsBankRevealed(!isBankRevealed)}
-                    title={isBankRevealed ? "Hide account" : "Reveal account (30s)"}
-                    className="text-[#5F6673] hover:text-[#14161A] p-0.5"
-                  >
-                    {isBankRevealed ? (
-                      <EyeOff className="w-3.5 h-3.5" />
-                    ) : (
-                      <Eye className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                </span>
-              </div>
-              <div className="py-2 flex justify-between">
-                <span className="text-[#5F6673]">IFSC code</span>
-                <span className="font-mono text-[13px] font-bold text-[#14161A] uppercase">
-                  {bank.ifscCode || <EmptyValue />}
-                </span>
-              </div>
-              {bank.branch && (
-                <div className="py-2 flex justify-between">
-                  <span className="text-[#5F6673]">Branch</span>
-                  <span className="font-semibold text-[#14161A]">
-                    {bank.branch}
-                  </span>
-                </div>
-              )}
+            <div className="p-5 space-y-1">
+              <InfoRow icon={Landmark} label="Bank Name" value={bank.bankName} />
+              <InfoRow
+                icon={User}
+                label="Account Holder"
+                value={bank.accountName || fullName}
+              />
+              <InfoRow
+                icon={CreditCard}
+                label="Account Number"
+                value={
+                  bank.accountNumber ? (
+                    <span className="inline-flex items-center gap-1.5 font-mono">
+                      <span>
+                        {isBankRevealed
+                          ? bank.accountNumber
+                          : maskAccount(bank.accountNumber)}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsBankRevealed(!isBankRevealed)}
+                        title={isBankRevealed ? "Hide account" : "Reveal (30s)"}
+                        className="text-slate-400 hover:text-slate-700 p-0.5 cursor-pointer"
+                      >
+                        {isBankRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
+                      </button>
+                    </span>
+                  ) : null
+                }
+              />
+              <InfoRow
+                icon={FileText}
+                label="IFSC Code"
+                value={
+                  bank.ifscCode ? (
+                    <span className="font-mono uppercase">{bank.ifscCode}</span>
+                  ) : null
+                }
+              />
+              <InfoRow icon={Building2} label="Branch" value={bank.branch} />
             </div>
           ) : (
-            <div className="py-3 space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#B45309]" />
-                <span className="text-[12px] font-bold text-[#B45309]">
-                  Not set up
-                </span>
+            <div className="p-6 text-center space-y-3 bg-amber-50/40">
+              <div className="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto">
+                <AlertCircle size={20} />
               </div>
-              <p className="text-[12px] text-[#5F6673] leading-relaxed">
-                Salary cannot be paid by bank transfer until direct deposit details are added.
-              </p>
+              <div>
+                <p className="text-sm font-bold text-slate-800">
+                  Bank Account Not Set Up
+                </p>
+                <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
+                  Salary cannot be paid by bank transfer until direct deposit details are added.
+                </p>
+              </div>
               <button
                 type="button"
                 onClick={onOpenEditProfile}
-                className="h-8 px-3 rounded-lg border border-[#E6E8EC] bg-white hover:bg-[#F2F3F5] text-[12px] font-semibold text-[#14161A] transition-colors cursor-pointer active:scale-97"
+                className="h-8 px-4 rounded-lg bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold shadow-xs transition-colors cursor-pointer"
               >
-                Add bank details
+                Add Bank Details
               </button>
             </div>
           )}
         </div>
 
-        {/* STATUTORY IDS CARD */}
-        <div className="rounded-xl bg-white border border-[#E6E8EC] p-5 shadow-xs">
-          <div className="flex items-center justify-between pb-3 border-b border-[#E6E8EC]">
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#14161A]">
-              Statutory IDs
+        {/* STATUTORY IDS */}
+        <div className="bg-white rounded-lg border border-slate-100 overflow-hidden shadow-xs">
+          <div className="px-5 py-3.5 bg-[#F9FAFB] border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Statutory &amp; Government IDs
             </h3>
             <button
               type="button"
               onClick={onOpenEditProfile}
-              className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
+              className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors"
             >
               Edit
             </button>
           </div>
-          <div className="divide-y divide-[#E6E8EC]/60 text-[13px] pt-1">
-            {/* PAN */}
-            <div className="min-h-[38px] py-2 flex items-center justify-between">
-              <span className="text-[#5F6673]">PAN</span>
-              {panNumber ? (
-                <span className="font-mono text-[13px] font-bold text-[#14161A] flex items-center gap-1.5 uppercase">
-                  {isPanRevealed ? panNumber : maskPan(panNumber)}
-                  <button
-                    type="button"
-                    onClick={() => setIsPanRevealed(!isPanRevealed)}
-                    title={isPanRevealed ? "Hide PAN" : "Reveal PAN (30s)"}
-                    className="text-[#5F6673] hover:text-[#14161A] p-0.5"
-                  >
-                    {isPanRevealed ? (
-                      <EyeOff className="w-3.5 h-3.5" />
-                    ) : (
-                      <Eye className="w-3.5 h-3.5" />
-                    )}
-                  </button>
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={onOpenEditProfile}
-                  className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
-                >
-                  Add
-                </button>
-              )}
-            </div>
-
-            {/* UAN / EPF */}
-            <div className="min-h-[38px] py-2 flex items-center justify-between">
-              <span className="text-[#5F6673]">UAN / EPF</span>
-              {uanNumber ? (
-                <span className="font-mono text-[13px] font-bold text-[#14161A]">
-                  {uanNumber}
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={onOpenEditProfile}
-                  className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
-                >
-                  Add
-                </button>
-              )}
-            </div>
-
-            {/* ESI */}
-            <div className="min-h-[38px] py-2 flex items-center justify-between">
-              <span className="text-[#5F6673]">ESI</span>
-              {esiNumber ? (
-                <span className="font-mono text-[13px] font-bold text-[#14161A]">
-                  {esiNumber}
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={onOpenEditProfile}
-                  className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
-                >
-                  Add
-                </button>
-              )}
-            </div>
+          <div className="p-5 space-y-1">
+            <InfoRow
+              icon={CreditCard}
+              label="PAN Number"
+              value={
+                panNumber ? (
+                  <span className="inline-flex items-center gap-1.5 font-mono uppercase">
+                    <span>{isPanRevealed ? panNumber : maskPan(panNumber)}</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsPanRevealed(!isPanRevealed)}
+                      title={isPanRevealed ? "Hide PAN" : "Reveal (30s)"}
+                      className="text-slate-400 hover:text-slate-700 p-0.5 cursor-pointer"
+                    >
+                      {isPanRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
+                    </button>
+                  </span>
+                ) : null
+              }
+            />
+            <InfoRow
+              icon={Shield}
+              label="UAN / EPF Number"
+              value={uanNumber ? <span className="font-mono">{uanNumber}</span> : null}
+            />
+            <InfoRow
+              icon={HeartHandshake}
+              label="ESI Number"
+              value={esiNumber ? <span className="font-mono">{esiNumber}</span> : null}
+            />
           </div>
         </div>
 
-        {/* COMPENSATION CARD */}
-        <div className="rounded-xl bg-white border border-[#E6E8EC] p-5 shadow-xs">
-          <div className="flex items-center justify-between pb-3 border-b border-[#E6E8EC]">
-            <h3 className="text-[11px] font-bold uppercase tracking-wider text-[#14161A]">
-              Compensation
+        {/* COMPENSATION SUMMARY */}
+        <div className="bg-white rounded-lg border border-slate-100 overflow-hidden shadow-xs">
+          <div className="px-5 py-3.5 bg-[#F9FAFB] border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-500">
+              Compensation Summary
             </h3>
             {onSwitchTab && (
               <button
                 type="button"
                 onClick={() => onSwitchTab("salary")}
-                className="text-[12px] font-semibold text-[#4F46E5] hover:underline cursor-pointer"
+                className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1"
               >
-                Open salary →
+                <span>Open Salary</span>
+                <ExternalLink size={12} />
               </button>
             )}
           </div>
-          <div className="divide-y divide-[#E6E8EC]/60 text-[13px] pt-1">
-            <div className="min-h-[38px] py-2 flex items-baseline justify-between">
-              <span className="text-[#5F6673]">Gross / month</span>
-              <Money
-                value={grossSalary}
-                fixed
-                className="text-[14px] font-bold text-[#14161A]"
-              />
-            </div>
-            <div className="min-h-[38px] py-2 flex items-baseline justify-between">
-              <span className="text-[#5F6673]">Est. net take-home</span>
-              <Money
-                value={estNetSalary}
-                fixed
-                className="text-[14px] font-bold text-[#047857]"
-              />
-            </div>
+          <div className="p-5 space-y-1">
+            <InfoRow
+              icon={Coins}
+              label="Monthly Basic Pay"
+              value={<Money value={staff?.hrDetails?.basicSalary || 0} fixed />}
+            />
+            <InfoRow
+              icon={CreditCard}
+              label="Gross / Month"
+              value={<Money value={grossSalary} fixed />}
+            />
+            <InfoRow
+              icon={Coins}
+              label="Est. Net Take-Home"
+              value={
+                <span className="text-emerald-700 font-extrabold text-base">
+                  <Money value={estNetSalary} fixed />
+                </span>
+              }
+            />
           </div>
         </div>
       </div>
