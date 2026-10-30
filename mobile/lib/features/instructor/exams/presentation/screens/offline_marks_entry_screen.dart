@@ -205,6 +205,7 @@ class _OfflineMarksEntryScreenState extends State<OfflineMarksEntryScreen> {
                           style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
                         ),
                         items: _availableBatches.map((b) {
+                          final instructorBatches = context.read<InstructorBatchesProvider>().batches;
                           final matched = instructorBatches.where((ib) => ib.id == b.id).firstOrNull;
                           final coursePrefix = matched != null && matched.courseName.isNotEmpty
                               ? '${matched.courseName} - '

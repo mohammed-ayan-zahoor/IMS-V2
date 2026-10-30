@@ -72,7 +72,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         }
         for (final h in rawHistory) {
           if (h.batchId.isNotEmpty && !batchMap.containsKey(h.batchId)) {
-            batchMap[h.batchId] = h.courseName.isNotEmpty ? '${h.courseName} - ${h.batchName}' : h.batchName;
+            batchMap[h.batchId] = h.batchName;
           }
         }
 
