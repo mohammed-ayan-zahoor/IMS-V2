@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/mongodb";
 import Material from "@/models/Material";
 import Submission from "@/models/Submission";
 import Batch from "@/models/Batch";
+import { sendNotification } from "@/lib/notifications";
 
 /**
  * @route   POST /api/v1/assignments/[id]/submit

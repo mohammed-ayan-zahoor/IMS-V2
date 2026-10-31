@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:student_app/features/assignments/data/models/assignment_model.dart';
 import 'package:student_app/features/assignments/presentation/providers/assignments_provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:student_app/core/network/api_client.dart';
 
 class AssignmentsScreen extends StatefulWidget {
   const AssignmentsScreen({super.key});
@@ -61,6 +63,8 @@ class _AssignmentsScreenState extends State<AssignmentsScreen> with SingleTicker
       builder: (modalContext) {
         return StatefulBuilder(
           builder: (context, setModalState) {
+            PlatformFile? pickedFile;
+            String submitStatus = '';
             return Padding(
               padding: EdgeInsets.only(
                 bottom: MediaQuery.of(context).viewInsets.bottom + 16,
@@ -262,12 +266,86 @@ class _AssignmentsScreenState extends State<AssignmentsScreen> with SingleTicker
                         'Submit Assignment Solutions',
                         style: GoogleFonts.hankenGrotesk(color: const Color(0xFF0D1C2E), fontSize: 15, fontWeight: FontWeight.bold),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
+
+                      // Device File Picker Card
+                      InkWell(
+                        onTap: isSubmitting
+                            ? null
+                            : () async {
+                                final res = await FilePicker.platform.pickFiles(
+                                  type: FileType.custom,
+                                  allowedExtensions: ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'],
+                                );
+                                if (res != null && res.files.isNotEmpty) {
+                                  setModalState(() {
+                                    pickedFile = res.files.first;
+                                  });
+                                }
+                              },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                          decoration: BoxDecoration(
+                            color: pickedFile != null ? const Color(0xFFEFF6FF) : const Color(0xFFF8FAFC),
+                            border: Border.all(
+                              color: pickedFile != null ? const Color(0xFF2563EB) : const Color(0xFFCBD5E1),
+                              width: pickedFile != null ? 1.5 : 1.0,
+                            ),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(
+                                pickedFile != null ? Icons.check_circle_rounded : Icons.attach_file_rounded,
+                                color: pickedFile != null ? const Color(0xFF2563EB) : const Color(0xFF64748B),
+                                size: 22,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  pickedFile != null
+                                      ? '${pickedFile!.name} (${(pickedFile!.size / 1024).toStringAsFixed(1)} KB)'
+                                      : 'Tap to pick PDF, Doc or Image from device',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: GoogleFonts.inter(
+                                    fontSize: 13,
+                                    fontWeight: pickedFile != null ? FontWeight.w600 : FontWeight.normal,
+                                    color: pickedFile != null ? const Color(0xFF1E3A8A) : const Color(0xFF64748B),
+                                  ),
+                                ),
+                              ),
+                              if (pickedFile != null)
+                                GestureDetector(
+                                  onTap: () => setModalState(() => pickedFile = null),
+                                  child: const Icon(Icons.close_rounded, size: 18, color: Color(0xFF64748B)),
+                                )
+                              else
+                                const Icon(Icons.upload_rounded, size: 18, color: Color(0xFF64748B)),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8),
+                            child: Text('OR PASTE URL', style: GoogleFonts.inter(fontSize: 10, color: const Color(0xFF94A3B8), fontWeight: FontWeight.bold)),
+                          ),
+                          const Expanded(child: Divider(color: Color(0xFFE2E8F0))),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+
                       TextField(
                         controller: fileController,
                         style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF0D1C2E)),
                         decoration: InputDecoration(
-                          hintText: 'Enter Document URL or Cloudinary file link',
+                          hintText: 'Enter direct file URL (Optional)',
                           hintStyle: GoogleFonts.inter(color: const Color(0xFF94A3B8), fontSize: 12),
                           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -282,13 +360,50 @@ class _AssignmentsScreenState extends State<AssignmentsScreen> with SingleTicker
                               ? null
                               : () async {
                                   final link = fileController.text.trim();
-                                  if (link.isEmpty) return;
+                                  if (pickedFile == null && link.isEmpty) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Please select a file or enter a file link.')),
+                                    );
+                                    return;
+                                  }
 
-                                  setModalState(() => isSubmitting = true);
+                                  setModalState(() {
+                                    isSubmitting = true;
+                                    submitStatus = pickedFile != null ? 'Uploading to Cloudinary...' : 'Submitting...';
+                                  });
+
+                                  String finalUrl = link;
+                                  String finalFileName = pickedFile?.name ?? 'Assignment_${assignment.title.replaceAll(' ', '_')}.pdf';
+
+                                  // If file was picked from device, upload to Cloudinary via backend /api/v1/upload
+                                  if (pickedFile != null && pickedFile!.path != null) {
+                                    final uploadRes = await ApiClient().uploadFile(
+                                      filePath: pickedFile!.path!,
+                                      fileName: pickedFile!.name,
+                                      fileType: 'document',
+                                    );
+
+                                    if (uploadRes == null || uploadRes['url'] == null) {
+                                      setModalState(() => isSubmitting = false);
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          const SnackBar(
+                                            content: Text('Failed to upload file to Cloudinary. Please try again.'),
+                                            backgroundColor: Color(0xFFDC2626),
+                                          ),
+                                        );
+                                      }
+                                      return;
+                                    }
+
+                                    finalUrl = uploadRes['url'].toString();
+                                  }
+
+                                  setModalState(() => submitStatus = 'Submitting homework...');
                                   final success = await provider.submitAssignment(
                                     assignmentId: assignment.id,
-                                    fileUrl: link,
-                                    fileName: 'Assignment_${assignment.title.replaceAll(' ', '_')}.pdf',
+                                    fileUrl: finalUrl,
+                                    fileName: finalFileName,
                                   );
                                   setModalState(() => isSubmitting = false);
 
@@ -316,7 +431,7 @@ class _AssignmentsScreenState extends State<AssignmentsScreen> with SingleTicker
                                 )
                               : const Icon(Icons.cloud_upload_outlined, color: Colors.white, size: 20),
                           label: Text(
-                            isSubmitting ? 'Uploading...' : 'Submit Homework',
+                            isSubmitting ? (submitStatus.isNotEmpty ? submitStatus : 'Uploading...') : 'Submit Homework',
                             style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                           ),
                         ),

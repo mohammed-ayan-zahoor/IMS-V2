@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Material from "@/models/Material";
 import Submission from "@/models/Submission";
+import { sendNotification } from "@/lib/notifications";
 
 /**
  * @route   GET /api/v1/assignments/[id]/submissions

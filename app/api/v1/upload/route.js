@@ -3,14 +3,17 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import cloudinary from "@/lib/cloudinary";
 import { getCloudinaryOptions, getUploadFolder } from "@/lib/cloudinaryResolver";
-import crypto from "crypto";
-import fs from "fs/promises";
-import path from "path";
 
 const allowedMimeTypes = {
     'image': ["image/jpeg", "image/png", "image/webp", "image/gif"],
     'logo': ["image/jpeg", "image/png", "image/webp", "image/gif"],
-    'document': ["application/pdf", "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]
+    'document': [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "image/jpeg",
+        "image/png"
+    ]
 };
 
 // Start handler
@@ -22,7 +25,6 @@ export async function POST(req) {
         }
 
         // SECURITY: Extract instituteId from session (never from query params)
-        // This is the trusted source of truth for institute isolation
         const instituteId = session.user.institute?.id || session.user.instituteId;
         if (!instituteId) {
             return NextResponse.json({ error: "No institute context" }, { status: 400 });
@@ -33,16 +35,15 @@ export async function POST(req) {
 
         if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
-        const fileType = formData.get("fileType");
+        const fileType = formData.get("fileType") || 'document';
 
         if (!fileType || !Object.keys(allowedMimeTypes).includes(fileType)) {
             return NextResponse.json({ error: "Invalid or missing fileType context" }, { status: 400 });
         }
 
-        const validTypes = allowedMimeTypes[fileType] || allowedMimeTypes.image;
+        const validTypes = allowedMimeTypes[fileType] || allowedMimeTypes.document;
 
         if (!validTypes.includes(file.type)) {
-            // Create user-friendly error message
             const extensionsMap = {
                 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif',
                 'application/pdf': 'pdf', 'application/msword': 'doc',
@@ -52,96 +53,66 @@ export async function POST(req) {
             return NextResponse.json({ error: `Invalid file type. Allowed: ${allowedExtensions}` }, { status: 400 });
         }
 
-        if (file.size > 5 * 1024 * 1024) {
-            return NextResponse.json({ error: "File size exceeds 5MB limit" }, { status: 400 });
+        if (file.size > 25 * 1024 * 1024) {
+            return NextResponse.json({ error: "File size exceeds 25MB limit" }, { status: 400 });
         }
 
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
 
-        const isDocument = allowedMimeTypes.document.includes(file.type);
-
-        if (isDocument) {
-            // Local Secure Storage for PDFs and Docs
-            const uploadsDir = path.join(process.cwd(), "private_uploads");
-
-            // Idempotent creation
-            await fs.mkdir(uploadsDir, { recursive: true });
-
-            const uniqueId = crypto.randomUUID();
-            // preserve extension or default to pdf if unknown
-            const ext = file.name.split('.').pop() || 'pdf';
-            // ponytail: Prefix filename with instituteId to guarantee deterministic tenant isolation
-            const filename = `${instituteId}_${uniqueId}.${ext}`;
-            const filePath = path.join(uploadsDir, filename);
-
-            await fs.writeFile(filePath, buffer);
-
-            const secureUrl = `/api/v1/files/${filename}`;
-
-            return NextResponse.json({
-                url: secureUrl,
-                public_id: uniqueId,
-                format: ext,
-                type: "local_private"
-            });
-
-        } else {
-            // Cloudinary for Images (Public/Visible)
-            // Use tenant-specific credentials if configured, otherwise platform defaults
-
-            // Get tenant-specific Cloudinary options (thread-safe scoped injection)
-            let tenantOptions = {};
-            try {
-                tenantOptions = await getCloudinaryOptions(instituteId);
-            } catch (error) {
-                console.warn(`[Upload] Failed to get tenant Cloudinary options for ${instituteId}, using platform defaults:`, error.message);
-                // Fall back to platform defaults
-            }
-
-            // Configure transformation based on file type
-            let transformation;
-            if (fileType === 'logo') {
-                transformation = [{ width: 1000, height: 1000, crop: "limit" }]; // Higher quality for logos
-            } else {
-                transformation = [{ width: 500, height: 500, crop: "limit" }];
-            }
-
-            // SECURITY: Dynamic folder namespacing
-            // All uploads are prefixed with institutes/{instituteId}/uploads
-            // This ensures clean data partitioning even if credentials were compromised
-            const uploadFolder = getUploadFolder(instituteId, 'uploads');
-
-            const uploadResponse = await new Promise((resolve, reject) => {
-                const options = {
-                    folder: uploadFolder,
-                    resource_type: "auto",
-                    transformation,
-                    // Thread-safe scoped injection: pass tenant credentials directly
-                    // SDK processes each request independently without global mutation
-                    ...tenantOptions
-                };
-
-                const uploadStream = cloudinary.uploader.upload_stream(
-                    options,
-                    (error, result) => {
-                        if (error) reject(error);
-                        else resolve(result);
-                    }
-                );
-                uploadStream.end(buffer);
-            });
-
-            return NextResponse.json({
-                url: uploadResponse.secure_url,
-                public_id: uploadResponse.public_id,
-                institute: instituteId  // Echo back for verification
-            });
+        // Resolve Institute's custom Cloudinary credentials (thread-safe scoped injection)
+        // If not configured, getCloudinaryOptions returns {} and falls back to platform IMS credentials
+        let tenantOptions = {};
+        try {
+            tenantOptions = await getCloudinaryOptions(instituteId);
+        } catch (error) {
+            console.warn(`[Upload] Failed to get tenant Cloudinary options for ${instituteId}, using platform defaults:`, error.message);
         }
+
+        // Determine destination folder
+        const subFolder = fileType === 'document' ? 'materials' : 'uploads';
+        const uploadFolder = getUploadFolder(instituteId, subFolder);
+
+        // Configure transformation and resource_type
+        let transformation;
+        let resourceType = "auto";
+
+        if (fileType === 'logo') {
+            transformation = [{ width: 1000, height: 1000, crop: "limit" }];
+        } else if (fileType === 'image') {
+            transformation = [{ width: 1200, height: 1200, crop: "limit" }];
+        }
+
+        // Upload directly to Cloudinary
+        const uploadResponse = await new Promise((resolve, reject) => {
+            const options = {
+                folder: uploadFolder,
+                resource_type: resourceType,
+                transformation,
+                ...tenantOptions
+            };
+
+            const uploadStream = cloudinary.uploader.upload_stream(
+                options,
+                (error, result) => {
+                    if (error) reject(error);
+                    else resolve(result);
+                }
+            );
+            uploadStream.end(buffer);
+        });
+
+        return NextResponse.json({
+            success: true,
+            url: uploadResponse.secure_url,
+            public_id: uploadResponse.public_id,
+            format: uploadResponse.format,
+            bytes: uploadResponse.bytes,
+            institute: instituteId
+        });
 
     } catch (error) {
         console.error("[Upload Error]:", error.message);
-        return NextResponse.json({ error: "Failed to upload file" }, { status: 500 });
+        return NextResponse.json({ error: "Failed to upload file to Cloudinary" }, { status: 500 });
     }
 }
-

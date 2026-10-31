@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/mongodb";
 import Material from "@/models/Material";
 import Batch from "@/models/Batch";
 import AuditLog from "@/models/AuditLog";
+import { sendNotification, getStudentIdsForMaterial } from "@/lib/notifications";
 
 export async function GET(req) {
     try {
