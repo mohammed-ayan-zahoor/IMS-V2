@@ -273,6 +273,17 @@ export async function POST(req) {
         const BatchModel = (await import("@/models/Batch")).default;
         const targetBatchDoc = await BatchModel.findById(globalTargetBatchId).populate('course').lean();
 
+        // Validate that target class / course has a non-zero fee configured
+        const targetFeeAmount = targetBatchDoc?.course?.fees?.amount;
+        if (!targetFeeAmount || targetFeeAmount <= 0) {
+            const courseTitle = targetBatchDoc?.course?.name || "Selected class";
+            return NextResponse.json({
+                error: `Cannot import students: ${courseTitle} has no tuition fee configured (₹0). Please set the fee in Courses / Classes before enrolling students.`,
+                zeroFeeError: true,
+                courseName: courseTitle
+            }, { status: 400 });
+        }
+
         // Parse file buffer
         console.log("[IMPORT_DEBUG] 7. Reading file arrayBuffer");
         const bytes = await file.arrayBuffer();

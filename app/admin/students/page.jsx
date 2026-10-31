@@ -484,6 +484,20 @@ const getInitialFormData = (selectedSessionId = "") => ({
 
     const handleAddStudent = async (e) => {
         e.preventDefault();
+        
+        // Zero-fee validation
+        if (formData.admissionBatch) {
+            const isBundle = formData.admissionStd?.startsWith("bundle_");
+            if (!isBundle) {
+                const selectedCourseDoc = courses.find(c => c._id === formData.admissionStd);
+                const feeAmt = selectedCourseDoc?.fees?.amount;
+                if (feeAmt === undefined || feeAmt === null || Number(feeAmt) <= 0) {
+                    toast.error(`Cannot enroll student: ${selectedCourseDoc?.name || "Selected class"} has no tuition fee configured (₹0). Please set a valid fee in Courses / Classes settings first.`);
+                    return;
+                }
+            }
+        }
+        
         try {
             const payload = { ...formData };
             if (!payload.password || !payload.password.trim()) {
@@ -1871,6 +1885,19 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                     ...courses.map(c => ({ label: c.name, value: c._id }))
                                 ]}
                             />
+                            {/* Zero Fee Warning in Manual Enrollment */}
+                            {Boolean(
+                                formData.admissionStd && 
+                                !formData.admissionStd.startsWith("bundle_") && 
+                                (!courses.find(c => c._id === formData.admissionStd)?.fees?.amount || Number(courses.find(c => c._id === formData.admissionStd)?.fees?.amount) <= 0)
+                            ) && (
+                                <div className="col-span-1 md:col-span-2 p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs flex items-center gap-2">
+                                    <AlertCircle size={16} className="text-rose-600 shrink-0" />
+                                    <span>
+                                        <strong>Class Fee is ₹0:</strong> {courses.find(c => c._id === formData.admissionStd)?.name || "This class"} has no tuition fee configured. Please set the class fee in <em>Settings &gt; Courses / Classes</em> before enrolling students.
+                                    </span>
+                                </div>
+                            )}
                             {formData.admissionStd ? (
                                 <Select
                                     label={isCollege ? "Semester & Section" : isVocational ? "Batch" : "Section / Batch"}
@@ -2500,8 +2527,21 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                         />
                                     </div>
 
+                                    {/* Zero Fee Warning in Bulk Import */}
+                                    {Boolean(
+                                        importCourseId && 
+                                        (!courses.find(c => c._id === importCourseId)?.fees?.amount || Number(courses.find(c => c._id === importCourseId)?.fees?.amount) <= 0)
+                                    ) && (
+                                        <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-800 text-xs flex items-center gap-2">
+                                            <AlertCircle size={16} className="text-rose-600 shrink-0" />
+                                            <span>
+                                                <strong>Cannot Import with ₹0 Fee:</strong> {courses.find(c => c._id === importCourseId)?.name || "The selected class"} has no tuition fee configured. Please set the class fee in <em>Settings &gt; Courses / Classes</em> before importing students.
+                                            </span>
+                                        </div>
+                                    )}
+                                    
                                     {importFile && (
-                                        <Button onClick={handleUploadAndPreview} className="w-full" disabled={!importFile || !importBatchId}>
+                                        <Button onClick={handleUploadAndPreview} className="w-full" disabled={!importFile || !importBatchId || !courses.find(c => c._id === importCourseId)?.fees?.amount || Number(courses.find(c => c._id === importCourseId)?.fees?.amount) <= 0}>
                                             <Upload className="mr-2" size={16} />
                                             Upload & Preview
                                         </Button>

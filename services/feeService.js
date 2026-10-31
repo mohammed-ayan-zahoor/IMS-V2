@@ -793,8 +793,21 @@ export class FeeService {
 
     static async recordPayment(feeId, installmentId, paymentDetails, actorId) {
         await connectDB();
-        const fee = await FeeDb.findById(feeId).populate('student');
+        const fee = await FeeDb.findById(feeId).populate('student').populate({
+            path: 'batch',
+            populate: { path: 'course' }
+        });
         if (!fee) throw new Error("Fee record not found");
+
+        // Self-heal: If fee was created with ₹0 (e.g. before course fee was configured)
+        // and course fee is now configured, auto-synchronize totalAmount so payment succeeds.
+        const currentCourseFee = fee.batch?.course?.fees?.amount;
+        const paidCount = (fee.installments || []).filter(i => i.status === 'paid').length;
+        if ((!fee.totalAmount || fee.totalAmount <= 0) && currentCourseFee > 0 && paidCount === 0) {
+            console.log(`[FeeService] Self-healing zero fee for student ${fee.student?._id} to course fee: ₹${currentCourseFee}`);
+            fee.totalAmount = currentCourseFee;
+            fee.markModified('totalAmount');
+        }
 
         let savedAmount = 0;
         let details = {};

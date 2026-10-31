@@ -788,8 +788,11 @@ export class StudentService {
 
             // For course batches: course fee must exist. Bundle batches use bundlePrice.
             const isBundleBatch = !!batch.courseBundle;
-            if (!isBundleBatch && customAmount === null && (batch.course?.fees?.amount === undefined || batch.course?.fees?.amount === null)) {
-                throw new Error('Course fee information is missing');
+            if (!isBundleBatch && customAmount === null) {
+                const feeAmt = batch.course?.fees?.amount;
+                if (feeAmt === undefined || feeAmt === null || feeAmt <= 0) {
+                    throw new Error(`Cannot enroll student in ${batch.name}: Course/Class fee is not configured (₹0). Please set the fee in Courses first.`);
+                }
             }
 
             // Check if already enrolled
@@ -954,7 +957,12 @@ export class StudentService {
         if (!batch || batch.deletedAt) throw new Error('Batch not found or inactive');
         if (!batch.institute) throw new Error('Batch configuration error: Institute is missing');
         const isBundleBatch = !!batch.courseBundle;
-        if (!isBundleBatch && !batch.course?.fees?.amount) throw new Error('Course fee information is missing');
+        if (!isBundleBatch && customAmount === null) {
+            const feeAmt = batch.course?.fees?.amount;
+            if (!feeAmt || feeAmt <= 0) {
+                throw new Error(`Cannot enroll student in ${batch.name}: Course/Class fee is not configured (₹0). Please set the fee in Courses first.`);
+            }
+        }
 
         const existingEnrollment = batch.enrolledStudents.find(
             e => e.student.toString() === studentId && e.status === 'active'
