@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import {
     Upload, Save, Building, Globe, Mail, Phone, MapPin, Loader2, Hotel,
-    Award, Clock, Bell, Smartphone, Download, Copy, Sliders, FileText,
+    Award, Clock, Bell, Smartphone, Download, Copy, Sliders, FileText, ScanFace,
     KeyRound, CheckCircle2, ShieldCheck, Check, Sparkles, Layers, Calendar, ExternalLink
 } from "lucide-react";
 import Button from "@/components/ui/Button";
@@ -873,6 +873,47 @@ export default function SettingsPage() {
                         <div className="pb-4 border-b border-[#E4E7EC]">
                             <h2 className="text-base font-semibold text-[#101828]">Mobile Apps & Import Tools</h2>
                             <p className="text-xs text-[#667085] mt-0.5">Download the mobile Flutter app or standardized Excel templates for bulk data import.</p>
+                        </div>
+
+                        {/* Teacher Attendance Facial Recognition Kiosk App Card */}
+                        <div className="p-6 rounded-2xl bg-gradient-to-r from-emerald-950 via-slate-900 to-[#101828] text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-6 border border-emerald-500/20 shadow-xs">
+                            <div className="flex items-center gap-4">
+                                <div className="w-11 h-11 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 border border-emerald-500/30">
+                                    <ScanFace size={22} />
+                                </div>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-sm font-semibold text-white">Teacher Attendance Facial Recognition App (Android APK)</h3>
+                                        <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-600 text-white rounded-full">v1.0 (Latest Key)</span>
+                                    </div>
+                                    <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                                        Dedicated face scanner kiosk build (~45.2 MB) for tablet and wall-mount attendance devices. Signed with the new production signing key.
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 shrink-0 w-full md:w-auto">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const downloadUrl = window.location.origin + "/downloads/teacher-attendance.apk";
+                                        navigator.clipboard.writeText(downloadUrl);
+                                        toast.success("Teacher Attendance APK link copied to clipboard!");
+                                    }}
+                                    className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2 bg-white/10 text-white font-semibold text-xs rounded-lg hover:bg-white/20 transition-colors cursor-pointer border border-white/10"
+                                >
+                                    <Copy size={14} />
+                                    Copy Link
+                                </button>
+                                <a
+                                    href="/downloads/teacher-attendance.apk"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex-1 md:flex-initial inline-flex items-center justify-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs rounded-lg transition-colors cursor-pointer shadow-sm"
+                                >
+                                    <Download size={14} />
+                                    Download APK
+                                </a>
+                            </div>
                         </div>
 
                         {/* Mobile Flutter App Download Card (Single Distinct Dark Surface) */}
