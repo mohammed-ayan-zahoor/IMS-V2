@@ -32,10 +32,36 @@ class InstructorMaterialItem {
   bool get isAssignment => allowSubmissions || category == 'assignment';
   bool get isVideo =>
       type == 'video' ||
-      (fileUrl?.contains('youtube.com') == true) ||
-      (fileUrl?.contains('youtu.be') == true);
+      isYouTube;
   bool get isPdf =>
       fileUrl?.toLowerCase().endsWith('.pdf') == true || type == 'document';
+
+  bool get isYouTube {
+    final lower = (fileUrl ?? '').toLowerCase();
+    return lower.contains('youtube.com') || lower.contains('youtu.be');
+  }
+
+  String? get youtubeVideoId {
+    if (!isYouTube || fileUrl == null) return null;
+    final regExp = RegExp(
+      r'^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*',
+      caseSensitive: false,
+      multiLine: false,
+    );
+    final match = regExp.firstMatch(fileUrl!);
+    if (match != null && match.groupCount >= 2) {
+      return match.group(2);
+    }
+    return null;
+  }
+
+  String get youtubeThumbnailUrl {
+    final id = youtubeVideoId;
+    if (id != null && id.isNotEmpty) {
+      return 'https://img.youtube.com/vi/$id/hqdefault.jpg';
+    }
+    return '';
+  }
 
   String get formattedSize {
     if (fileSize != null && fileSize! > 0) {

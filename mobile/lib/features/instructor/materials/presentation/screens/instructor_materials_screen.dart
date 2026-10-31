@@ -295,6 +295,10 @@ class _InstructorMaterialsScreenState extends State<InstructorMaterialsScreen> {
   }
 
   Widget _buildMaterialCard(BuildContext context, InstructorMaterialItem item) {
+    if (item.isVideo && item.isYouTube) {
+      return _buildVideoCard(context, item);
+    }
+
     final isAssignment = item.isAssignment;
     final isVideo = item.isVideo;
 
@@ -472,6 +476,165 @@ class _InstructorMaterialsScreenState extends State<InstructorMaterialsScreen> {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  // Video Lecture Card with YouTube Thumbnail Preview matching Student view
+  Widget _buildVideoCard(BuildContext context, InstructorMaterialItem item) {
+    final String thumbnailUrl = item.youtubeThumbnailUrl;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFC4C6CF)),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.02),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: () => _openMaterialUrl(context, item),
+          borderRadius: BorderRadius.circular(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // YouTube Video Thumbnail Stack
+              Stack(
+                alignment: Alignment.center,
+                children: [
+                  Container(
+                    height: 180,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFF002045),
+                      borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                    ),
+                    child: ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+                      child: thumbnailUrl.isNotEmpty
+                          ? Image.network(
+                              thumbnailUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) => _buildVideoFallbackBanner(),
+                            )
+                          : _buildVideoFallbackBanner(),
+                    ),
+                  ),
+
+                  // YouTube Play Circle Button
+                  Container(
+                    width: 54,
+                    height: 54,
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: 0.9),
+                      shape: BoxShape.circle,
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Colors.black38,
+                          blurRadius: 8,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 36),
+                  ),
+
+                  // Course Tag Badge Overlay (Top Left)
+                  if (item.courseName != null && item.courseName!.isNotEmpty)
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          item.courseName!.toUpperCase(),
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+
+              // Title & Details Section
+              Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      style: GoogleFonts.hankenGrotesk(
+                        color: const Color(0xFF0D1C2E),
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (item.description != null && item.description!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        item.description!,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          color: const Color(0xFF545F72),
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        const Icon(Icons.smart_display_outlined, size: 14, color: Color(0xFFEF4444)),
+                        const SizedBox(width: 4),
+                        Text(
+                          'YouTube Lecture',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF545F72),
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        if (item.batchName != null && item.batchName!.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            '•  Sec ${item.batchName}',
+                            style: GoogleFonts.inter(color: const Color(0xFF545F72), fontSize: 11),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVideoFallbackBanner() {
+    return Container(
+      color: const Color(0xFF002045),
+      child: const Center(
+        child: Icon(Icons.video_library, color: Colors.white70, size: 48),
       ),
     );
   }

@@ -374,13 +374,33 @@ class ApiClient {
     String fileType = 'document',
   }) async {
     try {
+      final ext = fileName.split('.').last.toLowerCase();
+      String mimeType = 'application/pdf';
+      if (ext == 'jpg' || ext == 'jpeg') {
+        mimeType = 'image/jpeg';
+      } else if (ext == 'png') {
+        mimeType = 'image/png';
+      } else if (ext == 'webp') {
+        mimeType = 'image/webp';
+      } else if (ext == 'gif') {
+        mimeType = 'image/gif';
+      } else if (ext == 'doc') {
+        mimeType = 'application/msword';
+      } else if (ext == 'docx') {
+        mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      }
+
       final formData = FormData.fromMap({
         'fileType': fileType,
-        'file': await MultipartFile.fromFile(filePath, filename: fileName),
+        'file': await MultipartFile.fromFile(
+          filePath,
+          filename: fileName,
+          contentType: DioMediaType.parse(mimeType),
+        ),
       });
 
       final res = await _dio.post(
-        '/upload',
+        '${ApiEndpoints.baseUrl}/upload',
         data: formData,
         options: Options(
           headers: {'Accept': 'application/json'},
