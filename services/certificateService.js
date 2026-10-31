@@ -77,19 +77,67 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
 
     // Attempt to resolve course/batch data if provided or if student is active
     let courseName = options.courseName || 'N/A';
-    let batchName = options.batchName || 'N/A';
+    let batchName = options.batchName && options.batchName !== 'N/A' ? options.batchName : 'N/A';
     let academicYear = options.academicYear || new Date().getFullYear().toString();
 
+    const Batch = (await import('../models/Batch.js')).default;
+    const Course = (await import('../models/Course.js')).default;
+    let resolvedBatch = null;
+
     if (options.batchId) {
-        const Batch = (await import('../models/Batch.js')).default;
-        const batch = await Batch.findById(options.batchId).populate('course').populate('session');
-        if (batch) {
-            batchName = batch.name;
-            courseName = batch.course?.name || courseName;
-            if (batch.session?.sessionName) {
-                academicYear = batch.session.sessionName;
+        resolvedBatch = await Batch.findById(options.batchId).populate('course').populate('session');
+    } else {
+        // Automatically find student's enrolled batch
+        resolvedBatch = await Batch.findOne({
+            'enrolledStudents.student': student._id,
+            deletedAt: null
+        }).sort({ updatedAt: -1 }).populate('course').populate('session');
+    }
+
+    if (resolvedBatch) {
+        if (batchName === 'N/A') batchName = resolvedBatch.name || 'N/A';
+        if (courseName === 'N/A') courseName = resolvedBatch.course?.name || 'N/A';
+        if (resolvedBatch.session?.sessionName) {
+            academicYear = resolvedBatch.session.sessionName;
+        }
+    }
+
+    // Check student assignments.courses if courseName is still N/A
+    if (courseName === 'N/A' && student.assignments?.courses?.length > 0) {
+        const assignedCourse = await Course.findById(student.assignments.courses[0]).lean();
+        if (assignedCourse?.name) {
+            courseName = assignedCourse.name;
+        }
+    }
+
+    // Resolve admissionStd if it is an ObjectId or Course ID
+    let admissionStdName = student.admissionStd || 'N/A';
+    if (student.admissionStd) {
+        const cleanStd = student.admissionStd.toString().replace(/^bundle_/, '');
+        if (mongoose.Types.ObjectId.isValid(cleanStd)) {
+            const courseObj = await Course.findById(cleanStd).lean();
+            if (courseObj?.name) {
+                admissionStdName = courseObj.name;
+                if (courseName === 'N/A') courseName = courseObj.name;
             }
         }
+    }
+
+    // Resolve studyingSinceStandard if it is an ObjectId
+    let studyingSinceName = student.studyingSinceStandard || 'N/A';
+    if (student.studyingSinceStandard) {
+        const cleanStd = student.studyingSinceStandard.toString().replace(/^bundle_/, '');
+        if (mongoose.Types.ObjectId.isValid(cleanStd)) {
+            const courseObj = await Course.findById(cleanStd).lean();
+            if (courseObj?.name) {
+                studyingSinceName = courseObj.name;
+            }
+        }
+    }
+
+    // If admissionStdName is still N/A or empty, fall back to resolved courseName
+    if ((admissionStdName === 'N/A' || !admissionStdName) && courseName !== 'N/A') {
+        admissionStdName = courseName;
     }
 
     const context = {
@@ -104,6 +152,11 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
             gender: student.profile?.gender || 'N/A',
             bloodGroup: student.profile?.bloodGroup || 'N/A',
             avatar: student.profile?.avatar || '',
+            photo: student.profile?.avatar || '',
+            photoUrl: student.profile?.avatar || '',
+            photoImg: student.profile?.avatar 
+                ? `<img src="${student.profile.avatar}" alt="${student.profile?.firstName || 'Student'}" style="width: 100%; height: 100%; object-fit: cover;" />`
+                : '',
             
             // Address
             street: student.profile?.address?.street || 'N/A',
@@ -162,10 +215,11 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
             previousSchoolMarks: student.previousSchoolMarks || 'N/A',
             admissionDate: student.admissionDate ? new Date(student.admissionDate).toLocaleDateString('en-GB') : 'N/A',
             joiningDate: student.admissionDate ? new Date(student.admissionDate).toLocaleDateString('en-GB') : 'N/A', // Alias
-            admissionStd: student.admissionStd || 'N/A',
+            admissionStd: admissionStdName,
+            admissionStandard: admissionStdName,
             leavingDate: student.leavingDate ? new Date(student.leavingDate).toLocaleDateString('en-GB') : 'N/A',
             leavingReason: student.leavingReason || 'N/A',
-            studyingSince: student.studyingSinceStandard || 'N/A',
+            studyingSince: studyingSinceName,
             
             // Date components for DOB
             dob: student.profile?.dateOfBirth ? new Date(student.profile.dateOfBirth).toLocaleDateString('en-GB') : 'N/A',
@@ -183,10 +237,14 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
             std: courseName,
             standard: courseName,
             class: courseName,
+            courseName: courseName,
             section: batchName
         },
         course: {
             name: courseName,
+            std: courseName,
+            standard: courseName,
+            class: courseName,
             medium: 'N/A' // Filled below if available
         },
         batch: {
@@ -197,6 +255,7 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
         std: courseName,
         standard: courseName,
         class: courseName,
+        courseName: courseName,
         section: batchName,
         
         institute: {

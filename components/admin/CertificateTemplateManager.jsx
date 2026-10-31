@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Plus, Edit, Trash2, Loader2, Star, Upload, X, GripVertical, Eye, Type, Hash, Calendar, BookOpen, Move, ZoomIn, ZoomOut, Maximize2, Minimize2, Maximize } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, Star, Upload, X, GripVertical, Eye, Type, Hash, Calendar, BookOpen, Move, ZoomIn, ZoomOut, Maximize2, Minimize2, Maximize, ArrowLeft, Check, Image as ImageIcon } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Card from "@/components/ui/Card";
 import { cn } from "@/lib/utils";
@@ -17,7 +17,8 @@ const PLACEHOLDER_META = {
     courseName: { label: "Course/Standard", icon: BookOpen, color: "#3b82f6", sample: "Standard X" },
     issueDate: { label: "Issue Date", icon: Calendar, color: "#10b981", sample: "19 Apr 2026" },
     certificateNumber: { label: "Certificate No.", icon: Hash, color: "#8b5cf6", sample: "CERT-0001" },
-    uidNo: { label: "Aadhaar No.", icon: Hash, color: "#6366f1", sample: "1234-5678-9012" }
+    uidNo: { label: "Aadhaar No.", icon: Hash, color: "#6366f1", sample: "1234-5678-9012" },
+    studentPhoto: { label: "Student Photo", icon: ImageIcon, color: "#ec4899", sample: "[Student Photo]" }
 };
 
 // ─── Draggable Placeholder on Canvas ────────────────────────────────────────
@@ -670,32 +671,13 @@ export default function CertificateTemplateManager({
         );
     }
 
-    if (isOpen || initialEditingTemplate !== undefined) {
+    
+    if (showEditor) {
         return (
-            <div className={cn(
-                "bg-white rounded-lg border border-slate-200 p-6 space-y-6",
-                isFullscreen && "fixed inset-0 z-50 bg-white p-6 overflow-auto rounded-none border-0"
-            )}>
-                {/* Editor Header Bar */}
-                <div className="flex items-center justify-between mb-4 sticky top-0 bg-white z-30 py-3 border-b border-slate-100">
-                    <div className="flex items-center gap-4">
-                        <h4 className="font-bold text-slate-900 text-lg">
-                            {editingId ? "Edit Template" : "Create New Template"}
-                        </h4>
-                        <div className="hidden md:flex items-center gap-1.5 text-[10px] text-slate-500 font-medium bg-slate-50 px-3 py-1.5 rounded-md border border-slate-200">
-                            <Move size={10} />
-                            Drag placeholders on canvas • Arrow keys for fine-tuning
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <button
-                            type="button"
-                            onClick={() => setIsFullscreen(!isFullscreen)}
-                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                            title={isFullscreen ? "Exit fullscreen" : "Fullscreen editor"}
-                        >
-                            {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-                        </button>
+            <div className="fixed inset-0 z-[100] bg-slate-100 flex flex-col overflow-hidden select-none">
+                {/* ─── Top Header Bar ─── */}
+                <header className="h-14 bg-white border-b border-slate-200 px-4 flex items-center justify-between shrink-0 z-20">
+                    <div className="flex items-center gap-3">
                         <button
                             type="button"
                             onClick={() => {
@@ -704,18 +686,407 @@ export default function CertificateTemplateManager({
                                 resetForm();
                                 if (onClose) onClose();
                             }}
-                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                            className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-slate-700 hover:text-slate-900 hover:bg-slate-100 font-medium text-xs transition-colors cursor-pointer border border-slate-200"
                         >
-                            <X size={20} />
+                            <ArrowLeft size={15} />
+                            <span>Back to Templates</span>
+                        </button>
+                        <div className="h-5 w-px bg-slate-200 mx-1 hidden sm:block" />
+                        <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                                <ImageIcon size={16} />
+                            </div>
+                            <div>
+                                <h2 className="text-sm font-bold text-slate-900 leading-tight">
+                                    {editingId ? "Edit Image Template" : "New Image Template"}
+                                </h2>
+                                <p className="text-[10px] text-slate-400 font-semibold tracking-wider uppercase">
+                                    CANVAS PLACEHOLDER MODE
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                        <Button
+                            type="button"
+                            variant="primary"
+                            size="sm"
+                            onClick={handleSaveTemplate}
+                            className="flex items-center gap-1.5"
+                        >
+                            <Check size={14} />
+                            <span>{editingId ? "Update Template" : "Create Template"}</span>
+                        </Button>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setShowEditor(false);
+                                setIsFullscreen(false);
+                                resetForm();
+                                if (onClose) onClose();
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Close editor"
+                        >
+                            <X size={18} />
                         </button>
                     </div>
-                </div>
+                </header>
 
-                {/* Main Editor Layout: Sidebar + Canvas + Style Panel */}
-                <div className={cn(
-                    "flex gap-6",
-                    isFullscreen ? "flex-row h-[calc(100vh-120px)]" : "flex-col lg:flex-row"
-                )}>
+                {/* ─── Body: Left Sidebar + Canvas + Style Panel ─── */}
+                <div className="flex-1 min-h-0 flex overflow-hidden">
+                    {/* Left Sidebar */}
+                    <aside className="w-80 shrink-0 bg-white border-r border-slate-200 flex flex-col justify-between overflow-hidden">
+                        <div className="p-5 overflow-y-auto space-y-5 flex-1 custom-scrollbar">
+                            {/* Template Name */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Template Name</label>
+                                <input
+                                    type="text"
+                                    value={form.name}
+                                    onChange={e => setForm({ ...form, name: e.target.value })}
+                                    placeholder="e.g., Modern Certificate"
+                                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:border-slate-900 focus:ring-2 focus:ring-slate-900/10 outline-none transition-all text-sm font-medium"
+                                />
+                            </div>
+
+                            {/* Image Upload */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Design Image</label>
+                                <div
+                                    onClick={() => !uploadingImage && fileInputRef.current?.click()}
+                                    className={cn(
+                                        "border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all",
+                                        form.imageUrl
+                                            ? "border-emerald-300 bg-emerald-50/50 hover:border-emerald-400"
+                                            : "border-slate-300 hover:border-slate-900 hover:bg-slate-50"
+                                    )}
+                                >
+                                    {uploadingImage ? (
+                                        <div className="flex items-center justify-center gap-2">
+                                            <Loader2 className="animate-spin text-slate-900" size={18} />
+                                            <p className="text-sm text-slate-500 font-medium">Uploading...</p>
+                                        </div>
+                                    ) : form.imageUrl ? (
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
+                                                <Eye size={18} className="text-emerald-600" />
+                                            </div>
+                                            <div className="text-left">
+                                                <p className="text-xs font-bold text-emerald-700">Image uploaded</p>
+                                                <p className="text-[10px] text-slate-400">Click to replace</p>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-col items-center gap-1.5 py-2">
+                                            <Upload size={20} className="text-slate-400" />
+                                            <p className="text-xs font-bold text-slate-600">Upload Image</p>
+                                            <p className="text-[10px] text-slate-400">PNG/JPG, max 5MB</p>
+                                        </div>
+                                    )}
+                                </div>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleImageUpload}
+                                    className="hidden"
+                                    disabled={uploadingImage}
+                                />
+                            </div>
+
+                            {/* Placeholder Toggle Cards */}
+                            <div className="space-y-1.5">
+                                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Placeholders</label>
+                                <div className="space-y-1.5">
+                                    {Object.entries(form.placeholders).map(([key, placeholder]) => {
+                                         const meta = PLACEHOLDER_META[key];
+                                         if (!meta) return null;
+                                         const Icon = meta.icon;
+                                         const isSelected = selectedPlaceholder === key;
+
+                                        return (
+                                            <div
+                                                key={key}
+                                                onClick={() => {
+                                                    if (placeholder.enabled) setSelectedPlaceholder(key);
+                                                }}
+                                                className={cn(
+                                                    "flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer group",
+                                                    isSelected
+                                                        ? "border-slate-300 bg-slate-50 shadow-sm"
+                                                        : "border-transparent hover:border-slate-200 hover:bg-slate-50/50"
+                                                )}
+                                            >
+                                                {/* Enable Toggle */}
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handlePlaceholderChange(key, "enabled", !placeholder.enabled);
+                                                        if (!placeholder.enabled) setSelectedPlaceholder(key);
+                                                        else if (isSelected) setSelectedPlaceholder(null);
+                                                    }}
+                                                    className={cn(
+                                                        "w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all cursor-pointer",
+                                                        placeholder.enabled
+                                                            ? "border-transparent"
+                                                            : "border-slate-300 bg-white"
+                                                    )}
+                                                    style={placeholder.enabled ? { backgroundColor: meta.color } : {}}
+                                                >
+                                                    {placeholder.enabled && (
+                                                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                                                            <path d="M2 5L4.5 7.5L8 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                                                        </svg>
+                                                    )}
+                                                </button>
+
+                                                {/* Label */}
+                                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                    <Icon size={13} className={placeholder.enabled ? "text-slate-600" : "text-slate-300"} />
+                                                    <span className={cn(
+                                                        "text-xs font-bold truncate",
+                                                        placeholder.enabled ? "text-slate-700" : "text-slate-300"
+                                                    )}>
+                                                        {meta.label}
+                                                    </span>
+                                                </div>
+
+                                                {/* Coords */}
+                                                {placeholder.enabled && (
+                                                    <span className="text-[9px] font-mono text-slate-400 shrink-0">
+                                                        {placeholder.x},{placeholder.y}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Fine-tune Controls for Selected */}
+                            {selectedPlaceholder && form.placeholders[selectedPlaceholder]?.enabled && (
+                                <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="flex items-center gap-2">
+                                        <div
+                                            className="w-3 h-3 rounded-sm"
+                                            style={{ backgroundColor: PLACEHOLDER_META[selectedPlaceholder].color }}
+                                        />
+                                        <span className="text-xs font-bold text-slate-700">
+                                            {PLACEHOLDER_META[selectedPlaceholder].label}
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase">X Position</label>
+                                            <div className="flex items-center gap-1.5">
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max="100"
+                                                    value={form.placeholders[selectedPlaceholder].x}
+                                                    onChange={e => handlePlaceholderChange(selectedPlaceholder, "x", parseInt(e.target.value))}
+                                                    className="flex-1 h-1.5 accent-slate-600"
+                                                />
+                                                <span className="text-[10px] text-slate-500 font-mono w-7 text-right">{form.placeholders[selectedPlaceholder].x}%</span>
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] font-bold text-slate-400 uppercase">Y Position</label>
+                                            <div className="flex items-center gap-1.5">
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max="100"
+                                                    value={form.placeholders[selectedPlaceholder].y}
+                                                    onChange={e => handlePlaceholderChange(selectedPlaceholder, "y", parseInt(e.target.value))}
+                                                    className="flex-1 h-1.5 accent-slate-600"
+                                                />
+                                                <span className="text-[10px] text-slate-500 font-mono w-7 text-right">{form.placeholders[selectedPlaceholder].y}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <p className="text-[9px] text-slate-400 flex items-center gap-1">
+                                        <span className="font-mono bg-slate-200 px-1 py-0.5 rounded text-[8px]">↑↓←→</span>
+                                        Nudge 1% • Hold Shift for 5%
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Sidebar Bottom Actions */}
+                        <div className="p-4 border-t border-slate-200 bg-white space-y-2 shrink-0">
+                            <Button
+                                type="button"
+                                variant="primary"
+                                onClick={handleSaveTemplate}
+                                className="w-full flex items-center justify-center gap-2"
+                            >
+                                <Check size={16} />
+                                <span>{editingId ? "Update Template" : "Create Template"}</span>
+                            </Button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowEditor(false);
+                                    setIsFullscreen(false);
+                                    resetForm();
+                                    if (onClose) onClose();
+                                }}
+                                className="w-full py-2 text-xs font-medium text-slate-500 hover:text-slate-800 text-center transition-colors cursor-pointer"
+                            >
+                                Discard Changes
+                            </button>
+                        </div>
+                    </aside>
+
+                    {/* ─── Center Canvas + Right Style Panel ─── */}
+                    <div className="flex-1 min-w-0 flex flex-col bg-slate-100 overflow-hidden">
+                        {form.imageUrl && (
+                            <div className="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={handleZoomOut}
+                                        disabled={zoom <= 50}
+                                        className="p-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                        title="Zoom out"
+                                    >
+                                        <ZoomOut size={14} />
+                                    </button>
+
+                                    <input
+                                        type="range"
+                                        min="50"
+                                        max="200"
+                                        step="10"
+                                        value={zoom}
+                                        onChange={(e) => handleZoomChange(parseInt(e.target.value))}
+                                        className="w-24 h-1.5 accent-slate-900 rounded-lg cursor-pointer"
+                                    />
+
+                                    <button
+                                        type="button"
+                                        onClick={handleZoomIn}
+                                        disabled={zoom >= 200}
+                                        className="p-1.5 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                                        title="Zoom in"
+                                    >
+                                        <ZoomIn size={14} />
+                                    </button>
+
+                                    <span className="text-xs font-bold text-slate-700 min-w-[3.5rem] text-center font-mono">
+                                        {zoom}%
+                                    </span>
+
+                                    <div className="w-px h-5 bg-slate-200 mx-1" />
+
+                                    <button
+                                        type="button"
+                                        onClick={handleFitToView}
+                                        className="px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors text-xs font-bold flex items-center gap-1 cursor-pointer"
+                                        title="Fit canvas to view"
+                                    >
+                                        <Maximize size={12} />
+                                        Fit
+                                    </button>
+                                </div>
+
+                                <div className="text-[11px] text-slate-400 font-medium hidden sm:block">
+                                    Drag placeholders on canvas • Arrow keys for fine-tuning
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="flex-1 min-h-0 flex overflow-hidden">
+                            {form.imageUrl ? (
+                                <div className="flex-1 min-w-0 bg-slate-200 relative overflow-auto p-6 flex items-center justify-center custom-scrollbar">
+                                    <div
+                                        ref={canvasContainerRef}
+                                        className="relative"
+                                        onWheel={handleCanvasWheel}
+                                    >
+                                        <div
+                                            style={{
+                                                transform: `scale(${zoom / 100})`,
+                                                transformOrigin: "center center",
+                                                transition: "transform 0.15s ease-out"
+                                            }}
+                                        >
+                                            <div
+                                                ref={canvasRef}
+                                                className="relative bg-white shadow-2xl rounded-sm overflow-hidden"
+                                                style={{ boxShadow: '0 20px 40px -15px rgba(0,0,0,0.3), 0 0 0 1px rgba(0,0,0,0.06)' }}
+                                            >
+                                                <img
+                                                    src={form.imageUrl}
+                                                    alt="Template preview"
+                                                    className="block max-h-[calc(100vh-200px)] max-w-full object-contain mx-auto"
+                                                    onLoad={() => {
+                                                        setImageLoadError(false);
+                                                        handleFitToView();
+                                                    }}
+                                                    onError={() => setImageLoadError(true)}
+                                                />
+
+                                                {/* Placeholder Overlays */}
+                                                {Object.entries(form.placeholders).map(([key, placeholder]) => (
+                                                    <DraggablePlaceholder
+                                                        key={key}
+                                                        id={key}
+                                                        placeholder={placeholder}
+                                                        meta={PLACEHOLDER_META[key]}
+                                                        containerRef={canvasRef}
+                                                        onDrag={handleDrag}
+                                                        isSelected={selectedPlaceholder === key}
+                                                        onSelect={setSelectedPlaceholder}
+                                                        zoom={zoom}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex items-center justify-center text-center p-8 bg-slate-50">
+                                    <div className="space-y-3 max-w-xs">
+                                        <div className="w-16 h-16 bg-white border border-slate-200 shadow-sm rounded-xl flex items-center justify-center mx-auto text-slate-400">
+                                            <Upload size={28} />
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-bold text-slate-700">Upload a certificate image</p>
+                                            <p className="text-xs text-slate-500 mt-1">
+                                                Upload a blank certificate template to start positioning placeholders.
+                                            </p>
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => fileInputRef.current?.click()}
+                                            className="mt-2"
+                                        >
+                                            Choose Image File
+                                        </Button>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Style Panel on Right */}
+                            {selectedPlaceholder && form.placeholders[selectedPlaceholder]?.enabled && (
+                                <div className="w-80 shrink-0 bg-white border-l border-slate-200 overflow-y-auto custom-scrollbar">
+                                    <StylePanel
+                                        selectedPlaceholder={selectedPlaceholder}
+                                        placeholder={form.placeholders[selectedPlaceholder]}
+                                        meta={PLACEHOLDER_META[selectedPlaceholder]}
+                                        onChange={(field, value) => handlePlaceholderStyleChange(selectedPlaceholder, field, value)}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </div>
                 </div>
             </div>
         );
@@ -730,475 +1101,19 @@ export default function CertificateTemplateManager({
                         <h3 className="text-lg font-bold text-slate-900">Certificate Templates</h3>
                         <p className="text-xs text-slate-500 mt-1">Upload certificate design images and position placeholders</p>
                     </div>
-                    {!showEditor && (
-                        <Button
-                            type="button"
-                            onClick={() => setShowEditor(true)}
-                            className="flex items-center gap-2"
-                        >
-                            <Plus size={16} /> New Template
-                        </Button>
-                    )}
+                    <Button
+                        type="button"
+                        onClick={() => {
+                            resetForm();
+                            setShowEditor(true);
+                        }}
+                        className="flex items-center gap-2"
+                    >
+                        <Plus size={16} /> New Template
+                    </Button>
                 </div>
 
-                {/* Templates List or Editor */}
-                {showEditor ? (
-                    <div className={cn(
-                        "space-y-0 border-t pt-6 transition-all",
-                        isFullscreen && "fixed inset-0 z-50 bg-white p-6 overflow-auto border-t-0 pt-0"
-                    )}>
-                        {/* Editor Header Bar */}
-                        <div className="flex items-center justify-between mb-4 sticky top-0 bg-white z-30 py-3 border-b border-slate-100">
-                            <div className="flex items-center gap-4">
-                                <h4 className="font-bold text-slate-900 text-lg">
-                                    {editingId ? "Edit Template" : "Create New Template"}
-                                </h4>
-                                <div className="hidden md:flex items-center gap-1.5 text-[10px] text-slate-400 font-medium bg-slate-50 px-3 py-1.5 rounded-md">
-                                    <Move size={10} />
-                                    Drag placeholders on canvas • Arrow keys for fine-tuning
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => setIsFullscreen(!isFullscreen)}
-                                    className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                                    title={isFullscreen ? "Exit fullscreen" : "Fullscreen editor"}
-                                >
-                                    {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setShowEditor(false);
-                                        setIsFullscreen(false);
-                                        resetForm();
-                                        if (onClose) onClose();
-                                    }}
-                                    className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors"
-                                >
-                                    <X size={20} />
-                                </button>
-                            </div>
-                        </div>
 
-                        {/* Main Editor Layout: Sidebar + Canvas + Style Panel */}
-                        <div className={cn(
-                            "flex gap-6",
-                            isFullscreen ? "flex-row h-[calc(100vh-120px)]" : "flex-col lg:flex-row"
-                        )}>
-                            {/* ─── Left Sidebar/Controls ─── */}
-                            <div className={cn(
-                                "space-y-4 shrink-0",
-                                isFullscreen ? "w-72 overflow-y-auto pr-2" : "w-full lg:w-72"
-                            )}>
-                                {/* Template Name */}
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Template Name</label>
-                                    <input
-                                        type="text"
-                                        value={form.name}
-                                        onChange={e => setForm({ ...form, name: e.target.value })}
-                                        placeholder="e.g., Modern Certificate"
-                                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 focus:border-premium-blue focus:ring-4 focus:ring-premium-blue/10 outline-none transition-all text-sm font-medium"
-                                    />
-                                </div>
-
-                                {/* Image Upload */}
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Design Image</label>
-                                    <div
-                                        onClick={() => !uploadingImage && fileInputRef.current?.click()}
-                                        className={cn(
-                                            "border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all",
-                                            form.imageUrl
-                                                ? "border-emerald-300 bg-emerald-50/50 hover:border-emerald-400"
-                                                : "border-slate-300 hover:border-premium-blue hover:bg-slate-900/5"
-                                        )}
-                                    >
-                                        {uploadingImage ? (
-                                            <div className="flex items-center justify-center gap-2">
-                                                <Loader2 className="animate-spin text-premium-blue" size={18} />
-                                                <p className="text-sm text-slate-500 font-medium">Uploading...</p>
-                                            </div>
-                                        ) : form.imageUrl ? (
-                                            <div className="flex items-center gap-3">
-                                                <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-                                                    <Eye size={18} className="text-emerald-600" />
-                                                </div>
-                                                <div className="text-left">
-                                                    <p className="text-xs font-bold text-emerald-700">Image uploaded</p>
-                                                    <p className="text-[10px] text-slate-400">Click to replace</p>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="flex flex-col items-center gap-1.5 py-2">
-                                                <Upload size={20} className="text-slate-400" />
-                                                <p className="text-xs font-bold text-slate-600">Upload Image</p>
-                                                <p className="text-[10px] text-slate-400">PNG/JPG, max 5MB</p>
-                                            </div>
-                                        )}
-                                    </div>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleImageUpload}
-                                        className="hidden"
-                                        disabled={uploadingImage}
-                                    />
-                                </div>
-
-                                {/* Placeholder Toggle Cards */}
-                                <div className="space-y-1.5">
-                                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Placeholders</label>
-                                    <div className="space-y-1.5">
-                                        {Object.entries(form.placeholders).map(([key, placeholder]) => {
-                                             const meta = PLACEHOLDER_META[key];
-                                             // Skip placeholders without metadata
-                                             if (!meta) return null;
-                                             const Icon = meta.icon;
-                                             const isSelected = selectedPlaceholder === key;
-
-                                            return (
-                                                <div
-                                                    key={key}
-                                                    onClick={() => {
-                                                        if (placeholder.enabled) setSelectedPlaceholder(key);
-                                                    }}
-                                                    className={cn(
-                                                        "flex items-center gap-3 p-2.5 rounded-xl border transition-all cursor-pointer group",
-                                                        isSelected
-                                                            ? "border-slate-300 bg-slate-50 shadow-sm"
-                                                            : "border-transparent hover:border-slate-200 hover:bg-slate-50/50"
-                                                    )}
-                                                >
-                                                    {/* Enable Toggle */}
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            handlePlaceholderChange(key, "enabled", !placeholder.enabled);
-                                                            if (!placeholder.enabled) setSelectedPlaceholder(key);
-                                                            else if (isSelected) setSelectedPlaceholder(null);
-                                                        }}
-                                                        className={cn(
-                                                            "w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all",
-                                                            placeholder.enabled
-                                                                ? "border-transparent"
-                                                                : "border-slate-300 bg-white"
-                                                        )}
-                                                        style={placeholder.enabled ? { backgroundColor: meta.color } : {}}
-                                                    >
-                                                        {placeholder.enabled && (
-                                                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                                                                <path d="M2 5L4.5 7.5L8 3" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                                            </svg>
-                                                        )}
-                                                    </button>
-
-                                                    {/* Label */}
-                                                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                        <Icon size={13} className={placeholder.enabled ? "text-slate-600" : "text-slate-300"} />
-                                                        <span className={cn(
-                                                            "text-xs font-bold truncate",
-                                                            placeholder.enabled ? "text-slate-700" : "text-slate-300"
-                                                        )}>
-                                                            {meta.label}
-                                                        </span>
-                                                    </div>
-
-                                                    {/* Coords */}
-                                                    {placeholder.enabled && (
-                                                        <span className="text-[9px] font-mono text-slate-400 shrink-0">
-                                                            {placeholder.x},{placeholder.y}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-
-                                {/* Fine-tune Controls for Selected */}
-                                {selectedPlaceholder && form.placeholders[selectedPlaceholder]?.enabled && (
-                                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-100 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                        <div className="flex items-center gap-2">
-                                            <div
-                                                className="w-3 h-3 rounded-sm"
-                                                style={{ backgroundColor: PLACEHOLDER_META[selectedPlaceholder].color }}
-                                            />
-                                            <span className="text-xs font-bold text-slate-700">
-                                                {PLACEHOLDER_META[selectedPlaceholder].label}
-                                            </span>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase">X Position</label>
-                                                <div className="flex items-center gap-1.5">
-                                                    <input
-                                                        type="range"
-                                                        min="0"
-                                                        max="100"
-                                                        value={form.placeholders[selectedPlaceholder].x}
-                                                        onChange={e => handlePlaceholderChange(selectedPlaceholder, "x", parseInt(e.target.value))}
-                                                        className="flex-1 h-1.5 accent-slate-600"
-                                                    />
-                                                    <span className="text-[10px] text-slate-500 font-mono w-7 text-right">{form.placeholders[selectedPlaceholder].x}%</span>
-                                                </div>
-                                            </div>
-                                            <div className="space-y-1">
-                                                <label className="text-[10px] font-bold text-slate-400 uppercase">Y Position</label>
-                                                <div className="flex items-center gap-1.5">
-                                                    <input
-                                                        type="range"
-                                                        min="0"
-                                                        max="100"
-                                                        value={form.placeholders[selectedPlaceholder].y}
-                                                        onChange={e => handlePlaceholderChange(selectedPlaceholder, "y", parseInt(e.target.value))}
-                                                        className="flex-1 h-1.5 accent-slate-600"
-                                                    />
-                                                    <span className="text-[10px] text-slate-500 font-mono w-7 text-right">{form.placeholders[selectedPlaceholder].y}%</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <p className="text-[9px] text-slate-400 flex items-center gap-1">
-                                            <span className="font-mono bg-slate-200 px-1 py-0.5 rounded text-[8px]">↑↓←→</span>
-                                            Nudge 1% • Hold Shift for 5%
-                                        </p>
-                                    </div>
-                                )}
-
-
-
-                                {/* Action Buttons */}
-                                <div className="flex gap-2 pt-2">
-                                    <button
-                                        type="button"
-                                        onClick={handleSaveTemplate}
-                                        className="flex-1 px-4 py-2.5 bg-slate-900 text-white font-bold rounded-xl hover:bg-slate-900/90 transition-colors text-sm flex items-center justify-center gap-2"
-                                    >
-                                        {editingId ? "Update" : "Create"} Template
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setShowEditor(false);
-                                            setIsFullscreen(false);
-                                            resetForm();
-                                            if (onClose) onClose();
-                                        }}
-                                        className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 font-bold hover:bg-slate-50 transition-colors text-sm"
-                                    >
-                                        Cancel
-                                    </button>
-                                </div>
-                            </div>
-
-                            {/* ─── Center: Canvas Preview + Right: Style Panel ─── */}
-                            <div className="flex flex-1 min-w-0 gap-0 flex-col">
-                                {form.imageUrl && (
-                                    <div className="bg-slate-50 border-b border-slate-200 px-4 py-3 flex items-center gap-3 rounded-t-2xl">
-                                        {/* Zoom Controls Toolbar */}
-                                        <div className="flex items-center gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={handleZoomOut}
-                                                disabled={zoom <= 50}
-                                                className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                title="Zoom out (Ctrl+Scroll)"
-                                            >
-                                                <ZoomOut size={16} />
-                                            </button>
-
-                                            <input
-                                                type="range"
-                                                min="50"
-                                                max="200"
-                                                step="10"
-                                                value={zoom}
-                                                onChange={(e) => handleZoomChange(parseInt(e.target.value))}
-                                                className="w-28 h-2 accent-slate-900 rounded-lg"
-                                                title="Zoom slider (50-200%)"
-                                            />
-
-                                            <button
-                                                type="button"
-                                                onClick={handleZoomIn}
-                                                disabled={zoom >= 200}
-                                                className="p-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                                title="Zoom in (Ctrl+Scroll)"
-                                            >
-                                                <ZoomIn size={16} />
-                                            </button>
-
-                                            <span className="text-sm font-bold text-slate-700 min-w-[4rem] text-center">
-                                                {zoom}%
-                                            </span>
-
-                                            <div className="w-px h-6 bg-slate-200" />
-
-                                            <button
-                                                type="button"
-                                                onClick={handleFitToView}
-                                                className="px-3 py-2 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors text-xs font-bold flex items-center gap-1.5 whitespace-nowrap"
-                                                title="Fit canvas to view"
-                                            >
-                                                <Maximize size={14} />
-                                                Fit
-                                            </button>
-                                        </div>
-
-                                        <div className="text-[10px] text-slate-400 font-medium hidden sm:block">
-                                            Tip: Hold Ctrl + Scroll to zoom
-                                        </div>
-                                    </div>
-                                )}
-                                <div className={cn(
-                                    "flex-1 min-w-0 flex",
-                                    isFullscreen ? "h-full" : ""
-                                )}>
-                                    {form.imageUrl ? (
-                                        <div className={cn(
-                                            "relative rounded-b-2xl overflow-hidden border-2 border-t-0 border-slate-200 bg-[repeating-conic-gradient(#f1f5f9_0%_25%,white_0%_50%)] bg-[length:20px_20px] flex-1",
-                                            isFullscreen ? "h-full" : ""
-                                        )}>
-                                            {/* Canvas Container with Zoom */}
-                                            <div
-                                                ref={canvasContainerRef}
-                                                className={cn(
-                                                    "relative w-full overflow-auto",
-                                                    isFullscreen ? "h-full flex items-center justify-center" : ""
-                                                )}
-                                                onWheel={handleCanvasWheel}
-                                            >
-                                                <div
-                                                    className={cn(
-                                                        "relative",
-                                                        isFullscreen ? "mx-auto my-auto" : "w-full"
-                                                    )}
-                                                    style={{
-                                                        transform: `scale(${zoom / 100})`,
-                                                        transformOrigin: "top center",
-                                                        transition: "transform 0.2s ease-out"
-                                                    }}
-                                                >
-                                                    <div
-                                                        ref={canvasRef}
-                                                        className={cn(
-                                                            "relative",
-                                                            isFullscreen ? "max-h-full max-w-full" : "w-full"
-                                                        )}
-                                                        style={isFullscreen ? { aspectRatio: "auto" } : {}}
-                                                    >
-                                                        <img
-                                                            src={form.imageUrl}
-                                                            alt="Template preview"
-                                                            className={cn(
-                                                                "block",
-                                                                isFullscreen
-                                                                    ? "max-h-[calc(100vh-220px)] max-w-full object-contain mx-auto"
-                                                                    : "w-full h-auto"
-                                                            )}
-                                                            draggable={false}
-                                                            onDragStart={e => e.preventDefault()}
-                                                            onError={(e) => {
-                                                                console.error("Failed to load template image:", form.imageUrl);
-                                                                setImageLoadError(true);
-                                                                e.target.style.display = "none";
-                                                            }}
-                                                            onLoad={() => {
-                                                                console.log("Template image loaded successfully:", form.imageUrl);
-                                                                setImageLoadError(false);
-                                                            }}
-                                                        />
-
-                                                        {/* Draggable Placeholders */}
-                                                        {Object.entries(form.placeholders).map(([key, placeholder]) => (
-                                                            <DraggablePlaceholder
-                                                                key={key}
-                                                                id={key}
-                                                                placeholder={placeholder}
-                                                                meta={PLACEHOLDER_META[key]}
-                                                                containerRef={canvasRef}
-                                                                onDrag={handleDrag}
-                                                                isSelected={selectedPlaceholder === key}
-                                                                onSelect={setSelectedPlaceholder}
-                                                                zoom={zoom}
-                                                            />
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            </div>
-
-                                            {/* Image Load Error Message */}
-                                            {imageLoadError && (
-                                                <div className="absolute inset-0 rounded-b-2xl bg-red-50/95 flex items-center justify-center border-2 border-red-200">
-                                                    <div className="text-center p-6 max-w-md">
-                                                        <div className="w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center mx-auto mb-3">
-                                                            <X size={24} className="text-red-600" />
-                                                        </div>
-                                                        <p className="font-semibold text-red-900 mb-1">Failed to load template image</p>
-                                                        <p className="text-sm text-red-700 mb-4">
-                                                            Image URL: <code className="text-xs bg-red-100/50 px-2 py-1 rounded">{form.imageUrl}</code>
-                                                        </p>
-                                                        <p className="text-xs text-red-600 mb-4">
-                                                            The image file may be missing or inaccessible. Try uploading it again.
-                                                        </p>
-                                                        <Button
-                                                            size="sm"
-                                                            className="bg-red-600 hover:bg-red-700"
-                                                            onClick={() => fileInputRef.current?.click()}
-                                                        >
-                                                            Upload Image Again
-                                                        </Button>
-                                                    </div>
-                                                </div>
-                                            )}
-
-                                            {/* Canvas Footer */}
-                                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-4 pointer-events-none">
-                                                <div className="flex items-center justify-between">
-                                                    <span className="text-white/80 text-[10px] font-bold uppercase tracking-wider">
-                                                        {Object.values(form.placeholders).filter(p => p.enabled).length} active placeholders
-                                                    </span>
-                                                    <span className="text-white/60 text-[10px] font-medium">
-                                                        Drag to reposition • Click to select
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className={cn(
-                                            "border-2 border-dashed border-slate-200 rounded-b-2xl flex items-center justify-center text-center flex-1",
-                                            isFullscreen ? "h-full" : "min-h-[400px]"
-                                        )}>
-                                            <div className="space-y-3">
-                                                <div className="w-16 h-16 bg-slate-100 rounded-lg flex items-center justify-center mx-auto">
-                                                    <Upload size={28} className="text-slate-300" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-sm font-bold text-slate-500">Upload a certificate image</p>
-                                                    <p className="text-xs text-slate-400 mt-1">Then drag placeholders to position them</p>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-
-                                {/* Style Panel on Right */}
-                                {selectedPlaceholder && form.placeholders[selectedPlaceholder]?.enabled && (
-                                    <StylePanel
-                                        selectedPlaceholder={selectedPlaceholder}
-                                        placeholder={form.placeholders[selectedPlaceholder]}
-                                        meta={PLACEHOLDER_META[selectedPlaceholder]}
-                                        onChange={(field, value) => handlePlaceholderStyleChange(selectedPlaceholder, field, value)}
-                                    />
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                         {templates.length === 0 ? (
                             <div className="col-span-full p-12 text-center">
@@ -1245,7 +1160,7 @@ export default function CertificateTemplateManager({
                             ))
                         )}
                     </div>
-                )}
+
             </div>
         </Card>
     );
