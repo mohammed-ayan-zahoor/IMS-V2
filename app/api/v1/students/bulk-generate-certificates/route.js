@@ -34,7 +34,7 @@ export async function POST(req) {
       );
     }
 
-    const { studentIds, templateId, batchId, visibleToStudent, metadata, isDuplicate } = await req.json();
+    const { studentIds, templateId, batchId, visibleToStudent, metadata, isDuplicate, withdrawStudent, duesOverrideReason } = await req.json();
 
     if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
       return Response.json(
@@ -84,6 +84,26 @@ export async function POST(req) {
     }
 
     const instituteId = scope.instituteId;
+
+    // Validate template & block bulk issuance for LC / TC
+    const CertificateTemplate = (await import("@/models/CertificateTemplate")).default;
+    const templateDoc = await CertificateTemplate.findById(templateId);
+    if (!templateDoc) {
+      return Response.json({ error: "Certificate template not found" }, { status: 404 });
+    }
+
+    if (['LEAVING_CERTIFICATE', 'TRANSFER_CERTIFICATE'].includes(templateDoc.category)) {
+      if (studentIds.length > 1) {
+        return Response.json({
+          error: "School Leaving Certificates (LC/TC) require individual student review and cannot be generated in bulk."
+        }, { status: 400 });
+      }
+      if (!metadata?.remarks?.trim()) {
+        return Response.json({
+          error: "Remarks are mandatory for School Leaving Certificate and cannot be empty."
+        }, { status: 400 });
+      }
+    }
 
     const results = {
       successCount: 0,
@@ -145,6 +165,8 @@ export async function POST(req) {
                 visibleToStudent,
                 metadata,
                 isDuplicate,
+                withdrawStudent,
+                duesOverrideReason,
                 browser: sharedBrowser
               }
             );

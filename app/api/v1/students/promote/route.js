@@ -54,6 +54,15 @@ export async function POST(req) {
             deletedAt: null
         });
 
+        // Filter out students who have been issued an LC / left school
+        const activeEligibleStudents = await User.find({
+            _id: { $in: studentIds },
+            institute: scope.instituteId,
+            isLCIssued: { $ne: true },
+            deletedAt: null
+        }).select('_id');
+        const eligibleStudentIds = new Set(activeEligibleStudents.map(s => s._id.toString()));
+
         // If target batch has session, use that; otherwise use active session
         const targetSessionId = targetBatch.session || activeSession?._id;
 
@@ -98,6 +107,11 @@ export async function POST(req) {
 
         for (const studentId of studentIds) {
             try {
+                if (!eligibleStudentIds.has(studentId.toString())) {
+                    // Skip withdrawn students whose LC was issued
+                    results.failed++;
+                    continue;
+                }
                 // A. Check if already in target batch
                 const isAlreadyEnrolled = targetBatch.enrolledStudents.some(
                     e => e.student.toString() === studentId

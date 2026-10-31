@@ -58,8 +58,15 @@ const DocumentIssuanceDialog = ({
         leavingReason: "",
         conduct: "Good",
         progress: "Satisfactory",
+        remarks: "",
         academicYear: new Date().getFullYear().toString()
     });
+
+    const [selectedRemarkPreset, setSelectedRemarkPreset] = useState("");
+    const [customRemarkText, setCustomRemarkText] = useState("");
+    const [duesInfo, setDuesInfo] = useState({ loading: false, hasDues: false, totalPending: 0 });
+    const [withdrawStudent, setWithdrawStudent] = useState(true);
+    const [duesOverrideReason, setDuesOverrideReason] = useState("");
 
     const [issueMode, setIssueMode] = useState("ISSUE"); // ISSUE or REPRINT
     const [isDuplicate, setIsDuplicate] = useState(false);
@@ -79,10 +86,11 @@ const DocumentIssuanceDialog = ({
             setPreviewLoading(true);
             const params = new URLSearchParams({
                 templateId: selectedTemplate._id,
-                leavingReason: metadata.leavingReason,
-                conduct: metadata.conduct,
-                progress: metadata.progress,
-                academicYear: metadata.academicYear
+                leavingReason: metadata.leavingReason || "",
+                conduct: metadata.conduct || "Good",
+                progress: metadata.progress || "Satisfactory",
+                remarks: metadata.remarks || "",
+                academicYear: metadata.academicYear || new Date().getFullYear().toString()
             });
 
             const res = await fetch(`/api/v1/students/${student._id}/certificate-preview?${params.toString()}`);
@@ -105,6 +113,18 @@ const DocumentIssuanceDialog = ({
     useEffect(() => {
         if (isOpen && student && selectedTemplate) {
             fetchPreview();
+            // Fetch fee dues
+            (async () => {
+                try {
+                    const res = await fetch(`/api/v1/students/${student._id}/dues`);
+                    const d = await res.json();
+                    if (res.ok && d.data) {
+                        setDuesInfo({ loading: false, hasDues: d.data.hasDues, totalPending: d.data.totalPending });
+                    }
+                } catch (e) {
+                    console.warn("Dues check error:", e);
+                }
+            })();
         }
     }, [isOpen, student, selectedTemplate]);
 
@@ -112,6 +132,17 @@ const DocumentIssuanceDialog = ({
     const handleIssue = async () => {
         if (!selectedTemplate) {
             toast.error("Please select a template first");
+            return;
+        }
+
+        // Validate mandatory remarks on LC / TC
+        const isLeavingDoc = ["LEAVING_CERTIFICATE", "TRANSFER_CERTIFICATE"].includes(selectedTemplate.category);
+        if (isLeavingDoc && (!metadata.remarks || !metadata.remarks.trim())) {
+            toast.error("Remarks are mandatory for School Leaving Certificate. Please select or enter an official remark.");
+            return;
+        }
+        if (isLeavingDoc && withdrawStudent && duesInfo.hasDues && !duesOverrideReason.trim()) {
+            toast.error(`Student has ₹${duesInfo.totalPending.toLocaleString()} in pending dues. Enter an override justification to proceed.`);
             return;
         }
 
@@ -125,6 +156,8 @@ const DocumentIssuanceDialog = ({
                     templateId: selectedTemplate._id,
                     metadata: metadata,
                     isDuplicate: isDuplicate,
+                    withdrawStudent: isLeavingDoc ? withdrawStudent : false,
+                    duesOverrideReason: duesOverrideReason.trim(),
                     batchId: student.batchId?._id || student.batchId || student.batch?._id || student.batch || student.batches?.[0] || null
                 })
             });
@@ -135,9 +168,10 @@ const DocumentIssuanceDialog = ({
                 toast.success("Certificate issued successfully!");
                 onSuccess?.(result.certificates[0]);
                 
-                // If it was successful, trigger the download for the user automatically
+                // If successful, open PDF in new tab for native printing and show print guidance
                 if (result.certificates?.[0]?.certificateId) {
                     window.open(`/api/v1/students/certificates/${result.certificates[0].certificateId}/download`, '_blank');
+                    toast.info("💡 Print settings: Set Scale to 'Actual Size / 100%' and Margins to 'None' for exact letterhead alignment.", { duration: 6000 });
                 }
                 
                 onClose();
@@ -257,6 +291,50 @@ const DocumentIssuanceDialog = ({
                                         onBlur={fetchPreview}
                                     />
                                 </div>
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs font-bold text-slate-700">
+                                            Remarks {["LEAVING_CERTIFICATE", "TRANSFER_CERTIFICATE"].includes(selectedTemplate?.category) && <span className="text-red-500">*</span>}
+                                        </label>
+                                        <span className="text-[10px] text-slate-400 font-semibold">Official Record</span>
+                                    </div>
+                                    <select 
+                                        className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:border-premium-blue outline-none text-sm font-medium transition-all"
+                                        value={selectedRemarkPreset}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            setSelectedRemarkPreset(val);
+                                            if (val === "__CUSTOM__") {
+                                                setMetadata(prev => ({ ...prev, remarks: customRemarkText }));
+                                            } else {
+                                                setMetadata(prev => ({ ...prev, remarks: val }));
+                                            }
+                                            setTimeout(fetchPreview, 0);
+                                        }}
+                                    >
+                                        <option value="">-- Select Official Board Remark (Required) --</option>
+                                        <option value="Promoted to next class">Promoted to next class</option>
+                                        <option value="Passed the Secondary School Examination">Passed the Secondary School Examination</option>
+                                        <option value="Detained in Standard">Detained in Standard</option>
+                                        <option value="Left school at parents' written request">Left school at parents' written request</option>
+                                        <option value="Completed school course">Completed school course</option>
+                                        <option value="Good moral character">Good moral character</option>
+                                        <option value="__CUSTOM__">Other / Custom Remark...</option>
+                                    </select>
+                                    {selectedRemarkPreset === "__CUSTOM__" && (
+                                        <Input 
+                                            placeholder="Type custom official remark..."
+                                            value={customRemarkText}
+                                            onChange={e => {
+                                                const txt = e.target.value;
+                                                setCustomRemarkText(txt);
+                                                setMetadata(prev => ({ ...prev, remarks: txt }));
+                                            }}
+                                            onBlur={fetchPreview}
+                                            className="mt-2"
+                                        />
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -268,6 +346,43 @@ const DocumentIssuanceDialog = ({
                             </h3>
                             
                             <div className="p-4 rounded-2xl bg-white border border-slate-200 space-y-4">
+                                {["LEAVING_CERTIFICATE", "TRANSFER_CERTIFICATE"].includes(selectedTemplate?.category) && !isDuplicate && (
+                                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                                        <div>
+                                            <p className="text-xs font-bold text-slate-900">Strike Off Rolls (Withdrawal)</p>
+                                            <p className="text-[10px] text-slate-500">Unenrolls student from active section</p>
+                                        </div>
+                                        <button 
+                                            onClick={() => setWithdrawStudent(!withdrawStudent)}
+                                            className={cn(
+                                                "w-10 h-5 rounded-full transition-all relative",
+                                                withdrawStudent ? "bg-red-500" : "bg-slate-200"
+                                            )}
+                                        >
+                                            <div className={cn(
+                                                "absolute top-1 w-3 h-3 rounded-full bg-white transition-all",
+                                                withdrawStudent ? "right-1" : "left-1"
+                                            )} />
+                                        </button>
+                                    </div>
+                                )}
+
+                                {duesInfo.hasDues && (
+                                    <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 space-y-1.5">
+                                        <p className="text-xs font-bold flex items-center gap-1.5">
+                                            <span>⚠️</span> Outstanding Dues: ₹{duesInfo.totalPending.toLocaleString()}
+                                        </p>
+                                        {withdrawStudent && (
+                                            <Input 
+                                                placeholder="Admin override justification (required)..."
+                                                value={duesOverrideReason}
+                                                onChange={e => setDuesOverrideReason(e.target.value)}
+                                                className="bg-white text-xs h-8"
+                                            />
+                                        )}
+                                    </div>
+                                )}
+
                                 <div className="flex items-center justify-between">
                                     <div>
                                         <p className="text-xs font-bold text-slate-900">Mark as Duplicate</p>
@@ -393,7 +508,10 @@ const DocumentIssuanceDialog = ({
 
                 {/* Footer */}
                 <div className="p-6 border-t border-slate-100 flex items-center justify-between bg-white shrink-0">
-                    <div className="flex items-center gap-2 text-slate-500">
+                    <div className="flex flex-col gap-1 text-slate-500">
+                        <div className="flex items-center gap-2 text-amber-700 text-[11px] font-medium bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
+                            <span>💡 Print: Set Scale to <b>100% / Actual Size</b> and Margins to <b>None</b></span>
+                        </div>
                         <Search size={16} />
                         <span className="text-xs font-medium italic">Preview is generated using live institute data</span>
                     </div>

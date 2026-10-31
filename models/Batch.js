@@ -55,9 +55,10 @@ const BatchSchema = new Schema({
     enrolledStudents: [{
         student: { type: Schema.Types.ObjectId, ref: 'User' },
         enrolledAt: { type: Date, default: Date.now },
+        leftAt: { type: Date },
         status: {
             type: String,
-            enum: ['active', 'completed', 'dropped'],
+            enum: ['active', 'completed', 'dropped', 'left'],
             default: 'active'
         }
     }],

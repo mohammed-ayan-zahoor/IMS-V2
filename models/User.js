@@ -153,6 +153,7 @@ const UserSchema = new Schema({
     medium: String,
     leavingDate: Date,
     leavingReason: String,
+    isLCIssued: { type: Boolean, default: false, index: true },
     studyingSinceStandard: String,
 
     progress: { type: String, default: 'Good' },

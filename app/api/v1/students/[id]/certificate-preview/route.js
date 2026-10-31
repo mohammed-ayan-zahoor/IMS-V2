@@ -23,6 +23,7 @@ export async function GET(req, { params }) {
         const leavingReason = searchParams.get("leavingReason");
         const conduct = searchParams.get("conduct");
         const progress = searchParams.get("progress");
+        const remarks = searchParams.get("remarks");
 
         await connectDB();
         const scope = await getInstituteScope(req);
@@ -44,7 +45,8 @@ export async function GET(req, { params }) {
             metadata: {
                 leavingReason,
                 conduct,
-                progress
+                progress,
+                remarks
             }
         });
 

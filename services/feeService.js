@@ -1247,4 +1247,71 @@ export class FeeService {
 
         return fee;
     }
+
+    /**
+     * Calculate total pending fee dues across tuition and transport for an individual student.
+     * Used for no-dues verification prior to LC / TC issuance.
+     */
+    static async getStudentPendingDues(studentId, instituteId) {
+        await connectDB();
+        const Fee = (await import("../models/Fee.js")).default;
+
+        const fees = await Fee.find({
+            student: studentId,
+            institute: instituteId,
+            status: { $nin: ["paid", "cancelled"] },
+            deletedAt: null
+        });
+
+        let totalPending = 0;
+        const feeBreakdown = [];
+
+        for (const f of fees) {
+            const pending = (f.totalAmount || 0) - (f.paidAmount || 0);
+            if (pending > 0.01) {
+                totalPending += pending;
+                feeBreakdown.push({
+                    id: f._id,
+                    title: "Class / Course Fee",
+                    total: f.totalAmount,
+                    paid: f.paidAmount,
+                    pending
+                });
+            }
+        }
+
+        try {
+            const TransportFee = (await import("../models/TransportFee.js")).default;
+            const transportFees = await TransportFee.find({
+                student: studentId,
+                institute: instituteId,
+                status: { $nin: ["paid", "cancelled"] },
+                deletedAt: null
+            });
+
+            for (const tf of transportFees) {
+                const total = tf.totalAmount || tf.amount || 0;
+                const paid = tf.paidAmount || 0;
+                const pending = total - paid;
+                if (pending > 0.01) {
+                    totalPending += pending;
+                    feeBreakdown.push({
+                        id: tf._id,
+                        title: "Transport Fee",
+                        total,
+                        paid,
+                        pending
+                    });
+                }
+            }
+        } catch (e) {
+            // Transport module optional
+        }
+
+        return {
+            hasDues: totalPending > 0.01,
+            totalPending: Math.round(totalPending * 100) / 100,
+            feeBreakdown
+        };
+    }
 }

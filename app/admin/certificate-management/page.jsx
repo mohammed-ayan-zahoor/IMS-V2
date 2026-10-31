@@ -466,11 +466,18 @@ const CertificateManagementPage = () => {
             <Select
               value={statusFilter}
               onChange={(value) => setStatusFilter(value)}
-              options={[
-                { value: "ACTIVE", label: "Active" },
-                { value: "COMPLETED", label: "Completed" },
-                { value: "DROPPED", label: "Dropped" },
-              ]}
+              options={
+                !isVocational ? [
+                  { value: "ACTIVE", label: "Enrolled Students" },
+                  { value: "LEFT", label: "LC Issued / Left Students" },
+                  { value: "ALL", label: "All Students" }
+                ] : [
+                  { value: "ACTIVE", label: "Active" },
+                  { value: "COMPLETED", label: "Completed" },
+                  { value: "DROPPED", label: "Dropped" },
+                  { value: "LEFT", label: "Left / Withdrawn" }
+                ]
+              }
             />
             <Select
               value={courseId}
@@ -593,7 +600,21 @@ const CertificateManagementPage = () => {
                 if (filteredStudents.length === 0) return <div className="p-12 text-center text-slate-400 text-sm">No students matching filters.</div>;
 
                 return (
-                  <div className="overflow-x-auto">
+                  <>
+                  {statusFilter === "LEFT" && (
+                <div className="mb-4 p-4 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-amber-900 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                      <Award size={18} className="text-amber-700" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">School Leaving Certificate (LC) Archive</p>
+                      <p className="text-xs text-amber-700">These students have taken an LC and are struck off active class rosters. Click Manage Documents to view/print, or Re-issue Duplicate.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-200 text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -678,6 +699,7 @@ const CertificateManagementPage = () => {
                       </tbody>
                     </table>
                   </div>
+                  </>
                 );
               })()}
 

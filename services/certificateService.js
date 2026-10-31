@@ -83,6 +83,7 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
 
     const Batch = (await import('../models/Batch.js')).default;
     const Course = (await import('../models/Course.js')).default;
+    const Session = (await import('../models/Session.js')).default;
     let resolvedBatch = null;
 
     if (options.batchId) {
@@ -232,7 +233,7 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
             // Performance
             progress: student.progress || 'Good',
             conduct: student.conduct || 'Good',
-            remarks: student.remarks || 'N/A',
+            remarks: options.metadata?.remarks || student.remarks || 'N/A',
 
             // School specific aliases
             std: courseName,
@@ -280,6 +281,8 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
             category: options.category || 'GENERAL'
         },
         academicYear: academicYear,
+        // Apply frozenContext if this is a duplicate or historic snapshot
+        ...(options.frozenContext ? { student: { ...student, ...options.frozenContext } } : {}),
         metadata: {
             leavingReason: options.metadata?.leavingReason || student.leavingReason || "N/A",
             leavingDate: options.metadata?.leavingDate || (student.leavingDate ? new Date(student.leavingDate).toLocaleDateString('en-GB') : new Date().toLocaleDateString('en-GB')),
@@ -446,11 +449,30 @@ export const renderHtmlToPdf = async (htmlTemplate, cssContent, context, pageCon
 export const issueCertificate = async (studentId, instituteId, templateId, options = {}) => {
     const Certificate = (await import('../models/Certificate.js')).default;
     const CertificateTemplate = (await import('../models/CertificateTemplate.js')).default;
+    const Session = (await import('../models/Session.js')).default;
 
     const template = await CertificateTemplate.findById(templateId);
     if (!template) throw new Error('Template not found');
 
-    const academicYear = options.academicYear || new Date().getFullYear().toString();
+    // Server-side validation: LC/TC requires explicit non-empty remarks
+    if (['LEAVING_CERTIFICATE', 'TRANSFER_CERTIFICATE'].includes(template.category)) {
+        const remarks = options.metadata?.remarks?.trim();
+        if (!remarks) {
+            throw new Error('Remarks are mandatory for School Leaving Certificate and cannot be empty.');
+        }
+    }
+
+        // Pre-flight check: Outstanding dues block before consuming serial number or creating records
+    const isExitDoc = ["LEAVING_CERTIFICATE", "TRANSFER_CERTIFICATE"].includes(template.category);
+    if (isExitDoc && options.withdrawStudent && !options.isDuplicate) {
+        const { FeeService } = await import("./feeService.js");
+        const dues = await FeeService.getStudentPendingDues(studentId, instituteId);
+        if (dues.hasDues && !options.duesOverrideReason?.trim()) {
+            throw new Error(`Outstanding dues of ₹${dues.totalPending.toLocaleString()} found. Settle dues or provide an admin override justification.`);
+        }
+    }
+
+const academicYear = options.academicYear || new Date().getFullYear().toString();
     const isDuplicate = options.isDuplicate || false;
     
     let serialNumber;
@@ -461,7 +483,10 @@ export const issueCertificate = async (studentId, instituteId, templateId, optio
     const existingCert = await Certificate.findOne({
         studentId,
         institutionId: instituteId,
-        templateId: template._id,
+        $or: [
+            { 'template.templateId': template._id },
+            { 'template.category': template.category }
+        ],
         status: { $ne: 'REVOKED' }
     }).sort({ createdAt: 1 });
 
@@ -470,14 +495,41 @@ export const issueCertificate = async (studentId, instituteId, templateId, optio
             throw new Error(`An active certificate for ${template.category} already exists for this student (SN: ${existingCert.certificateNumber}). Use 'Issue Duplicate' instead.`);
         }
         // For duplicates, we REUSE the serial number
-        serialNumber = existingCert.certificateNumber;
+        const duplicateCount = await Certificate.countDocuments({
+            originalCertificateId: existingCert._id
+        });
+        const dupSuffix = duplicateCount === 0 ? '(DUPLICATE)' : `(DUPLICATE-${duplicateCount + 1})`;
+        serialNumber = `${existingCert.certificateNumber} ${dupSuffix}`;
         originalCertificateId = existingCert._id;
     } else {
         // New issuance - generate atomic serial number
         serialNumber = await getNextSerialNumber(instituteId, template.category, academicYear);
     }
 
-    // 2. Create Template Snapshot
+    // 2. Create Template Snapshot with frozen student data
+    const User = (await import('../models/User.js')).default;
+    const studentDoc = await User.findById(studentId).lean();
+    let frozenData = {
+        fullName: studentDoc ? `${studentDoc.profile?.firstName || ""} ${studentDoc.profile?.lastName || ""}`.trim() : "",
+        fatherName: studentDoc?.profile?.fatherName || "",
+        motherName: studentDoc?.profile?.motherName || "",
+        grNumber: studentDoc?.profile?.enrollmentNumber || studentDoc?.profile?.grNumber || studentDoc?.enrollmentNumber || "N/A",
+        dob: studentDoc?.profile?.dateOfBirth ? new Date(studentDoc.profile.dateOfBirth).toLocaleDateString("en-GB") : "N/A",
+        placeOfBirth: studentDoc?.profile?.birthPlace || "N/A",
+        caste: studentDoc?.profile?.caste || "N/A",
+        religion: studentDoc?.profile?.religion || "N/A",
+        nationality: studentDoc?.profile?.nationality || "Indian",
+        admissionDate: studentDoc?.admissionDate ? new Date(studentDoc.admissionDate).toLocaleDateString("en-GB") : "N/A"
+    };
+
+    // For duplicate, freeze from the original record
+    if (isDuplicate && originalCertificateId) {
+        const orig = await Certificate.findById(originalCertificateId).lean();
+        if (orig?.snapshot?.frozenData) {
+            frozenData = orig.snapshot.frozenData;
+        }
+    }
+
     const snapshot = {
         htmlTemplate: template.htmlTemplate,
         cssContent: template.cssContent,
@@ -485,7 +537,8 @@ export const issueCertificate = async (studentId, instituteId, templateId, optio
         renderMode: template.renderMode,
         imageUrl: template.imageUrl,
         placeholders: template.placeholders,
-        category: template.category // Store category in snapshot too
+        category: template.category,
+        frozenData
     };
 
     // 3. Create Certificate Record
@@ -495,7 +548,10 @@ export const issueCertificate = async (studentId, instituteId, templateId, optio
         batchId: options.batchId || null,
         certificateNumber: serialNumber,
         template: {
-            templateId: template._id,
+            $or: [
+            { 'template.templateId': template._id },
+            { 'template.category': template.category }
+        ],
             templateName: template.name,
             category: template.category
         },
@@ -523,6 +579,79 @@ export const issueCertificate = async (studentId, instituteId, templateId, optio
         // but the record exists so it can be retried/regenerated later.
     }
 
+    // 5. Withdrawal & Session-Scoped Batch unenrollment for LC / TC
+    if (isExitDoc && options.withdrawStudent && !isDuplicate) {
+
+        const Batch = (await import("../models/Batch.js")).default;
+        const studentBatches = await Batch.find({
+            institute: instituteId,
+            "enrolledStudents.student": studentId,
+            deletedAt: null
+        }).sort({ createdAt: -1 });
+
+        const activeBatches = studentBatches.filter(b =>
+            (b.enrolledStudents || []).some(e => e.student?.toString() === studentId.toString() && e.status === "active")
+        );
+
+        const latestSessionId = activeBatches.length > 0 ? activeBatches[0].session : null;
+
+        const performWithdrawal = async (dbSession = null) => {
+            const queryOpts = dbSession ? { session: dbSession } : {};
+            if (activeBatches.length > 0) {
+                const targetBatchIds = activeBatches
+                    .filter(b => String(b.session) === String(latestSessionId))
+                    .map(b => b._id);
+
+                if (targetBatchIds.length > 0) {
+                    await Batch.updateMany(
+                        { _id: { $in: targetBatchIds }, "enrolledStudents.student": studentId },
+                        {
+                            $set: {
+                                "enrolledStudents.$[elem].status": "left",
+                                "enrolledStudents.$[elem].leftAt": new Date()
+                            }
+                        },
+                        {
+                            arrayFilters: [{ "elem.student": studentId, "elem.status": "active" }],
+                            ...queryOpts
+                        }
+                    );
+                }
+            }
+
+            await User.findByIdAndUpdate(
+                studentId,
+                {
+                    isLCIssued: true,
+                    leavingDate: options.metadata?.leavingDate || new Date(),
+                    leavingReason: options.metadata?.leavingReason || "School Leaving Certificate Issued"
+                },
+                queryOpts
+            );
+        };
+
+        // Atomic write with standalone Mongo fallback
+        const mongoose = (await import("mongoose")).default;
+        let dbSession = null;
+        try {
+            dbSession = await mongoose.startSession();
+            dbSession.startTransaction();
+            await performWithdrawal(dbSession);
+            await dbSession.commitTransaction();
+        } catch (txErr) {
+            if (dbSession && dbSession.inTransaction()) {
+                await dbSession.abortTransaction();
+            }
+            if (txErr.message?.includes("replica set") || txErr.message?.includes("Transaction numbers") || txErr.message?.includes("retryable writes") || txErr.code === 20) {
+                await performWithdrawal(null);
+            } else {
+                throw txErr;
+            }
+        } finally {
+            if (dbSession) dbSession.endSession();
+        }
+    }
+
     return certificate;
 };
 
@@ -540,7 +669,8 @@ export const generateCertificatePDFFromTemplate = async (certificateData, browse
             serialNumber: certificateData.certificateNumber,
             metadata: certificateData.metadata,
             academicYear: certificateData.academicYear,
-            isDuplicate: certificateData.isDuplicate
+            isDuplicate: certificateData.isDuplicate,
+            frozenContext: certificateData.isDuplicate && source.frozenData ? source.frozenData : null
         });
         return renderHtmlToPdf(source.htmlTemplate, source.cssContent, context, source.pageConfig, browser);
     }
@@ -614,4 +744,159 @@ export const generateCertificateFilename = (certificateNumber, studentName) => {
     const timestamp = Date.now();
     const cleanName = studentName.replace(/\s+/g, '-').toLowerCase();
     return `certificate-${cleanName}-${certificateNumber}-${timestamp}.pdf`;
+};
+
+/**
+ * Revoke an existing Certificate (LC/TC/Bonafide).
+ * If an LC was issued, restores student active enrollment safely without duplicate enrollments.
+ */
+export const revokeCertificate = async (certificateId, instituteId, actorId, reason) => {
+    const Certificate = (await import("../models/Certificate.js")).default;
+    const User = (await import("../models/User.js")).default;
+    const Batch = (await import("../models/Batch.js")).default;
+    const AuditLog = (await import("../models/AuditLog.js")).default;
+
+    const cert = await Certificate.findOne({ _id: certificateId, institutionId: instituteId });
+    if (!cert) throw new Error("Certificate not found");
+    if (cert.status === "REVOKED") throw new Error("Certificate is already revoked");
+
+    cert.status = "REVOKED";
+    cert.metadata = {
+        ...cert.metadata,
+        revokedAt: new Date(),
+        revokedBy: actorId,
+        revokeReason: reason
+    };
+    await cert.save();
+
+    // Revoke any duplicate copies linked to this certificate
+    await Certificate.updateMany(
+        { originalCertificateId: cert._id, status: { $ne: 'REVOKED' } },
+        {
+            $set: {
+                status: 'REVOKED',
+                'metadata.revokedAt': new Date(),
+                'metadata.revokedBy': actorId,
+                'metadata.revokeReason': `Original Certificate #${cert.certificateNumber} was revoked: ${reason}`
+            }
+        }
+    );
+
+    const isExitDoc = ["LEAVING_CERTIFICATE", "TRANSFER_CERTIFICATE"].includes(cert.template?.category);
+    if (isExitDoc) {
+        const studentId = cert.studentId;
+        const existingActiveBatch = await Batch.findOne({
+            institute: instituteId,
+            "enrolledStudents": {
+                $elemMatch: { student: studentId, status: "active" }
+            },
+            deletedAt: null
+        });
+
+        if (!existingActiveBatch) {
+            const lastLeftBatch = await Batch.findOne({
+                institute: instituteId,
+                "enrolledStudents": {
+                    $elemMatch: { student: studentId, status: "left" }
+                },
+                deletedAt: null
+            }).sort({ updatedAt: -1 });
+
+            if (lastLeftBatch) {
+                await Batch.updateOne(
+                    { _id: lastLeftBatch._id, "enrolledStudents.student": studentId },
+                    {
+                        $set: { "enrolledStudents.$[elem].status": "active" },
+                        $unset: { "enrolledStudents.$[elem].leftAt": 1 }
+                    },
+                    { arrayFilters: [{ "elem.student": studentId, "elem.status": "left" }] }
+                );
+            }
+        }
+
+        await User.findByIdAndUpdate(studentId, {
+            isLCIssued: false,
+            leavingDate: null,
+            leavingReason: null
+        });
+    }
+
+    if (AuditLog) {
+        try {
+            await AuditLog.create({
+                actor: actorId,
+                action: "certificate.revoke",
+                resource: { type: "Certificate", id: cert._id },
+                institute: instituteId,
+                details: {
+                    certificateNumber: cert.certificateNumber,
+                    studentId: cert.studentId,
+                    category: cert.template?.category,
+                    reason
+                }
+            });
+        } catch (e) {
+            console.warn("AuditLog creation error:", e.message);
+        }
+    }
+
+    return cert;
+};
+
+/**
+ * Readmit a student who previously left with an LC.
+ * Retains permanent G.R. number for life and sets up fresh active enrollment.
+ */
+export const readmitStudent = async (studentId, instituteId, { targetSessionId, targetBatchId, reason }, actorId) => {
+    const User = (await import("../models/User.js")).default;
+    const Batch = (await import("../models/Batch.js")).default;
+    const AuditLog = (await import("../models/AuditLog.js")).default;
+
+    const student = await User.findOne({ _id: studentId, institute: instituteId });
+    if (!student) throw new Error("Student not found");
+
+    const targetBatch = await Batch.findOne({ _id: targetBatchId, institute: instituteId, deletedAt: null });
+    if (!targetBatch) throw new Error("Target section/batch not found");
+
+    const alreadyEnrolled = targetBatch.enrolledStudents?.some(
+        e => e.student?.toString() === studentId.toString() && e.status === "active"
+    );
+    if (alreadyEnrolled) throw new Error("Student is already active in target section");
+
+    targetBatch.enrolledStudents.push({
+        student: studentId,
+        enrolledAt: new Date(),
+        status: "active"
+    });
+    await targetBatch.save();
+
+    // Reset LC flag and update admission standard to new class
+    student.isLCIssued = false;
+    student.leavingDate = null;
+    student.leavingReason = null;
+    if (targetBatch.course) {
+        student.admissionStd = targetBatch.course.toString();
+    }
+    await student.save();
+
+    if (AuditLog) {
+        try {
+            await AuditLog.create({
+                actor: actorId,
+                action: "student.readmit",
+                resource: { type: "User", id: student._id },
+                institute: instituteId,
+                details: {
+                    studentName: `${student.profile?.firstName} ${student.profile?.lastName}`,
+                    targetBatch: targetBatch.name,
+                    targetSessionId,
+                    reason
+                }
+            });
+        } catch (e) {
+            console.warn("AuditLog error:", e.message);
+        }
+    }
+
+    return student;
 };

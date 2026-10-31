@@ -400,7 +400,12 @@ export class StudentService {
         }
 
         // Filter by student lifecycle status (ACTIVE, COMPLETED, DROPPED)
-        if (status && ['ACTIVE', 'COMPLETED', 'DROPPED'].includes(status)) {
+        if (status === 'LEFT' || status === 'LC_ISSUED') {
+            query.isLCIssued = true;
+        } else if (status === 'ACTIVE') {
+            query.status = 'ACTIVE';
+            query.isLCIssued = { $ne: true };
+        } else if (status && ['COMPLETED', 'DROPPED'].includes(status)) {
             query.status = status;
         }
 
@@ -461,8 +466,8 @@ export class StudentService {
                 batchQuery.$and = andClauses;
             }
 
-            const batches = await Batch.find(batchQuery).select('_id name course enrolledStudents.student');
-            let studentIds = batches.flatMap(b => b.enrolledStudents.map(e => e.student));
+            const batches = await Batch.find(batchQuery).select('_id name course enrolledStudents.student enrolledStudents.status');
+            let studentIds = batches.flatMap(b => (b.enrolledStudents || []).filter(e => e.status === 'active').map(e => e.student));
 
             // Include and self-heal students directly assigned to this course/standard via admissionStd
             let directStudentIds = [];

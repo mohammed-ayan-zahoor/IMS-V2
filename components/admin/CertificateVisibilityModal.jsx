@@ -10,7 +10,9 @@ import {
     FileText, 
     Calendar,
     Award,
-    Trash2
+    Trash2,
+    Printer,
+    RotateCcw
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Button from "@/components/ui/Button";
@@ -68,6 +70,34 @@ export default function CertificateVisibilityModal({ isOpen, onClose, student })
             toast.error("An error occurred");
         } finally {
             setToggling(prev => ({ ...prev, [certId]: false }));
+        }
+    };
+
+    const [revoking, setRevoking] = useState({});
+
+    const handleRevokeCertificate = async (certId) => {
+        const reason = window.prompt("Enter justification reason for revoking this certificate (e.g. Issued by clerical error):");
+        if (!reason || !reason.trim()) return;
+
+        try {
+            setRevoking(prev => ({ ...prev, [certId]: true }));
+            const res = await fetch(`/api/v1/certificates/${certId}/revoke`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ reason: reason.trim() })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.success(data.message || "Certificate revoked successfully");
+                fetchCertificates();
+            } else {
+                toast.error(data.error || "Failed to revoke certificate");
+            }
+        } catch (err) {
+            console.error("Revoke error:", err);
+            toast.error("Error revoking certificate");
+        } finally {
+            setRevoking(prev => ({ ...prev, [certId]: false }));
         }
     };
 
@@ -220,6 +250,34 @@ export default function CertificateVisibilityModal({ isOpen, onClose, student })
                                             <><EyeOff size={14} /> Hidden</>
                                         )}
                                     </button>
+
+                                    <a
+                                        href={`/api/v1/students/certificates/${cert._id}/download`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-premium-blue hover:bg-blue-50 border border-slate-100 hover:border-blue-100 transition-all"
+                                        title="Open and Print Document"
+                                    >
+                                        <Printer size={16} />
+                                    </a>
+                                    {cert.status !== "REVOKED" ? (
+                                        <button
+                                            onClick={() => handleRevokeCertificate(cert._id)}
+                                            disabled={revoking[cert._id] || deleting[cert._id]}
+                                            className="w-10 h-10 flex items-center justify-center rounded-xl text-slate-400 hover:text-amber-600 hover:bg-amber-50 border border-slate-100 hover:border-amber-100 transition-all"
+                                            title="Revoke Certificate and Restore Student"
+                                        >
+                                            {revoking[cert._id] ? (
+                                                <Loader className="animate-spin" size={16} />
+                                            ) : (
+                                                <RotateCcw size={16} />
+                                            )}
+                                        </button>
+                                    ) : (
+                                        <span className="px-2 py-1 text-[9px] font-black uppercase text-red-600 bg-red-50 border border-red-200 rounded-lg">
+                                            Revoked
+                                        </span>
+                                    )}
 
                                     <button
                                         onClick={() => handleDeleteCertificate(cert._id)}
