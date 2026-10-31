@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, use } from "react";
+import { useState, useEffect, useRef, use, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths } from "date-fns";
 import {
@@ -407,6 +407,32 @@ export default function StudentDetailsPage({ params }) {
         conduct: "Good",
         remarks: ""
     });
+
+    // Issued Certificates State
+    const [issuedCertificates, setIssuedCertificates] = useState([]);
+    const [loadingCertificates, setLoadingCertificates] = useState(false);
+
+    const fetchIssuedCertificates = useCallback(async () => {
+        if (!id) return;
+        try {
+            setLoadingCertificates(true);
+            const res = await fetch(`/api/v1/students/${id}/certificates`);
+            if (res.ok) {
+                const data = await res.json();
+                setIssuedCertificates(data.certificates || []);
+            }
+        } catch (e) {
+            console.error("Error fetching issued certificates:", e);
+        } finally {
+            setLoadingCertificates(false);
+        }
+    }, [id]);
+
+    useEffect(() => {
+        if (activeTab === "documents") {
+            fetchIssuedCertificates();
+        }
+    }, [activeTab, fetchIssuedCertificates]);
 
     // Document Vault State
     const [isUploadingDoc, setIsUploadingDoc] = useState(false);
@@ -2760,7 +2786,90 @@ export default function StudentDetailsPage({ params }) {
                 )}
 
                 {activeTab === "documents" && (
-                    <div className="space-y-6 animate-fade-in">
+                    <div className="space-y-8 animate-fade-in">
+                        {/* ─── SECTION 1: Issued Certificates & Formal Documents ─── */}
+                        <div className="space-y-4">
+                            <div className="flex items-center justify-between px-1">
+                                <div>
+                                    <h3 className="text-xl font-black text-slate-900 tracking-tight flex items-center gap-2">
+                                        <Award className="text-slate-900" size={22} />
+                                        <span>Issued Certificates & Formal Documents</span>
+                                    </h3>
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                                        Officially issued documents (Bonafide, Leaving Certificate, etc.)
+                                    </p>
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => router.push("/admin/certificate-management")}
+                                    className="text-xs flex items-center gap-1.5"
+                                >
+                                    <span>Certificate Management</span>
+                                </Button>
+                            </div>
+
+                            {loadingCertificates ? (
+                                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200/80">
+                                    <p className="text-xs text-slate-500 font-medium">Loading certificates...</p>
+                                </div>
+                            ) : issuedCertificates.length > 0 ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {issuedCertificates.map(cert => (
+                                        <Card key={cert._id} className="p-4 border border-slate-200 bg-white hover:border-slate-300 transition-all flex flex-col justify-between space-y-3">
+                                            <div className="flex items-start gap-3">
+                                                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                                    <Award size={20} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="flex items-center justify-between gap-1">
+                                                        <h4 className="text-sm font-bold text-slate-900 truncate">
+                                                            {cert.template?.templateName || cert.template?.category || "Certificate"}
+                                                        </h4>
+                                                    </div>
+                                                    <p className="text-[11px] font-mono font-semibold text-slate-600 mt-0.5">
+                                                        SN: {cert.certificateNumber}
+                                                    </p>
+                                                    <p className="text-[10px] text-slate-400 mt-0.5">
+                                                        Issued: {cert.issueDate ? format(new Date(cert.issueDate), "dd MMM yyyy") : "N/A"}
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                                                <Badge
+                                                    variant={cert.visibleToStudent ? "success" : "neutral"}
+                                                    className="text-[9px] uppercase tracking-wider"
+                                                >
+                                                    {cert.visibleToStudent ? "Visible to Student" : "Hidden from Student"}
+                                                </Badge>
+                                                <div className="flex items-center gap-1.5">
+                                                    <a
+                                                        href={`/api/v1/students/certificates/${cert._id}/download`}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="px-3 py-1.5 rounded-lg bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                                                    >
+                                                        <Download size={12} />
+                                                        <span>Download PDF</span>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </Card>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="p-6 bg-slate-50/70 rounded-2xl border border-dashed border-slate-200 text-center">
+                                    <p className="text-xs text-slate-500 font-medium">
+                                        No formal certificates issued for this student yet.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="h-px bg-slate-200 my-4" />
+
+                        {/* ─── SECTION 2: Document Vault (Identity Proofs & Uploads) ─── */}
                         <div className="flex items-center justify-between px-1">
                             <div>
                                 <h3 className="text-xl font-black text-slate-900 tracking-tight">Document Vault</h3>
