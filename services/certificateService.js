@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import puppeteer from 'puppeteer';
 import path from 'path';
 import fs from 'fs';
