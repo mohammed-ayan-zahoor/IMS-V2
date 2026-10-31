@@ -10,7 +10,7 @@ import mongoose from "mongoose";
 
 /**
  * Returns hydrated context for a random student for template preview.
- * Each call returns a different random student.
+ * Each call returns a random active student from the institute reliably without null cursor skips.
  */
 export async function GET(req) {
     try {
@@ -22,39 +22,56 @@ export async function GET(req) {
         await connectDB();
         const scope = await getInstituteScope(req);
         
-        const query = { role: "student", deletedAt: null };
-        
+        // Build robust query for active students
+        const instituteConditions = [];
         if (scope?.instituteId) {
             try {
-                query.institute = new mongoose.Types.ObjectId(scope.instituteId);
+                instituteConditions.push(new mongoose.Types.ObjectId(scope.instituteId));
             } catch (e) {
-                console.warn("Invalid instituteId in scope:", scope.instituteId);
+                console.warn("Invalid instituteId format:", scope.instituteId);
             }
+            instituteConditions.push(String(scope.instituteId));
+        }
+
+        const studentQuery = {
+            role: "student",
+            $or: [
+                { deletedAt: null },
+                { deletedAt: { $exists: false } }
+            ]
+        };
+
+        if (instituteConditions.length > 0) {
+            studentQuery.institute = { $in: instituteConditions };
         } else if (!scope?.isSuperAdmin) {
             return Response.json({ error: "Institute scope not verified" }, { status: 401 });
         }
 
-        // Get a random student
-        let count = await User.countDocuments(query);
-        let student;
+        // Fetch candidate students pool (up to 50) - guarantees non-null results
+        let candidateStudents = await User.find(studentQuery)
+            .select('_id institute profile name email')
+            .sort({ _id: -1 })
+            .limit(50)
+            .lean();
 
-        if (count === 0) {
-            console.log("No students found with query:", JSON.stringify(query));
-            // If super admin and no students in scoped institute, try finding ANY student as fallback for preview
-            if (scope?.isSuperAdmin) {
-                const fallbackCount = await User.countDocuments({ role: "student", deletedAt: null });
-                if (fallbackCount > 0) {
-                    const randomIndex = Math.floor(Math.random() * fallbackCount);
-                    student = await User.findOne({ role: "student", deletedAt: null }).skip(randomIndex).lean();
-                }
-            }
-            if (!student) return Response.json({ error: "No students found" }, { status: 404 });
-        } else {
-            const randomIndex = Math.floor(Math.random() * count);
-            student = await User.findOne(query).skip(randomIndex).lean();
+        // If super admin and no students in scoped institute, fallback to ANY student for preview
+        if ((!candidateStudents || candidateStudents.length === 0) && scope?.isSuperAdmin) {
+            candidateStudents = await User.find({
+                role: "student",
+                $or: [{ deletedAt: null }, { deletedAt: { $exists: false } }]
+            })
+            .select('_id institute profile name email')
+            .limit(50)
+            .lean();
         }
 
-        if (!student) return Response.json({ error: "Student not found" }, { status: 404 });
+        if (!candidateStudents || candidateStudents.length === 0) {
+            return Response.json({ error: "No students found for preview" }, { status: 404 });
+        }
+
+        // Pick a random student from candidates
+        const randomIdx = Math.floor(Math.random() * candidateStudents.length);
+        const student = candidateStudents[randomIdx];
         
         const instituteId = student.institute || scope?.instituteId;
         
@@ -62,7 +79,7 @@ export async function GET(req) {
         const studentBatch = await Batch.findOne({
             'enrolledStudents.student': student._id,
             deletedAt: null
-        });
+        }).sort({ updatedAt: -1 });
 
         const { getHydratedContext } = await import("@/services/certificateService");
         const context = await getHydratedContext(student._id, instituteId, {
@@ -72,7 +89,7 @@ export async function GET(req) {
         return Response.json({
             success: true,
             data: context,
-            studentName: context.student.fullName
+            studentName: context.student.fullName || context.student.firstName || "Student"
         });
     } catch (error) {
         console.error("Preview Data Error:", error);

@@ -43,12 +43,7 @@ export async function POST(req) {
       );
     }
 
-    if (!batchId) {
-      return Response.json(
-        { error: "batchId is required to specify which course the certificates are for" },
-        { status: 400 }
-      );
-    }
+    const Batch = (await import("@/models/Batch")).default;
 
     await connectDB();
 
@@ -132,16 +127,25 @@ export async function POST(req) {
               return;
             }
 
+            let studentBatchId = batchId;
+            if (!studentBatchId) {
+              const foundBatch = await Batch.findOne({
+                'enrolledStudents.student': student._id,
+                deletedAt: null
+              }).sort({ updatedAt: -1 });
+              studentBatchId = foundBatch?._id || student.batch || null;
+            }
+
             const certificate = await issueCertificate(
               student._id,
               instituteId,
               templateId,
               { 
-                batchId,
+                batchId: studentBatchId,
                 visibleToStudent,
                 metadata,
                 isDuplicate,
-                browser: sharedBrowser // PASS THE SHARED BROWSER
+                browser: sharedBrowser
               }
             );
             
@@ -153,7 +157,7 @@ export async function POST(req) {
             results.certificates.push({
               studentId: student._id,
               certificateId: certificate._id,
-              batchId: batchId
+              batchId: studentBatchId
             });
 
             await AuditLog.create({

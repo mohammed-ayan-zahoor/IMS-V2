@@ -30,11 +30,25 @@ export async function POST(req, { params }) {
         const body = await req.json();
         const { templateType, metadata, templateId, batchId, visibleToStudent } = body;
 
-        // 3. Validate required fields
-        if (!batchId) {
+        // 3. Resolve batch if not provided
+        let targetBatchId = batchId;
+        if (!targetBatchId) {
+            const Batch = (await import('@/models/Batch')).default;
+            const studentBatch = await Batch.findOne({
+                'enrolledStudents.student': studentId,
+                deletedAt: null
+            }).sort({ updatedAt: -1 });
+            targetBatchId = studentBatch?._id || null;
+        }
+        if (!targetBatchId) {
+            const User = (await import('@/models/User')).default;
+            const studentObj = await User.findById(studentId).select('batch batches').lean();
+            targetBatchId = studentObj?.batch || studentObj?.batches?.[0] || null;
+        }
+        if (!targetBatchId) {
             return NextResponse.json({ 
                 success: false, 
-                message: 'Batch ID is required to specify which course the certificate is for' 
+                message: 'No active batch or course enrollment found for this student. Please assign the student to a batch first.' 
             }, { status: 400 });
         }
 
@@ -45,7 +59,7 @@ export async function POST(req, { params }) {
             templateType || 'STANDARD', 
             metadata || {},
             templateId,
-            batchId,
+            targetBatchId,
             req,
             visibleToStudent
         );

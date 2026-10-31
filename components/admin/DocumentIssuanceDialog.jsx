@@ -125,7 +125,7 @@ const DocumentIssuanceDialog = ({
                     templateId: selectedTemplate._id,
                     metadata: metadata,
                     isDuplicate: isDuplicate,
-                    batchId: student.batchId?._id || student.batchId || null
+                    batchId: student.batchId?._id || student.batchId || student.batch?._id || student.batch || student.batches?.[0] || null
                 })
             });
 
