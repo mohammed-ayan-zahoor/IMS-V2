@@ -88,3 +88,10 @@ templates/**/unpacked/
 # User uploads & runtime storage
 private_uploads/
 public/uploads/
+
+# Remotion & Video generation
+video/
+public/vo/
+public/sfx/
+storyboard.json
+
