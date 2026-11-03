@@ -197,6 +197,7 @@ export class FeeService {
             batch,
             session,
             totalAmount,
+            components: data.components || [],
             installments: finalInstallments,
             discount: finalDiscount.amount > 0 ? finalDiscount : undefined,
             status: finalExpected <= 0.01 ? 'paid' : 'not_started',

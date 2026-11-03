@@ -783,14 +783,25 @@ export async function POST(req) {
                         });
                         console.log(`[IMPORT] Enrolled ${studentIds.length} students in Batch ID: ${batchId}`);
 
-                        // 2. Auto-initialize fee records using the Class/Course Base Fee amount
-                        const baseFeeAmount = batch.course?.fees?.amount || 0;
+                        // 2. Auto-initialize fee records using the Class/Course Base Fee amount or itemized components
+                        const isItemized = batch.course?.fees?.feeStructureMode === 'ITEMIZED' && Array.isArray(batch.course?.fees?.components) && batch.course.fees.components.length > 0;
+                        const feeComponents = isItemized ? batch.course.fees.components.map(c => ({
+                            feeHead: c.feeHead || null,
+                            name: c.name,
+                            category: c.category || 'other',
+                            amount: c.amount || 0,
+                            isWaived: false
+                        })) : [];
+                        const componentsSum = feeComponents.reduce((s, c) => s + (c.amount || 0), 0);
+                        const baseFeeAmount = (isItemized && componentsSum > 0) ? componentsSum : (batch.course?.fees?.amount || 0);
+
                         const feeDocs = studentIds.map(id => ({
                             student: new mongoose.Types.ObjectId(id),
                             batch: batch._id,
                             session: batch.session || sessionId,
                             institute: scope.instituteId,
                             totalAmount: baseFeeAmount,
+                            components: feeComponents,
                             installments: [],
                             status: 'not_started'
                         }));

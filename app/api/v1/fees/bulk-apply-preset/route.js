@@ -48,6 +48,7 @@ export async function POST(req) {
         let totalAmount = 0;
         let selectedPresetId = null;
         let feeTitle = "";
+        let feeComponents = [];
 
         if (presetId && presetId !== "base_class_fee") {
             const preset = await FeePreset.findOne({
@@ -62,15 +63,25 @@ export async function POST(req) {
             selectedPresetId = preset._id;
             feeTitle = preset.name;
         } else {
-            // Use Class/Course Base Fee
-            const baseFee = batch.course?.fees?.amount;
+            // Use Class/Course Base Fee or Itemized Components
+            const isItemized = batch.course?.fees?.feeStructureMode === 'ITEMIZED' && Array.isArray(batch.course?.fees?.components) && batch.course.fees.components.length > 0;
+            feeComponents = isItemized ? batch.course.fees.components.map(c => ({
+                feeHead: c.feeHead || null,
+                name: c.name,
+                category: c.category || 'other',
+                amount: c.amount || 0,
+                isWaived: false
+            })) : [];
+            const compSum = feeComponents.reduce((s, c) => s + (c.amount || 0), 0);
+            const baseFee = (isItemized && compSum > 0) ? compSum : (batch.course?.fees?.amount || 0);
+
             if (!baseFee || baseFee <= 0) {
                 return NextResponse.json({ 
-                    error: `No base fee configured for "${batch.course?.name || batch.name}". Please set a fee in the Class page or select a Fee Preset.` 
+                    error: `No fee configured for "${batch.course?.name || batch.name}". Please set a fee in the Class page or select a Fee Preset.` 
                 }, { status: 400 });
             }
             totalAmount = baseFee;
-            feeTitle = `${batch.course?.name || "Class"} Base Fee`;
+            feeTitle = `${batch.course?.name || "Class"} ${isItemized ? "Fee Schedule" : "Base Fee"}`;
         }
 
         // Extract student IDs enrolled in this batch
@@ -147,6 +158,7 @@ export async function POST(req) {
                 await Fee.findByIdAndUpdate(existingFee._id, {
                     $set: {
                         totalAmount,
+                        components: feeComponents,
                         installments: buildInstallments(),
                         feePreset: selectedPresetId,
                         session: batch.session || existingFee.session || null,
@@ -161,6 +173,7 @@ export async function POST(req) {
                     session: batch.session || null,
                     institute: scope.instituteId,
                     totalAmount,
+                    components: feeComponents,
                     installments: buildInstallments(),
                     feePreset: selectedPresetId,
                     status: "not_started"

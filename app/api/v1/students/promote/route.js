@@ -184,6 +184,44 @@ export async function POST(req) {
                             results.feesFailed++;
                             // Don't fail the entire promotion if fee creation fails
                         }
+                    } else if (targetBatch.course?.fees?.amount > 0 || (targetBatch.course?.fees?.components?.length > 0)) {
+                        // Fallback to Class/Course Fee Structure (including itemized components if present)
+                        try {
+                            const isItemized = targetBatch.course.fees.feeStructureMode === 'ITEMIZED' && Array.isArray(targetBatch.course.fees.components) && targetBatch.course.fees.components.length > 0;
+                            const targetComponents = isItemized ? targetBatch.course.fees.components.map(c => ({
+                                feeHead: c.feeHead || null,
+                                name: c.name,
+                                category: c.category || 'other',
+                                amount: c.amount || 0,
+                                isWaived: false
+                            })) : [];
+                            const componentsSum = targetComponents.reduce((s, c) => s + (c.amount || 0), 0);
+                            const feeAmt = (isItemized && componentsSum > 0) ? componentsSum : (targetBatch.course.fees.amount || 0);
+
+                            const existingTargetFee = await Fee.findOne({
+                                student: studentId,
+                                batch: targetBatchId,
+                                deletedAt: null
+                            });
+
+                            if (!existingTargetFee) {
+                                await Fee.create([{
+                                    student: studentId,
+                                    batch: targetBatchId,
+                                    session: targetSessionId,
+                                    institute: scope.instituteId,
+                                    totalAmount: feeAmt,
+                                    components: targetComponents,
+                                    status: 'not_started'
+                                }]);
+                                results.feesCreated++;
+                            } else {
+                                results.feesSkipped++;
+                            }
+                        } catch (classFeeErr) {
+                            console.error(`Failed to create class fee during promotion for student ${studentId}:`, classFeeErr);
+                            results.feesFailed++;
+                        }
                     } else {
                         results.feesSkipped++;
                     }

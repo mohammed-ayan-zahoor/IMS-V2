@@ -890,6 +890,22 @@ export class StudentService {
                 }
             }
 
+            // Itemized fee heads support (Books, Uniform, etc. if class is in ITEMIZED mode)
+            let feeComponents = [];
+            if (!isBundleBatch && customAmount === null && batch.course?.fees?.feeStructureMode === 'ITEMIZED' && Array.isArray(batch.course?.fees?.components) && batch.course.fees.components.length > 0) {
+                feeComponents = batch.course.fees.components.map(c => ({
+                    feeHead: c.feeHead || null,
+                    name: c.name,
+                    category: c.category || 'other',
+                    amount: c.amount || 0,
+                    isWaived: false
+                }));
+                const sumComponents = feeComponents.reduce((s, c) => s + (c.amount || 0), 0);
+                if (sumComponents > 0) {
+                    feeTotalAmount = sumComponents;
+                }
+            }
+
             // Create initial fee record
             const fee = await Fee.create([{
                 student: studentId,
@@ -897,6 +913,7 @@ export class StudentService {
                 session: batch.session,
                 institute: targetInstitute,
                 totalAmount: feeTotalAmount,
+                components: feeComponents,
                 installments: (installments && installments.length > 0) ? installments.map(i => ({
                     amount: parseFloat(i.amount),
                     dueDate: new Date(i.dueDate),
@@ -1017,12 +1034,29 @@ export class StudentService {
             }
         }
 
+        // Itemized fee heads support (Books, Uniform, etc. if class is in ITEMIZED mode)
+        let fallbackComponents = [];
+        if (!isBundleBatch && customAmount === null && batch.course?.fees?.feeStructureMode === 'ITEMIZED' && Array.isArray(batch.course?.fees?.components) && batch.course.fees.components.length > 0) {
+            fallbackComponents = batch.course.fees.components.map(c => ({
+                feeHead: c.feeHead || null,
+                name: c.name,
+                category: c.category || 'other',
+                amount: c.amount || 0,
+                isWaived: false
+            }));
+            const sumComponents = fallbackComponents.reduce((s, c) => s + (c.amount || 0), 0);
+            if (sumComponents > 0) {
+                feeTotalAmount = sumComponents;
+            }
+        }
+
         const fee = await Fee.create({
             student: studentId,
             batch: batchId,
             session: batch.session,
             institute: batch.institute,
             totalAmount: feeTotalAmount,
+            components: fallbackComponents,
             installments: (installments && installments.length > 0) ? installments.map(i => ({
                 amount: parseFloat(i.amount),
                 dueDate: new Date(i.dueDate),

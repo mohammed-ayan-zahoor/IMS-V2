@@ -11,7 +11,6 @@ const CourseSchema = new Schema({
     code: {
         type: String,
         required: true,
-        // unique: true, // Moved to compound index
         uppercase: true,
         match: [/^[A-Z0-9]+$/, 'Course code must be alphanumeric']
     },
@@ -27,7 +26,19 @@ const CourseSchema = new Schema({
             type: String,
             enum: ['INR', 'USD', 'EUR', 'GBP', 'JPY', 'AUD', 'CAD'],
             default: 'INR'
-        }
+        },
+        feeStructureMode: {
+            type: String,
+            enum: ['BUNDLED', 'ITEMIZED'],
+            default: 'BUNDLED'
+        },
+        components: [{
+            feeHead: { type: Schema.Types.ObjectId, ref: 'FeeHead' },
+            name: { type: String, required: true },
+            category: { type: String, default: 'other' },
+            amount: { type: Number, required: true, min: 0 },
+            isOptional: { type: Boolean, default: false }
+        }]
     },
     department: { type: Schema.Types.ObjectId, ref: 'Department', default: null, index: true },
     // Isolated to COLLEGE institutes: defines degree semester count and fee blueprint
@@ -50,7 +61,7 @@ CourseSchema.index(
     { institute: 1, code: 1 },
     { unique: true, partialFilterExpression: { deletedAt: null } }
 ); // Code unique per institute (excluding soft-deleted)
+
 // Delete cached model to prevent stale schema issues during Next.js hot-reloads.
-// Without this, schema changes (like adding 'subjects') are silently ignored.
 delete mongoose.models.Course;
-export default mongoose.model('Course', CourseSchema);
+export default mongoose.models.Course || mongoose.model('Course', CourseSchema);

@@ -66,6 +66,19 @@ export default function CoursesPage() {
     const [selectedInstitute, setSelectedInstitute] = useState("");
     const [liveInstitute, setLiveInstitute] = useState(null);
 
+
+    const fetchFeeHeads = async () => {
+        try {
+            const res = await fetch("/api/v1/fee-heads");
+            if (res.ok) {
+                const data = await res.json();
+                setAvailableFeeHeads(data.feeHeads || []);
+            }
+        } catch (err) {
+            console.error("Failed to fetch fee heads:", err);
+        }
+    };
+
     useEffect(() => {
         fetch("/api/v1/institute")
             .then(res => res.json())
@@ -94,7 +107,7 @@ export default function CoursesPage() {
         description: "",
         department: "",
         duration: { value: "", unit: "months" },
-        fees: { amount: "", currency: "INR" },
+        fees: { amount: "", currency: "INR", feeStructureMode: "BUNDLED", components: [] },
         subjects: [],
         collegeConfig: {
             totalSemesters: 8,
@@ -103,6 +116,7 @@ export default function CoursesPage() {
         }
     });
     const [allSubjects, setAllSubjects] = useState([]);
+    const [availableFeeHeads, setAvailableFeeHeads] = useState([]);
 
     // Bundle state (Vocational only)
     const [bundles, setBundles] = useState([]);
@@ -120,6 +134,7 @@ export default function CoursesPage() {
 
     useEffect(() => {
         fetchCourses();
+        fetchFeeHeads();
         fetchSubjects();
         if (isCollege) {
             fetchDepartments();
@@ -775,6 +790,11 @@ export default function CoursesPage() {
                                                                 <span className="font-bold text-slate-900 font-mono text-sm">
                                                                     ₹{course.fees?.amount?.toLocaleString() || 0}
                                                                 </span>
+                                                                {course.fees?.feeStructureMode === 'ITEMIZED' && (
+                                                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200 mt-0.5">
+                                                                        Itemized ({course.fees?.components?.length || 0} heads)
+                                                                    </span>
+                                                                )}
                                                                 {isCollege && (
                                                                     <span className="text-[10px] text-slate-400 font-medium">
                                                                         {course.collegeConfig?.billingCycle === 'SEMESTER' ? 'per semester' : 'per year'}
@@ -1382,14 +1402,149 @@ export default function CoursesPage() {
                                         />
                                     </div>
                                 </div>
-                                <Input
-                                    id="fees"
-                                    label="Total Fees (₹)"
-                                    type="number"
-                                    placeholder="e.g. 50000"
-                                    value={formData.fees.amount}
-                                    onChange={(e) => setFormData({ ...formData, fees: { ...formData.fees, amount: e.target.value } })}
-                                />
+                                {/* Fee Structure Mode & Inputs */}
+                                <div className="space-y-3 p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-xl">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs font-semibold text-slate-900">
+                                            Fee Structure Mode
+                                        </label>
+                                        <div className="inline-flex p-0.5 bg-slate-200/70 rounded-lg text-xs">
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData(prev => ({ ...prev, fees: { ...prev.fees, feeStructureMode: "BUNDLED" } }))}
+                                                className={cn(
+                                                    "px-3 py-1 rounded-md font-medium transition-all text-xs",
+                                                    (formData.fees?.feeStructureMode || "BUNDLED") === "BUNDLED"
+                                                        ? "bg-white text-slate-900 shadow-sm"
+                                                        : "text-slate-600 hover:text-slate-900"
+                                                )}
+                                            >
+                                                All-Inclusive (Bundled)
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setFormData(prev => {
+                                                    // Auto-initialize components from availableFeeHeads if empty
+                                                    let comps = prev.fees?.components || [];
+                                                    if (comps.length === 0 && availableFeeHeads.length > 0) {
+                                                        comps = availableFeeHeads.map(h => ({
+                                                            feeHead: h._id,
+                                                            name: h.name,
+                                                            category: h.category,
+                                                            amount: ""
+                                                        }));
+                                                    }
+                                                    return { ...prev, fees: { ...prev.fees, feeStructureMode: "ITEMIZED", components: comps } };
+                                                })}
+                                                className={cn(
+                                                    "px-3 py-1 rounded-md font-medium transition-all text-xs",
+                                                    formData.fees?.feeStructureMode === "ITEMIZED"
+                                                        ? "bg-white text-blue-600 shadow-sm"
+                                                        : "text-slate-600 hover:text-slate-900"
+                                                )}
+                                            >
+                                                Itemized (Separate Heads)
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {(formData.fees?.feeStructureMode || "BUNDLED") === "BUNDLED" ? (
+                                        <Input
+                                            id="fees"
+                                            label="Total Class Fee (₹)"
+                                            type="number"
+                                            placeholder="e.g. 50000"
+                                            value={formData.fees.amount}
+                                            onChange={(e) => setFormData({ ...formData, fees: { ...formData.fees, amount: e.target.value } })}
+                                            helperText="Single composite fee covering tuition, materials, and all activities."
+                                        />
+                                    ) : (
+                                        <div className="space-y-3 pt-1">
+                                            <p className="text-[11px] text-slate-500">
+                                                Enter separate fees for Tuition, Books, Uniform, or any custom fee head.
+                                            </p>
+
+                                            <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
+                                                {availableFeeHeads.map((head) => {
+                                                    const existingComp = (formData.fees.components || []).find(c =>
+                                                        (c.feeHead && c.feeHead.toString() === head._id.toString()) ||
+                                                        (c.name && c.name.toLowerCase() === head.name.toLowerCase())
+                                                    );
+                                                    const isChecked = Boolean(existingComp);
+                                                    const currentAmt = existingComp?.amount ?? "";
+
+                                                    return (
+                                                        <div key={head._id} className="flex items-center justify-between gap-3 p-2 bg-white border border-slate-200 rounded-lg">
+                                                            <label className="flex items-center gap-2 text-xs font-medium text-slate-800 cursor-pointer select-none">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isChecked}
+                                                                    onChange={(e) => {
+                                                                        const checked = e.target.checked;
+                                                                        setFormData(prev => {
+                                                                            const comps = prev.fees.components || [];
+                                                                            if (checked) {
+                                                                                return {
+                                                                                    ...prev,
+                                                                                    fees: {
+                                                                                        ...prev.fees,
+                                                                                        components: [...comps, { feeHead: head._id, name: head.name, category: head.category, amount: "" }]
+                                                                                    }
+                                                                                };
+                                                                            } else {
+                                                                                return {
+                                                                                    ...prev,
+                                                                                    fees: {
+                                                                                        ...prev.fees,
+                                                                                        components: comps.filter(c => (c.feeHead?.toString() !== head._id.toString()) && (c.name?.toLowerCase() !== head.name.toLowerCase()))
+                                                                                    }
+                                                                                };
+                                                                            }
+                                                                        });
+                                                                    }}
+                                                                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                                />
+                                                                <span>{head.name}</span>
+                                                                <span className="text-[10px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded uppercase font-mono">{head.category}</span>
+                                                            </label>
+
+                                                            {isChecked && (
+                                                                <div className="w-32">
+                                                                    <Input
+                                                                        type="number"
+                                                                        placeholder="Amount (₹)"
+                                                                        value={currentAmt}
+                                                                        onChange={(e) => {
+                                                                            const val = e.target.value;
+                                                                            setFormData(prev => {
+                                                                                const comps = (prev.fees.components || []).map(c => {
+                                                                                    if ((c.feeHead && c.feeHead.toString() === head._id.toString()) || (c.name?.toLowerCase() === head.name.toLowerCase())) {
+                                                                                        return { ...c, amount: val };
+                                                                                    }
+                                                                                    return c;
+                                                                                });
+                                                                                return { ...prev, fees: { ...prev.fees, components: comps } };
+                                                                            });
+                                                                        }}
+                                                                        className="h-8 text-xs py-1"
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {/* Calculated Total Banner */}
+                                            <div className="flex items-center justify-between p-2.5 bg-blue-50/80 border border-blue-200/60 rounded-lg text-xs">
+                                                <span className="font-semibold text-blue-900">Total Calculated Class Fee:</span>
+                                                <span className="font-mono font-bold text-blue-700 text-sm">
+                                                    ₹{((formData.fees.components || []).reduce((sum, c) => sum + (parseFloat(c.amount) || 0), 0)).toLocaleString()}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}

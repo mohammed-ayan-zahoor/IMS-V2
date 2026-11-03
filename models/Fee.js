@@ -92,7 +92,15 @@ const FeeSchema = new Schema({
         type: { type: String, enum: ['flat', 'daily'], default: 'flat' },
         amount: { type: Number, default: 0 },
         offsetDays: { type: Number, default: 0 }
-    }
+    },
+    components: [{
+        feeHead: { type: Schema.Types.ObjectId, ref: 'FeeHead' },
+        name: { type: String, required: true },
+        category: { type: String, default: 'other' },
+        amount: { type: Number, required: true, min: 0 },
+        isWaived: { type: Boolean, default: false },
+        waivedReason: String
+    }]
 }, { timestamps: true });
 
 // Compound index: Unique only if feePreset is defined (allows custom/carry-forward fees alongside preset fees)

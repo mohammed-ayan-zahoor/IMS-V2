@@ -15,6 +15,8 @@ import {
     Trash2,
     XCircle,
     Settings,
+    Tag,
+    Layers,
     MessageCircle
 } from "lucide-react";
 import Link from "next/link";
@@ -45,6 +47,23 @@ export default function FeesPage() {
     const [search, setSearch] = useState("");
     const [selectedFee, setSelectedFee] = useState(null); // For detail/payment view
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+    const [selectedBreakdownFee, setSelectedBreakdownFee] = useState(null);
+    const [isManageHeadsModalOpen, setIsManageHeadsModalOpen] = useState(false);
+    const [feeHeadsList, setFeeHeadsList] = useState([]);
+    const [batchStudentsList, setBatchStudentsList] = useState([]);
+    const [loadingBatchStudents, setLoadingBatchStudents] = useState(false);
+    const [isSubmittingManageHeads, setIsSubmittingManageHeads] = useState(false);
+    const [manageHeadsData, setManageHeadsData] = useState({
+        batchId: "",
+        feeHeadId: "",
+        customName: "",
+        amount: "",
+        category: "other",
+        action: "apply",
+        target: "all",
+        studentIds: [],
+        reason: ""
+    });
 
     const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
     const [showOverdueOnly, setShowOverdueOnly] = useState(false);
@@ -96,6 +115,7 @@ export default function FeesPage() {
             fetchStats();
         }
         fetchCourses();
+        fetchFeeHeadsList();
         if (isVocational) {
             fetchCourseBundles();
         }
@@ -120,6 +140,113 @@ export default function FeesPage() {
             setCurrentPage(1);
         }
     }, [selectedCourse, selectedBatch, percentageFilter, showCancelledOnly, showDiscountedOnly]);
+
+    const fetchFeeHeadsList = async () => {
+        try {
+            const res = await fetch("/api/v1/fee-heads");
+            if (res.ok) {
+                const data = await res.json();
+                setFeeHeadsList(data.feeHeads || []);
+            }
+        } catch (e) {
+            console.error("Failed to load fee heads:", e);
+        }
+    };
+
+    const fetchStudentsForBatch = async (batchId) => {
+        if (!batchId) {
+            setBatchStudentsList([]);
+            return;
+        }
+        setLoadingBatchStudents(true);
+        try {
+            const res = await fetch(`/api/v1/batches/${batchId}`);
+            if (res.ok) {
+                const data = await res.json();
+                const enrolled = (data.enrolledStudents || [])
+                    .filter(e => e.status === "active" && e.student)
+                    .map(e => ({
+                        _id: e.student._id || e.student,
+                        name: `${e.student.profile?.firstName || ''} ${e.student.profile?.lastName || ''}`.trim() || e.student.email || 'Student',
+                        enrollmentNumber: e.student.enrollmentNumber || ''
+                    }));
+                setBatchStudentsList(enrolled);
+            }
+        } catch (e) {
+            console.error("Failed to fetch students for batch:", e);
+        } finally {
+            setLoadingBatchStudents(false);
+        }
+    };
+
+    const handleBulkAssignSubmit = async (e) => {
+        e.preventDefault();
+        if (!manageHeadsData.batchId) {
+            toast.error("Please select a class / section");
+            return;
+        }
+
+        const selectedHead = feeHeadsList.find(h => h._id === manageHeadsData.feeHeadId);
+        const nameToUse = selectedHead ? selectedHead.name : manageHeadsData.customName;
+        if (!nameToUse) {
+            toast.error("Please select or enter a fee head name");
+            return;
+        }
+
+        if (manageHeadsData.action === "apply" && (!manageHeadsData.amount || parseFloat(manageHeadsData.amount) <= 0)) {
+            toast.error("Please enter a valid amount");
+            return;
+        }
+
+        if (manageHeadsData.target === "selected" && manageHeadsData.studentIds.length === 0) {
+            toast.error("Please select at least one student");
+            return;
+        }
+
+        setIsSubmittingManageHeads(true);
+        try {
+            const res = await fetch("/api/v1/fees/bulk-assign-components", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    batchId: manageHeadsData.batchId,
+                    feeHeadId: manageHeadsData.feeHeadId || undefined,
+                    name: nameToUse,
+                    category: selectedHead?.category || manageHeadsData.category,
+                    amount: parseFloat(manageHeadsData.amount) || 0,
+                    action: manageHeadsData.action,
+                    target: manageHeadsData.target,
+                    studentIds: manageHeadsData.studentIds,
+                    reason: manageHeadsData.reason
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok) {
+                toast.success(data.message || "Fee head assigned successfully");
+                setIsManageHeadsModalOpen(false);
+                setManageHeadsData({
+                    batchId: "",
+                    feeHeadId: "",
+                    customName: "",
+                    amount: "",
+                    category: "other",
+                    action: "apply",
+                    target: "all",
+                    studentIds: [],
+                    reason: ""
+                });
+                fetchFees();
+            } else {
+                toast.error(data.error || "Failed to update fee components");
+            }
+        } catch (err) {
+            console.error(err);
+            toast.error("Failed to update fee components");
+        } finally {
+            setIsSubmittingManageHeads(false);
+        }
+    };
 
     const fetchCourses = async () => {
         try {
@@ -454,6 +581,15 @@ export default function FeesPage() {
                         <DollarSign size={14} className="text-emerald-600" />
                         <span>Export Excel</span>
                     </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsManageHeadsModalOpen(true)}
+                        className="flex items-center gap-2 border-slate-200 text-slate-700 hover:bg-slate-50"
+                    >
+                        <Layers size={14} className="text-blue-600" />
+                        <span>Manage Fee Heads</span>
+                    </Button>
                     <Link href="/admin/fees/presets">
                         <Button
                             variant="primary"
@@ -679,7 +815,16 @@ export default function FeesPage() {
                                                         </span>
                                                     </td>
                                                     <td className="px-6 py-4 text-right text-sm font-semibold text-slate-700 font-mono">
-                                                        ₹{fee.totalAmount?.toLocaleString()}
+                                                        <div>₹{fee.totalAmount?.toLocaleString()}</div>
+                                                        {fee.components && fee.components.length > 0 && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setSelectedBreakdownFee(fee)}
+                                                                className="inline-flex items-center gap-0.5 text-[10px] text-blue-600 hover:text-blue-800 underline font-sans mt-0.5 font-normal cursor-pointer"
+                                                            >
+                                                                <span>{fee.components.filter(c => !c.isWaived).length} heads</span>
+                                                            </button>
+                                                        )}
                                                     </td>
                                                     <td className="px-6 py-4 text-right text-sm font-semibold text-rose-600 font-mono">
                                                          ₹{fee.discount?.amount?.toLocaleString() || 0}
@@ -838,6 +983,234 @@ export default function FeesPage() {
                     })()}
                 </div>
             </div>
+
+{/* Fee Heads Breakdown Modal */}
+            <Modal
+                isOpen={Boolean(selectedBreakdownFee)}
+                onClose={() => setSelectedBreakdownFee(null)}
+                title="Fee Components Breakdown"
+            >
+                {selectedBreakdownFee && (
+                    <div className="space-y-4">
+                        <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex justify-between items-center text-xs">
+                            <div>
+                                <div className="font-bold text-slate-800">
+                                    {selectedBreakdownFee.student?.profile?.firstName} {selectedBreakdownFee.student?.profile?.lastName}
+                                </div>
+                                <div className="text-slate-500 font-mono text-[11px]">
+                                    {selectedBreakdownFee.batch?.name || selectedBreakdownFee.student?.enrollmentNumber}
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                <div className="text-[10px] uppercase font-bold text-slate-400">Total Fee</div>
+                                <div className="text-base font-bold text-slate-900 font-mono">
+                                    ₹{selectedBreakdownFee.totalAmount?.toLocaleString()}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100 max-h-60 overflow-y-auto">
+                            {(selectedBreakdownFee.components || []).map((comp, idx) => (
+                                <div key={idx} className={`p-3 flex items-center justify-between text-xs ${comp.isWaived ? 'bg-slate-50 opacity-60' : 'bg-white'}`}>
+                                    <div>
+                                        <div className={`font-semibold text-slate-800 ${comp.isWaived ? 'line-through' : ''}`}>
+                                            {comp.name}
+                                        </div>
+                                        <div className="flex items-center gap-1.5 mt-0.5">
+                                            <span className="text-[9px] px-1.5 py-0.5 bg-slate-100 text-slate-600 rounded uppercase font-mono">
+                                                {comp.category || 'other'}
+                                            </span>
+                                            {comp.isWaived && (
+                                                <span className="text-[10px] text-rose-600 font-medium">
+                                                    (Waived: {comp.waivedReason || 'Opted out'})
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className={`font-bold font-mono text-slate-800 ${comp.isWaived ? 'line-through' : ''}`}>
+                                        ₹{(comp.amount || 0).toLocaleString()}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        <div className="flex justify-end pt-2">
+                            <Button variant="outline" size="sm" onClick={() => setSelectedBreakdownFee(null)}>
+                                Close
+                            </Button>
+                        </div>
+                    </div>
+                )}
+            </Modal>
+
+            {/* Manage Fee Heads Modal (Apply to Whole Class or Certain Members) */}
+            <Modal
+                isOpen={isManageHeadsModalOpen}
+                onClose={() => setIsManageHeadsModalOpen(false)}
+                title="Manage Section Fee Heads"
+                className="max-w-xl"
+            >
+                <form onSubmit={handleBulkAssignSubmit} className="space-y-4">
+                    <p className="text-xs text-slate-500">
+                        Add or remove specific fee components (such as Books, Uniforms, or Kits) for an entire section or selective students.
+                    </p>
+
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-700">Select Section / Class Batch</label>
+                        <Select
+                            value={manageHeadsData.batchId}
+                            onChange={(val) => {
+                                setManageHeadsData(prev => ({ ...prev, batchId: val, studentIds: [] }));
+                                fetchStudentsForBatch(val);
+                            }}
+                            options={[
+                                { label: "-- Select Section / Batch --", value: "" },
+                                ...batches.map(b => ({ label: b.name, value: b._id }))
+                            ]}
+                        />
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-slate-700">Fee Head</label>
+                            <Select
+                                value={manageHeadsData.feeHeadId}
+                                onChange={(val) => {
+                                    const head = feeHeadsList.find(h => h._id === val);
+                                    setManageHeadsData(prev => ({
+                                        ...prev,
+                                        feeHeadId: val,
+                                        customName: head ? head.name : "",
+                                        category: head ? head.category : "other"
+                                    }));
+                                }}
+                                options={[
+                                    { label: "-- Choose Fee Head --", value: "" },
+                                    ...feeHeadsList.map(h => ({ label: `${h.name} (${h.category})`, value: h._id }))
+                                ]}
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-slate-700">Action</label>
+                            <Select
+                                value={manageHeadsData.action}
+                                onChange={(val) => setManageHeadsData(prev => ({ ...prev, action: val }))}
+                                options={[
+                                    { label: "Apply / Charge Fee", value: "apply" },
+                                    { label: "Remove / Waive Fee", value: "remove" }
+                                ]}
+                            />
+                        </div>
+                    </div>
+
+                    {manageHeadsData.action === "apply" && (
+                        <Input
+                            id="headAmount"
+                            label="Component Amount (₹)"
+                            type="number"
+                            placeholder="e.g. 3000"
+                            value={manageHeadsData.amount}
+                            onChange={(e) => setManageHeadsData(prev => ({ ...prev, amount: e.target.value }))}
+                        />
+                    )}
+
+                    <div className="space-y-1.5">
+                        <label className="text-xs font-semibold text-slate-700">Apply To</label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setManageHeadsData(prev => ({ ...prev, target: "all" }))}
+                                className={`p-2.5 rounded-lg border text-xs font-medium text-center transition-all ${manageHeadsData.target === 'all' ? 'border-blue-600 bg-blue-50/50 text-blue-700 font-semibold' : 'border-slate-200 text-slate-600'}`}
+                            >
+                                Entire Section (All Students)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setManageHeadsData(prev => ({ ...prev, target: "selected" }))}
+                                className={`p-2.5 rounded-lg border text-xs font-medium text-center transition-all ${manageHeadsData.target === 'selected' ? 'border-blue-600 bg-blue-50/50 text-blue-700 font-semibold' : 'border-slate-200 text-slate-600'}`}
+                            >
+                                Selected Students Only
+                            </button>
+                        </div>
+                    </div>
+
+                    {manageHeadsData.target === "selected" && (
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center text-xs">
+                                <span className="font-semibold text-slate-700">Select Students ({manageHeadsData.studentIds.length} selected):</span>
+                                <div className="flex gap-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => setManageHeadsData(prev => ({ ...prev, studentIds: batchStudentsList.map(s => s._id) }))}
+                                        className="text-blue-600 hover:underline text-[11px]"
+                                    >
+                                        Select All
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setManageHeadsData(prev => ({ ...prev, studentIds: [] }))}
+                                        className="text-slate-500 hover:underline text-[11px]"
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                            </div>
+
+                            {loadingBatchStudents ? (
+                                <div className="text-center py-4 text-xs text-slate-400">Loading section students...</div>
+                            ) : batchStudentsList.length === 0 ? (
+                                <div className="text-center py-4 text-xs text-slate-400 border border-dashed rounded-lg">
+                                    No students found. Please select a valid section.
+                                </div>
+                            ) : (
+                                <div className="max-h-48 overflow-y-auto border border-slate-200 rounded-lg p-2 divide-y divide-slate-100 bg-slate-50/40">
+                                    {batchStudentsList.map(s => {
+                                        const isChecked = manageHeadsData.studentIds.includes(s._id);
+                                        return (
+                                            <label key={s._id} className="flex items-center gap-2.5 py-1.5 px-2 hover:bg-slate-100/70 rounded cursor-pointer text-xs">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={isChecked}
+                                                    onChange={(e) => {
+                                                        const checked = e.target.checked;
+                                                        setManageHeadsData(prev => ({
+                                                            ...prev,
+                                                            studentIds: checked
+                                                                ? [...prev.studentIds, s._id]
+                                                                : prev.studentIds.filter(id => id !== s._id)
+                                                        }));
+                                                    }}
+                                                    className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                                />
+                                                <span className="font-medium text-slate-800">{s.name}</span>
+                                                <span className="text-[10px] text-slate-400 font-mono ml-auto">{s.enrollmentNumber}</span>
+                                            </label>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <Input
+                        id="headReason"
+                        label="Reason / Audit Note (Optional)"
+                        placeholder="e.g. Sibling uniform reuse, Opted out of textbook pack"
+                        value={manageHeadsData.reason}
+                        onChange={(e) => setManageHeadsData(prev => ({ ...prev, reason: e.target.value }))}
+                    />
+
+                    <div className="flex gap-2 pt-2 border-t border-slate-100">
+                        <Button type="button" variant="outline" className="flex-1" onClick={() => setIsManageHeadsModalOpen(false)}>
+                            Cancel
+                        </Button>
+                        <Button type="submit" disabled={isSubmittingManageHeads} className="flex-1 bg-premium-blue text-white">
+                            {isSubmittingManageHeads ? "Updating..." : manageHeadsData.action === "apply" ? "Apply Fee Head" : "Remove Fee Head"}
+                        </Button>
+                    </div>
+                </form>
+            </Modal>
 
             <Modal
                 isOpen={isPaymentModalOpen}

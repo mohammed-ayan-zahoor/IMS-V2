@@ -370,6 +370,42 @@ export default function StudentFeesPage() {
                                 </div>
                             </div>
 
+                            {/* Itemized Fee Components (if present) */}
+                            {fee.components && fee.components.length > 0 && (
+                                <div className="px-5 sm:px-6 py-4 bg-[#FBFBFE] border-b border-[#E9E8F0]">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#8D8A9B]">
+                                            Included Fee Heads & Components
+                                        </h3>
+                                        <span className="text-[11px] font-semibold text-[#6E5AE0]">
+                                            {fee.components.filter(c => !c.isWaived).length} Active Components
+                                        </span>
+                                    </div>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                                        {fee.components.map((comp, idx) => (
+                                            <div
+                                                key={idx}
+                                                className={`p-3 rounded-xl border text-xs flex justify-between items-center ${comp.isWaived ? 'bg-slate-50 border-slate-200/60 opacity-60' : 'bg-white border-[#E9E8F0] shadow-sm'}`}
+                                            >
+                                                <div>
+                                                    <span className={`font-semibold text-[#1E1B2E] ${comp.isWaived ? 'line-through text-slate-400' : ''}`}>
+                                                        {comp.name}
+                                                    </span>
+                                                    {comp.isWaived && (
+                                                        <span className="block text-[10px] text-rose-500 font-medium mt-0.5">
+                                                            Waived / Opted out
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <span className={`font-bold font-mono text-[#1E1B2E] ${comp.isWaived ? 'line-through text-slate-400' : ''}`}>
+                                                    ₹{(comp.amount || 0).toLocaleString()}
+                                                </span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Installment Plan Matrix (Dual Responsive View) */}
                             <div className="p-5 sm:p-6">
                                 <div className="flex items-center justify-between mb-4">

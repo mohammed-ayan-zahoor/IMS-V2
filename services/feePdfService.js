@@ -506,9 +506,14 @@ export function generateExecutiveReceiptHtml(fee, logoBase64 = null) {
                 <div class="bottom-right-col">
                     <table class="totals-table">
                         <tr>
-                            <td class="t-label">Approved Course Tuition:</td>
+                            <td class="t-label">Approved Fee Schedule:</td>
                             <td class="t-val">₹${(fee.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                         </tr>
+                        ${(fee.components && fee.components.length > 0) ? fee.components.map(c => `
+                        <tr>
+                            <td class="t-label" style="font-size: 10px; color: #64748B; padding-left: 8px; ${c.isWaived ? 'text-decoration: line-through; opacity: 0.6;' : ''}">• ${c.name} ${c.isWaived ? '(Waived)' : ''}:</td>
+                            <td class="t-val" style="font-size: 10px; color: #64748B; ${c.isWaived ? 'text-decoration: line-through;' : ''}">₹${(c.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>`).join('') : ''}
                         ${fee.discount?.amount > 0 ? `
                         <tr>
                             <td class="t-label" style="color: #DC2626;">Less: Institutional Concession:</td>
