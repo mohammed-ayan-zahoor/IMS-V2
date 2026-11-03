@@ -12,6 +12,7 @@ class AssignmentsProvider extends ChangeNotifier {
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  String? get lastSubmitError => _repository.lastError;
   List<AssignmentModel> get assignments => _assignments;
   Map<String, AssignmentSubmissionModel?> get submissions => _submissions;
 

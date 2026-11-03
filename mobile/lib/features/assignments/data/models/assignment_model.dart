@@ -30,20 +30,23 @@ class AssignmentModel {
   factory AssignmentModel.fromJson(Map<String, dynamic> json) {
     final fileObj = json['file'] is Map ? (json['file'] as Map) : {};
     final courseObj = json['course'] is Map ? (json['course'] as Map) : {};
+    final cat = json['category']?.toString() ?? 'assignment';
 
     return AssignmentModel(
-      id: json['_id'] ?? json['id'] ?? '',
-      title: json['title'] ?? 'Assignment',
-      description: json['description'] ?? '',
-      category: json['category'] ?? 'assignment',
-      allowSubmissions: json['allowSubmissions'] == true,
-      dueDate: json['dueDate'] != null ? DateTime.parse(json['dueDate']) : null,
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Assignment',
+      description: json['description']?.toString() ?? '',
+      category: cat,
+      allowSubmissions: json['allowSubmissions'] == true || cat.toLowerCase() == 'assignment',
+      dueDate: json['dueDate'] != null ? DateTime.tryParse(json['dueDate'].toString()) : null,
       totalMarks: json['totalMarks'] is num ? (json['totalMarks'] as num).toInt() : null,
-      fileUrl: fileObj['url'],
-      fileName: fileObj['originalName'],
+      fileUrl: fileObj['url']?.toString(),
+      fileName: fileObj['originalName']?.toString(),
       fileSize: fileObj['size'] is num ? (fileObj['size'] as num).toInt() : null,
-      courseName: courseObj['name'] ?? 'General',
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      courseName: courseObj['name']?.toString() ?? 'General',
+      createdAt: json['createdAt'] != null
+          ? (DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now())
+          : DateTime.now(),
     );
   }
 }
@@ -91,17 +94,21 @@ class AssignmentSubmissionModel {
     }
 
     return AssignmentSubmissionModel(
-      id: json['_id'] ?? json['id'] ?? '',
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
       assignmentId: json['assignment']?.toString() ?? '',
-      fileUrl: fileObj['url'] ?? '',
-      fileName: fileObj['originalName'] ?? 'submitted_file.pdf',
+      fileUrl: fileObj['url']?.toString() ?? '',
+      fileName: fileObj['originalName']?.toString() ?? 'submitted_file.pdf',
       fileSize: fileObj['size'] is num ? (fileObj['size'] as num).toInt() : 0,
-      status: json['status'] ?? 'pending',
+      status: json['status']?.toString() ?? 'pending',
       score: json['score'] is num ? (json['score'] as num).toInt() : null,
-      feedback: json['feedback'],
+      feedback: json['feedback']?.toString(),
       gradedByName: gName,
-      submittedAt: json['submittedAt'] != null ? DateTime.parse(json['submittedAt']) : DateTime.now(),
-      gradedAt: json['gradedAt'] != null ? DateTime.parse(json['gradedAt']) : null,
+      submittedAt: json['submittedAt'] != null
+          ? (DateTime.tryParse(json['submittedAt'].toString()) ?? DateTime.now())
+          : DateTime.now(),
+      gradedAt: json['gradedAt'] != null
+          ? DateTime.tryParse(json['gradedAt'].toString())
+          : null,
     );
   }
 }

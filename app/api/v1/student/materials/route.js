@@ -17,7 +17,7 @@ export async function GET(req) {
         await connectDB();
         const { searchParams } = new URL(req.url);
         const type = searchParams.get("type"); // Optional filter by type
-        const querySessionId = searchParams.get("sessionId");
+        const querySessionId = searchParams.get("sessionId") || req.headers.get("x-session-id");
 
         let activeSession = null;
         if (querySessionId && session.user.institute?.id) {
@@ -60,11 +60,17 @@ export async function GET(req) {
             deletedAt: null
         };
         if (activeSession) {
-            batchQuery.session = activeSession._id;
+            batchQuery.session = { $in: [activeSession._id, null] };
         }
 
         // 1. Find Student's Batches & Courses
-        const studentBatches = await Batch.find(batchQuery).select("course courseBundle _id").lean();
+        let studentBatches = await Batch.find(batchQuery).select("course courseBundle _id").lean();
+
+        // Fallback: If no batches match this specific session, find all active batches for this student
+        if (studentBatches.length === 0 && activeSession) {
+            delete batchQuery.session;
+            studentBatches = await Batch.find(batchQuery).select("course courseBundle _id").lean();
+        }
 
         const enrolledCourseIds = studentBatches.map(b => b.course).filter(Boolean);
         const enrolledBundleIds = studentBatches.map(b => b.courseBundle).filter(Boolean);

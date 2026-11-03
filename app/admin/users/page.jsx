@@ -491,7 +491,7 @@ export default function UserManagementPage() {
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex flex-col gap-1 items-start">
-                                                <RoleBadge role={user.role} />
+                                                <RoleBadge role={user.role} isSuperAdminAssigned={user.isSuperAdminAssigned} />
                                                 {user.department && (
                                                     <span className="text-[10px] bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider border border-blue-200">
                                                         {typeof user.department === 'object' ? user.department.name : 'Dept'}
@@ -541,30 +541,39 @@ export default function UserManagementPage() {
                                                     <Camera size={14} className={cn("mr-1.5", user.faceEnrolledAt ? "text-emerald-600" : "text-slate-400")} />
                                                     {user.faceEnrolledAt ? "Face Enrolled" : "Enroll Face"}
                                                 </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="secondary"
-                                                    onClick={() => openPasswordModal(user)}
-                                                    className="bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 shadow-sm px-4 font-medium"
-                                                >
-                                                    <Lock size={14} className="mr-2 text-slate-400" /> Password
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="secondary"
-                                                    onClick={() => openEditModal(user)}
-                                                    className="bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 shadow-sm px-4 font-medium"
-                                                >
-                                                    <UserCog size={14} className="mr-2 text-slate-400" /> Edit
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    disabled={user.role === 'super_admin'}
-                                                    onClick={() => handleDeleteUser(user._id)}
-                                                    className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 shadow-sm px-4 font-medium"
-                                                >
-                                                    <Trash2 size={14} className="mr-2" /> Delete
-                                                </Button>
+                                                {user.isSuperAdminAssigned || user.role === 'super_admin' ? (
+                                                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 shadow-xs" title="This user is managed via the Super Admin panel and cannot be modified or deleted by institute administrators">
+                                                        <Shield size={13} className="text-amber-600" /> Super Admin Access
+                                                    </span>
+                                                ) : (
+                                                    <>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            onClick={() => openPasswordModal(user)}
+                                                            className="bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 shadow-sm px-4 font-medium"
+                                                        >
+                                                            <Lock size={14} className="mr-2 text-slate-400" /> Password
+                                                        </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="secondary"
+                                                            onClick={() => openEditModal(user)}
+                                                            className="bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 shadow-sm px-4 font-medium"
+                                                        >
+                                                            <UserCog size={14} className="mr-2 text-slate-400" /> Edit
+                                                        </Button>
+                                                        {user.canDelete !== false && session?.user?.id !== user._id && (
+                                                            <Button
+                                                                size="sm"
+                                                                onClick={() => handleDeleteUser(user._id)}
+                                                                className="bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 shadow-sm px-4 font-medium"
+                                                            >
+                                                                <Trash2 size={14} className="mr-2" /> Delete
+                                                            </Button>
+                                                        )}
+                                                    </>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
@@ -836,8 +845,9 @@ export default function UserManagementPage() {
     );
 }
 
-function RoleBadge({ role }) {
-    if (role === 'admin' || role === 'super_admin') return <Badge variant="primary" className="bg-purple-100 text-purple-700 border-purple-200"><Shield size={10} className="mr-1" /> Admin</Badge>;
+function RoleBadge({ role, isSuperAdminAssigned }) {
+    if (role === 'super_admin') return <Badge variant="primary" className="bg-indigo-100 text-indigo-700 border-indigo-200"><Shield size={10} className="mr-1" /> Super Admin</Badge>;
+    if (role === 'admin') return <Badge variant="primary" className="bg-purple-100 text-purple-700 border-purple-200"><Shield size={10} className="mr-1" /> {isSuperAdminAssigned ? 'Master Admin' : 'Admin'}</Badge>;
     if (role === 'instructor') return <Badge variant="warning" className="bg-orange-100 text-orange-700 border-orange-200"><UserCog size={10} className="mr-1" /> Instructor</Badge>;
     if (role === 'staff') return <Badge variant="warning" className="bg-blue-100 text-blue-700 border-blue-200"><UserCog size={10} className="mr-1" /> Staff</Badge>;
     return <Badge variant="neutral" className="bg-slate-100 text-slate-600 border-slate-200"><User size={10} className="mr-1" /> Student</Badge>;

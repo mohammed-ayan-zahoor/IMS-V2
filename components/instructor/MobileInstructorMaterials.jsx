@@ -9,10 +9,12 @@ import Input from "@/components/ui/Input";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import { useToast } from "@/contexts/ToastContext";
+import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 
 export default function MobileInstructorMaterials() {
     const toast = useToast();
     const { data: session } = useSession();
+    const { selectedSessionId } = useAcademicSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
 
@@ -37,9 +39,17 @@ export default function MobileInstructorMaterials() {
 
     const fetchInitialData = useCallback(async () => {
         try {
+            const batchParams = new URLSearchParams();
+            if (isSchool && selectedSessionId && selectedSessionId !== 'all') {
+                batchParams.set('sessionId', selectedSessionId);
+            }
+            const batchQuery = batchParams.toString() ? `?${batchParams.toString()}` : '';
+
             const fetches = [
                 fetch("/api/v1/courses"),
-                fetch("/api/v1/batches")
+                fetch(`/api/v1/batches${batchQuery}`, {
+                    headers: selectedSessionId && selectedSessionId !== 'all' ? { 'x-session-id': selectedSessionId } : {}
+                })
             ];
             if (isVocational) {
                 fetches.push(fetch("/api/v1/course-bundles"));
@@ -56,7 +66,7 @@ export default function MobileInstructorMaterials() {
         } catch (e) {
             console.error("Failed to fetch courses/batches", e);
         }
-    }, [isVocational]);
+    }, [isVocational, isSchool, selectedSessionId]);
 
     const fetchMaterials = useCallback(async () => {
         try {
@@ -152,6 +162,11 @@ export default function MobileInstructorMaterials() {
     });
 
     const filteredBatches = batches.filter(b => {
+        const batchSessionStr = String(b.session?._id || b.session || '');
+        const currentSessionStr = String(selectedSessionId || '');
+        const matchesSession = !isSchool || !selectedSessionId || selectedSessionId === 'all' || !batchSessionStr || batchSessionStr === currentSessionStr;
+        if (!matchesSession) return false;
+
         if (formData.courses.length === 0) return false;
         const bCourseId = typeof b.course === 'object' ? b.course?._id : b.course;
         const bBundleId = typeof b.courseBundle === 'object' ? b.courseBundle?._id : b.courseBundle;
@@ -289,6 +304,11 @@ export default function MobileInstructorMaterials() {
                         onChange={(val) => {
                             const selectedCourseId = val;
                             const validBatches = batches.filter(b => {
+                                const batchSessionStr = String(b.session?._id || b.session || '');
+                                const currentSessionStr = String(selectedSessionId || '');
+                                const matchesSession = !isSchool || !selectedSessionId || selectedSessionId === 'all' || !batchSessionStr || batchSessionStr === currentSessionStr;
+                                if (!matchesSession) return false;
+
                                 const bCourseId = typeof b.course === 'object' ? b.course?._id : b.course;
                                 const bBundleId = typeof b.courseBundle === 'object' ? b.courseBundle?._id : b.courseBundle;
                                 return String(bCourseId) === String(selectedCourseId) || String(bBundleId) === String(selectedCourseId);

@@ -84,13 +84,29 @@ export async function GET(req) {
             .select("-passwordHash")
             .sort({ createdAt: -1 });
 
+        // Determine multi-institute and super-admin permissions for these users
+        const userIds = users.map(u => u._id);
+        const allActiveMemberships = await Membership.find({
+            user: { $in: userIds },
+            isActive: true
+        }).select('user institute isMasterAdmin role').lean();
+
         // Map users and attach roles from membership records
         let usersWithRoles = users.map(u => {
             const userObj = u.toObject();
             const memberRecord = memberships.find(m => m.user && m.user.toString() === u._id.toString());
+            const userMemberships = allActiveMemberships.filter(m => m.user && m.user.toString() === u._id.toString());
+            const isSuperAdminAssigned = Boolean(
+                u.role === 'super_admin' ||
+                memberRecord?.isMasterAdmin ||
+                userMemberships.some(m => m.isMasterAdmin) ||
+                userMemberships.length > 1
+            );
             return {
                 ...userObj,
-                instituteRole: memberRecord?.role || u.role
+                instituteRole: memberRecord?.role || u.role,
+                isSuperAdminAssigned,
+                canDelete: scope.isSuperAdmin || (!isSuperAdminAssigned && u.role !== 'super_admin')
             };
         });
 

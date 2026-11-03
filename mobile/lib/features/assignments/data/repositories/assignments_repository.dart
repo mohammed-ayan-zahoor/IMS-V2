@@ -4,16 +4,28 @@ import 'package:student_app/features/assignments/data/models/assignment_model.da
 
 class AssignmentsRepository {
   final ApiClient _apiClient = ApiClient();
+  String? _lastError;
+  String? get lastError => _lastError;
 
   Future<List<AssignmentModel>> fetchAssignments() async {
     try {
       final response = await _apiClient.get(ApiEndpoints.materials);
       if (response.statusCode == 200 && response.data != null && response.data['materials'] is List) {
         final List rawList = response.data['materials'];
-        return rawList
-            .map((item) => AssignmentModel.fromJson(item))
-            .where((a) => a.category.toLowerCase() == 'assignment' || a.allowSubmissions)
-            .toList();
+        final List<AssignmentModel> list = [];
+        for (final item in rawList) {
+          if (item is Map) {
+            try {
+              final model = AssignmentModel.fromJson(Map<String, dynamic>.from(item));
+              if (model.category.toLowerCase() == 'assignment' || model.allowSubmissions) {
+                list.add(model);
+              }
+            } catch (err) {
+              print('Assignment parse error for single item: $err');
+            }
+          }
+        }
+        return list;
       }
     } catch (e) {
       print('AssignmentsRepository fetchAssignments error: $e');
@@ -40,6 +52,7 @@ class AssignmentsRepository {
     required String fileName,
     int fileSize = 1500000,
   }) async {
+    _lastError = null;
     try {
       final url = '/assignments/$assignmentId/submit';
       final response = await _apiClient.post(
@@ -55,8 +68,11 @@ class AssignmentsRepository {
       );
       if ((response.statusCode == 200 || response.statusCode == 201) && response.data != null) {
         return response.data['success'] == true || response.data['submission'] != null;
+      } else {
+        _lastError = response.data is Map ? response.data['error']?.toString() : 'Server error ${response.statusCode}';
       }
     } catch (e) {
+      _lastError = e.toString();
       print('AssignmentsRepository submitAssignment error: $e');
     }
     return false;

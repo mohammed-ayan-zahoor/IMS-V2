@@ -17,6 +17,7 @@ import 'package:student_app/features/notifications/presentation/screens/notifica
 import 'package:provider/provider.dart';
 import 'package:student_app/features/notifications/presentation/providers/notifications_provider.dart';
 import 'package:student_app/features/instructor/leaves/presentation/screens/instructor_leaves_screen.dart';
+import 'package:student_app/features/assignments/presentation/screens/assignments_screen.dart';
 import 'package:student_app/main.dart';
 
 @pragma('vm:entry-point')
@@ -223,6 +224,9 @@ class NotificationService {
       case 'gate_pass':
       case 'out_pass':
         navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const InstructorLeavesScreen()));
+        break;
+      case 'assignment':
+        navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const AssignmentsScreen()));
         break;
       case 'notice':
         navigatorKey.currentState?.push(MaterialPageRoute(builder: (_) => const NoticesScreen()));

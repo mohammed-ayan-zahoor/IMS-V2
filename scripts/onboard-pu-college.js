@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
+const bcrypt = require('bcryptjs');
 require('dotenv').config({ path: '.env.local' });
 
 // ============================================================================
@@ -16,35 +17,35 @@ const STRUCTURE_BLUEPRINT = {
     // Academic hierarchy:
     // Level 1: Years (1st PUC / 1st Year, 2nd PUC / 2nd Year)
     // Level 2: Stream Combinations (EBACS, EBAS, PCMB, PCMCS)
-    // Level 3: Sections under each combination (M1-M4 for Commerce, S1 A - S1 B for Science)
+    // Level 3: Sections under each combination (C1-C3 for Commerce, J1-J2 for Science)
     classes: [
         // --- 1st Year (I PUC) ---
         {
             name: "I PUC EBACS",
             code: "1EBACS",
             departmentCode: "COMMERCE",
-            sections: ["M1", "M2", "M3", "M4"],
+            sections: ["C1", "C2", "C3"],
             description: "Economics, Business Studies, Accountancy, Computer Science (1st Year)"
         },
         {
             name: "I PUC EBAS",
             code: "1EBAS",
             departmentCode: "COMMERCE",
-            sections: ["M1", "M2", "M3", "M4"],
+            sections: ["C3"],
             description: "Economics, Business Studies, Accountancy, Statistics (1st Year)"
         },
         {
             name: "I PUC PCMB",
             code: "1PCMB",
             departmentCode: "SCIENCE",
-            sections: ["S1 A", "S1 B"],
+            sections: ["J1", "J2"],
             description: "Physics, Chemistry, Mathematics, Biology (1st Year)"
         },
         {
             name: "I PUC PCMCS",
             code: "1PCMCS",
             departmentCode: "SCIENCE",
-            sections: ["S1 A", "S1 B"],
+            sections: ["J1", "J2"],
             description: "Physics, Chemistry, Mathematics, Computer Science (1st Year)"
         },
 
@@ -53,28 +54,28 @@ const STRUCTURE_BLUEPRINT = {
             name: "II PUC EBACS",
             code: "2EBACS",
             departmentCode: "COMMERCE",
-            sections: ["M1", "M2", "M3", "M4"],
+            sections: ["C1", "C2", "C3"],
             description: "Economics, Business Studies, Accountancy, Computer Science (2nd Year)"
         },
         {
             name: "II PUC EBAS",
             code: "2EBAS",
             departmentCode: "COMMERCE",
-            sections: ["M1", "M2", "M3", "M4"],
+            sections: ["C3"],
             description: "Economics, Business Studies, Accountancy, Statistics (2nd Year)"
         },
         {
             name: "II PUC PCMB",
             code: "2PCMB",
             departmentCode: "SCIENCE",
-            sections: ["S1 A", "S1 B"],
+            sections: ["J1", "J2"],
             description: "Physics, Chemistry, Mathematics, Biology (2nd Year)"
         },
         {
             name: "II PUC PCMCS",
             code: "2PCMCS",
             departmentCode: "SCIENCE",
-            sections: ["S1 A", "S1 B"],
+            sections: ["J1", "J2"],
             description: "Physics, Chemistry, Mathematics, Computer Science (2nd Year)"
         }
     ]
@@ -131,6 +132,27 @@ function normalizeGender(g) {
     return 'Other';
 }
 
+function getField(row, aliases) {
+    for (const k of Object.keys(row)) {
+        const normK = k.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+        for (const a of aliases) {
+            const normA = a.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (normK === normA) {
+                return row[k];
+            }
+        }
+    }
+    return '';
+}
+
+function getOrdinalSuffix(i) {
+    const j = i % 10, k = i % 100;
+    if (j === 1 && k !== 11) return "st";
+    if (j === 2 && k !== 12) return "nd";
+    if (j === 3 && k !== 13) return "rd";
+    return "th";
+}
+
 // ============================================================================
 // MAIN ONBOARDING RUNNER
 // ============================================================================
@@ -156,6 +178,12 @@ async function run() {
     const fileIdx = args.indexOf('--file');
     if (fileIdx !== -1 && args[fileIdx + 1]) {
         filePath = path.resolve(args[fileIdx + 1]);
+    }
+
+    let sheetNameArg = null;
+    const sheetIdx = args.indexOf('--sheet');
+    if (sheetIdx !== -1 && args[sheetIdx + 1]) {
+        sheetNameArg = args[sheetIdx + 1];
     }
 
     console.log("=================================================================");
@@ -324,9 +352,14 @@ async function run() {
             console.log(`Class exists: ${course.name} [Code: ${course.code}]`);
         }
 
+        // Map various forms to easily find the course
         courseMap.set(classCfg.name.toUpperCase().trim(), course);
-        // Also map standard shorthand (e.g., "II PUC EBACS" -> course)
         courseMap.set(classCfg.code.toUpperCase().trim(), course);
+        // Also map just the combination suffix (e.g. "EBACS" -> I PUC EBACS if single match, or standard prefix)
+        const combMatch = classCfg.name.match(/(EBACS|EBAS|PCMB|PCMCS)/i);
+        if (combMatch && classCfg.name.startsWith("I PUC")) {
+            courseMap.set(combMatch[1].toUpperCase(), course);
+        }
 
         // Sections for this class
         for (const secName of classCfg.sections) {
@@ -375,7 +408,7 @@ async function run() {
     if (!filePath) {
         console.log("\nℹ️  No --file argument provided. Structure is ready.");
         console.log("To ingest students and fees from Excel, run:");
-        console.log(`node scripts/onboard-pu-college.js --file "/path/to/II PUC DETAILS 2026-27.xlsx" [--dry-run]\n`);
+        console.log(`node scripts/onboard-pu-college.js --file "/path/to/I PUC DETAILS id cards.xlsx" [--dry-run]\n`);
         process.exit(0);
     }
 
@@ -389,11 +422,21 @@ async function run() {
     console.log(`=================================================================`);
 
     const workbook = XLSX.readFile(filePath);
-    const sheetName = workbook.SheetNames[0];
+    let sheetName = sheetNameArg;
+    if (!sheetName) {
+        sheetName = workbook.SheetNames.includes('Data') ? 'Data' : workbook.SheetNames[0];
+    }
     const sheet = workbook.Sheets[sheetName];
+    if (!sheet) {
+        console.error(`❌ Sheet "${sheetName}" not found in ${filePath}. Available: ${workbook.SheetNames.join(', ')}`);
+        process.exit(1);
+    }
+
     // Read with defval to preserve empty columns
     const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
     console.log(`Loaded Sheet: "${sheetName}" with ${rawRows.length} total rows.\n`);
+
+    const defaultStudentHash = await bcrypt.hash('Student@123', 10);
 
     let stats = {
         totalRows: rawRows.length,
@@ -407,14 +450,26 @@ async function run() {
     };
 
     for (let i = 0; i < rawRows.length; i++) {
-        const row = rawRows[i];
+        const rawRow = rawRows[i];
         const rowIdx = i + 2; // Excel 1-based + header
 
-        // Extract key identifiers
-        const collegeId = String(row['COLLEGE ID'] || row['College ID'] || row['COLLEGE_ID'] || '').trim();
-        const studentName = String(row['NAME'] || row['Student Name'] || row['Name'] || '').trim();
-        const rawClass = String(row['Class of Admission'] || row['CLASS OF ADMISSION'] || row['Class'] || '').trim();
-        const rawSection = String(row['Section'] || row['SECTION'] || row['Sec'] || '').trim();
+        // Clean up empty Excel phantom columns (__EMPTY_...)
+        const row = {};
+        for (const [k, v] of Object.entries(rawRow)) {
+            if (k.startsWith('__EMPTY') && (v === '' || v === undefined)) continue;
+            row[k.trim()] = v;
+        }
+
+        // Extract key identifiers using flexible column matching
+        const collegeId = String(getField(row, ['COLLEGE ID', 'College ID', 'COLLEGE_ID', 'COLLEGEID']) || '').trim();
+        const studentName = String(getField(row, ['NAME', 'Student Name', 'Name', 'STUDENTNAME']) || '').trim();
+        const combination = String(getField(row, ['COMBINATION', 'Combination', 'Stream', 'STREAM', 'COMB']) || '').trim().toUpperCase();
+        const rawSection = String(getField(row, ['SEC', 'Section', 'SECTION', 'Sec']) || '').trim().toUpperCase();
+        let rawClass = String(getField(row, ['Class of Admission', 'CLASS OF ADMISSION', 'Class', 'Std', 'Standard']) || '').trim();
+
+        if (!rawClass && combination) {
+            rawClass = `I PUC ${combination}`;
+        }
 
         if (!studentName && !collegeId) {
             // Empty row
@@ -426,8 +481,11 @@ async function run() {
 
         // Resolve Target Course
         let targetCourse = courseMap.get(rawClass.toUpperCase().trim());
+        if (!targetCourse && combination) {
+            targetCourse = courseMap.get(combination) || courseMap.get(`I PUC ${combination}`);
+        }
         if (!targetCourse) {
-            // Try fuzzy match (e.g. "II PUC EBACS" inside string)
+            // Try fuzzy match
             for (const [key, c] of courseMap.entries()) {
                 if (rawClass.toUpperCase().includes(key) || key.includes(rawClass.toUpperCase())) {
                     targetCourse = c;
@@ -437,7 +495,7 @@ async function run() {
         }
 
         if (!targetCourse) {
-            stats.errors.push(`Row ${rowIdx}: Cannot match Class "${rawClass}" for student "${studentName}" (${collegeId})`);
+            stats.errors.push(`Row ${rowIdx}: Cannot match Class/Combination "${rawClass || combination}" for student "${studentName}" (${collegeId})`);
             continue;
         }
 
@@ -462,28 +520,31 @@ async function run() {
                     enrolledStudents: []
                 });
             } else {
-                targetBatch = { _id: new mongoose.Types.ObjectId(), name: rawSection.trim(), enrolledStudents: [] };
+                targetBatch = { _id: new mongoose.Types.ObjectId(), name: rawSection.trim(), course: targetCourse._id, session: activeSession._id, enrolledStudents: [] };
             }
             batchMap.set(batchKey, targetBatch);
         }
 
         // Student Demographics
         const { firstName, lastName } = parseName(studentName);
-        const contactNumber = String(row['Contact Number'] || row['Contact'] || row['Phone'] || '').replace(/\D/g, '').slice(-10);
-        const satsNo = String(row['SATS NO'] || row['SATS NO.'] || row['SATS'] || '').trim();
-        const admissionNo = String(row['ADMISSION NO.'] || row['ADMISSION NO'] || row['Admission No'] || '').trim();
-        const admissionDate = normalizeDate(row['ADMISSION DATE'] || row['Admission Date']);
-        const dob = normalizeDate(row['DATE OF BIRTH'] || row['Date of Birth'] || row['DOB']);
-        const gender = normalizeGender(row['GENDER'] || row['Gender']);
-        const fatherName = String(row['FATHER NAME'] || row['Father Name'] || '').trim();
-        const motherName = String(row['MOTHER NAME'] || row['Mother Name'] || '').trim();
-        const address = String(row['ADDRESS'] || row['Address'] || '').trim();
-        const placeOfBirth = String(row['PLACE OF BIRTH'] || row['Place of Birth'] || '').trim();
-        const nationality = String(row['NATIONALITY'] || row['Nationality'] || 'Indian').trim();
-        const religionCaste = String(row['RELIGION CASTE AND CATEGORY'] || row['Category'] || '').trim();
-        const lastSchool = String(row['INSTITUTION STUDIED'] || row['Previous School'] || '').trim();
-        const regNo = String(row['REG . NO'] || row['REG NO'] || row['Reg No'] || '').trim();
-        const tcDetails = String(row['Transfer Certificate No/Date'] || row['TC'] || '').trim();
+        const contactNumber = String(getField(row, ['PHONE NO', 'PHONENO', 'Phone', 'Contact Number', 'Mobile No']) || '').replace(/\D/g, '').slice(-10);
+        const contactNumber2 = String(getField(row, ['PHONE NO.2', 'PHONENO2', 'Phone2', 'Phone 2']) || '').replace(/\D/g, '').slice(-10);
+        const satsNo = String(getField(row, ['SATS NO', 'SATS NO.', 'SATS', 'SATSNO']) || '').trim();
+        const admissionNo = String(getField(row, ['ADMISSION NO', 'ADMISSION NO.', 'Admission No', 'ADMISSIONNO']) || '').trim();
+        const admissionDate = normalizeDate(getField(row, ['ADMISSION DATE', 'Admission Date', 'ADMISSIONDATE']));
+        const dob = normalizeDate(getField(row, ['DATE OF BIRTH', 'Date of Birth', 'DOB', 'DATEOFBIRTH']));
+        const gender = normalizeGender(getField(row, ['GENDER', 'Gender']));
+        const fatherName = String(getField(row, ['FATHER NAME', 'Father Name', 'FATHERNAME']) || '').trim();
+        const motherName = String(getField(row, ['MOTHER NAME', 'Mother Name', 'MOTHERNAME']) || '').trim();
+        const address = String(getField(row, ['ADDRESS', 'Address']) || '').trim();
+        const placeOfBirth = String(getField(row, ['PLACE OF BIRTH', 'Place of Birth', 'City']) || '').trim();
+        const nationality = String(getField(row, ['NATIONALITY', 'Nationality']) || 'Indian').trim();
+        const religionCaste = String(getField(row, ['RELIGION CASTE AND CATEGORY', 'Category', 'Caste']) || '').trim();
+        const language = String(getField(row, ['LANGUAGE', 'Language', 'Mother Tongue']) || '').trim();
+        const regNo = String(getField(row, ['REG . NO', 'REG NO', 'Reg No', 'REGNO']) || '').trim();
+        const photoNo = String(getField(row, ['PHOTO', 'Photo No', 'Photo']) || '').trim();
+        const lastSchool = String(getField(row, ['INSTITUTION STUDIED', 'Previous School']) || '').trim();
+        const tcDetails = String(getField(row, ['Transfer Certificate No/Date', 'TC']) || '').trim();
 
         // Unique email generation (deterministic if not provided)
         const safeId = collegeId ? collegeId.replace(/[^A-Za-z0-9]/g, '').toLowerCase() : `stu${admissionNo || stats.processed}`;
@@ -501,6 +562,13 @@ async function run() {
             student = await User.findOne({ institute: inst._id, email: studentEmail, deletedAt: null });
         }
 
+        const remarksList = [
+            regNo ? `Reg No: ${regNo}` : '',
+            photoNo ? `Photo No: ${photoNo}` : '',
+            tcDetails ? `TC: ${tcDetails}` : '',
+            contactNumber2 ? `Alt Phone: ${contactNumber2}` : ''
+        ].filter(Boolean).join(' | ');
+
         if (!student) {
             if (isDryRun) {
                 stats.createdStudents++;
@@ -510,31 +578,33 @@ async function run() {
                     institute: inst._id,
                     role: 'student',
                     email: studentEmail,
-                    passwordHash: '$2a$10$X87fB98j9rB8k7J2B8p0e.wN8oY5A1kXfN3Z1/8X8v.Q2sL9A7B6W', // default pass
+                    passwordHash: defaultStudentHash,
                     enrollmentNumber: collegeId || undefined,
-                    grNumber: admissionNo || undefined,
+                    grNumber: regNo || admissionNo || undefined,
                     statsNo: satsNo || undefined,
                     admissionDate: admissionDate || activeSession.startDate,
                     admissionStd: targetCourse.name,
                     fatherName: fatherName,
                     motherName: motherName,
+                    fatherPhone: contactNumber2 || undefined,
                     nationality: nationality,
+                    motherTongue: language || undefined,
                     religion: religionCaste,
                     placeOfBirth: { city: placeOfBirth },
                     lastSchoolAttended: lastSchool,
-                    remarks: [regNo ? `Reg No: ${regNo}` : '', tcDetails ? `TC: ${tcDetails}` : ''].filter(Boolean).join(' | '),
+                    remarks: remarksList,
                     profile: {
                         firstName: firstName,
                         lastName: lastName,
                         phone: contactNumber || undefined,
                         gender: gender,
-                        dob: dob || undefined,
+                        dateOfBirth: dob || undefined,
                         address: { street: address }
                     },
                     guardianDetails: {
                         name: fatherName || motherName || 'Parent',
-                        phone: contactNumber || undefined,
-                        relation: fatherName ? 'father' : 'mother'
+                        phone: contactNumber || contactNumber2 || undefined,
+                        relation: fatherName ? 'father' : (motherName ? 'mother' : 'guardian')
                     },
                     activeSession: activeSession._id,
                     activeSessions: [activeSession._id]
@@ -554,18 +624,11 @@ async function run() {
 
         // Enroll Student into Target Batch
         if (!isDryRun) {
-            const alreadyEnrolled = targetBatch.enrolledStudents.some(
-                e => e.student && e.student.toString() === student._id.toString()
+            await Batch.updateOne(
+                { _id: targetBatch._id, 'enrolledStudents.student': { $ne: student._id } },
+                { $push: { enrolledStudents: { student: student._id, enrolledAt: admissionDate || new Date(), status: 'active' } } }
             );
-            if (!alreadyEnrolled) {
-                targetBatch.enrolledStudents.push({
-                    student: student._id,
-                    enrolledAt: admissionDate || new Date(),
-                    status: 'active'
-                });
-                await targetBatch.save();
-                stats.enrolled++;
-            }
+            stats.enrolled++;
         } else {
             stats.enrolled++;
         }
@@ -573,9 +636,9 @@ async function run() {
         // ====================================================================
         // FEE FIXATION & INSTALLMENT HISTORICAL RECONCILIATION
         // ====================================================================
-        const fixation = normalizeNumber(row['Fixation'] || row['FIXATION'] || row['Total Fee']);
-        const paidInSheet = normalizeNumber(row['Paid'] || row['PAID']);
-        const balanceInSheet = normalizeNumber(row['Balance'] || row['BALANCE']);
+        const fixation = normalizeNumber(getField(row, ['Fixation', 'FIXATION', 'Total Fee']));
+        const paidInSheet = normalizeNumber(getField(row, ['Paid', 'PAID']));
+        const balanceInSheet = normalizeNumber(getField(row, ['Balance', 'BALANCE']));
 
         if (fixation > 0) {
             const installments = [];
@@ -583,9 +646,6 @@ async function run() {
 
             // Check up to 10 installments
             for (let k = 1; k <= 10; k++) {
-                const amountCol = `${k}${getOrdinalSuffix(k)} Installment`;
-                const dateCol = `Date_${k}` in row ? `Date_${k}` : `Date`; // check exact header
-                // Find column by regex if needed
                 const matchedAmtKey = Object.keys(row).find(key => 
                     new RegExp(`^${k}(st|nd|rd|th)?\\s*Installment`, 'i').test(key.trim())
                 );
@@ -593,7 +653,6 @@ async function run() {
                 if (matchedAmtKey) {
                     const instAmount = normalizeNumber(row[matchedAmtKey]);
                     if (instAmount > 0) {
-                        // Find corresponding date column (often adjacent or named Date)
                         const matchedDateKey = Object.keys(row).find(key => 
                             new RegExp(`^Date.*${k}`, 'i').test(key.trim()) || 
                             (key.toLowerCase().includes('date') && Object.keys(row).indexOf(key) === Object.keys(row).indexOf(matchedAmtKey) + 1)
@@ -677,14 +736,6 @@ async function run() {
     console.log("=================================================================\n");
 
     process.exit(0);
-}
-
-function getOrdinalSuffix(i) {
-    const j = i % 10, k = i % 100;
-    if (j === 1 && k !== 11) return "st";
-    if (j === 2 && k !== 12) return "nd";
-    if (j === 3 && k !== 13) return "rd";
-    return "th";
 }
 
 run().catch(err => {

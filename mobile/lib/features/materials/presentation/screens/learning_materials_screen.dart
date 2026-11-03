@@ -6,6 +6,7 @@ import 'package:student_app/features/materials/presentation/providers/materials_
 import 'package:student_app/features/materials/data/models/materials_model.dart';
 import 'package:student_app/core/providers/academic_session_provider.dart';
 import 'package:student_app/core/auth/auth_provider.dart';
+import 'package:student_app/features/assignments/presentation/screens/assignments_screen.dart';
 
 class LearningMaterialsScreen extends StatefulWidget {
   const LearningMaterialsScreen({super.key});
@@ -82,6 +83,15 @@ class _LearningMaterialsScreenState extends State<LearningMaterialsScreen> {
               ),
             ),
             centerTitle: true,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.assignment_outlined, color: Color(0xFF002045)),
+                tooltip: 'Assignments & Homework',
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const AssignmentsScreen()),
+                ),
+              ),
+            ],
           ),
           body: SafeArea(
             child: RefreshIndicator(
@@ -194,14 +204,19 @@ class _LearningMaterialsScreenState extends State<LearningMaterialsScreen> {
                   const SizedBox(height: 20),
 
                   // Materials List Content
-                  if (materialsProvider.isLoading)
+                  if (materialsProvider.isLoading && materialsProvider.materials.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 40.0),
                       child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
                     )
                   else if (filteredList.isEmpty)
                     _buildEmptyState()
-                  else
+                  else ...[
+                    if (materialsProvider.isLoading)
+                      const Padding(
+                        padding: EdgeInsets.only(bottom: 12.0),
+                        child: LinearProgressIndicator(minHeight: 2, color: Color(0xFF002045)),
+                      ),
                     ...filteredList.map((item) {
                       if (item.isVideo) {
                         return Padding(
@@ -215,6 +230,7 @@ class _LearningMaterialsScreenState extends State<LearningMaterialsScreen> {
                         );
                       }
                     }),
+                  ],
                 ],
               ),
             ),
@@ -318,22 +334,32 @@ class _LearningMaterialsScreenState extends State<LearningMaterialsScreen> {
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(12),
         child: InkWell(
-          onTap: () => _openMaterialUrl(context, item),
+          onTap: () {
+            if (item.isAssignment) {
+              AssignmentsScreen.showAssignmentDetailsSheet(context, item.toAssignmentModel());
+            } else {
+              _openMaterialUrl(context, item);
+            }
+          },
           borderRadius: BorderRadius.circular(12),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Row(
               children: [
-                // Red PDF Icon Box
+                // PDF / Assignment Icon Box
                 Container(
                   width: 48,
                   height: 48,
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFEF2F2),
+                    color: item.isAssignment ? const Color(0xFFEFF6FF) : const Color(0xFFFEF2F2),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Center(
-                    child: Icon(Icons.picture_as_pdf, color: Color(0xFFEF4444), size: 26),
+                  child: Center(
+                    child: Icon(
+                      item.isAssignment ? Icons.assignment_outlined : Icons.picture_as_pdf,
+                      color: item.isAssignment ? const Color(0xFF2563EB) : const Color(0xFFEF4444),
+                      size: 26,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -378,16 +404,61 @@ class _LearningMaterialsScreenState extends State<LearningMaterialsScreen> {
                               fontWeight: FontWeight.w500,
                             ),
                           ),
+                          if (item.isAssignment) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFFEF3C7),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                'ASSIGNMENT',
+                                style: GoogleFonts.inter(
+                                  color: const Color(0xFFB45309),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ],
                   ),
                 ),
 
-                // Download/View Icon Action
-                IconButton(
-                  icon: const Icon(Icons.download_rounded, color: Color(0xFF545F72)),
-                  onPressed: () => _openMaterialUrl(context, item),
+                // Action Buttons
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (item.isAssignment)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 2),
+                        child: ElevatedButton.icon(
+                          onPressed: () {
+                            AssignmentsScreen.showAssignmentDetailsSheet(context, item.toAssignmentModel());
+                          },
+                          icon: const Icon(Icons.upload_file, size: 14, color: Colors.white),
+                          label: Text(
+                            'Submit',
+                            style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF002045),
+                            elevation: 0,
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 0),
+                            minimumSize: const Size(0, 32),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ),
+                    IconButton(
+                      icon: const Icon(Icons.download_rounded, color: Color(0xFF545F72)),
+                      tooltip: 'Download File',
+                      onPressed: () => _openMaterialUrl(context, item),
+                    ),
+                  ],
                 ),
               ],
             ),

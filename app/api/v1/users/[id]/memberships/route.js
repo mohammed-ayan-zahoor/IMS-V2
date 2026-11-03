@@ -63,7 +63,7 @@ export async function POST(req, { params }) {
 
         const membership = await Membership.findOneAndUpdate(
             { user: userId, institute: instituteId },
-            { role, isActive: true },
+            { role, isActive: true, isMasterAdmin: true },
             { upsert: true, new: true }
         );
 

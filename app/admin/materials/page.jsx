@@ -16,6 +16,7 @@ import EmptyState from "@/components/shared/EmptyState";
 
 import { useToast } from "@/contexts/ToastContext";
 import { useConfirm } from "@/contexts/ConfirmContext";
+import { useAcademicSession } from "@/contexts/AcademicSessionContext";
 import { cn, getYoutubeVideoId, getYoutubeThumbnail } from "@/lib/utils";
 import MobileInstructorMaterials from "@/components/instructor/MobileInstructorMaterials";
 
@@ -23,6 +24,7 @@ export default function MaterialsPage() {
     const toast = useToast();
     const confirm = useConfirm();
     const { data: session } = useSession();
+    const { selectedSessionId } = useAcademicSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     const isVocational = session?.user?.institute?.type === 'VOCATIONAL';
 
@@ -54,7 +56,7 @@ export default function MaterialsPage() {
             fileId: "",
             fileType: "other",
             visibleToStudents: true,
-            allowSubmissions: false,
+            allowSubmissions: true,
             dueDate: "",
             totalMarks: "",
             isUpload: false
@@ -63,9 +65,17 @@ export default function MaterialsPage() {
 
     const fetchInitialData = useCallback(async () => {
         try {
+            const batchParams = new URLSearchParams();
+            if (isSchool && selectedSessionId && selectedSessionId !== 'all') {
+                batchParams.set('sessionId', selectedSessionId);
+            }
+            const batchQuery = batchParams.toString() ? `?${batchParams.toString()}` : '';
+
             const fetches = [
                 fetch("/api/v1/courses"),
-                fetch("/api/v1/batches")
+                fetch(`/api/v1/batches${batchQuery}`, {
+                    headers: selectedSessionId && selectedSessionId !== 'all' ? { 'x-session-id': selectedSessionId } : {}
+                })
             ];
             if (isVocational) {
                 fetches.push(fetch("/api/v1/course-bundles"));
@@ -82,7 +92,7 @@ export default function MaterialsPage() {
         } catch (error) {
             console.error("Init data failed", error);
         }
-    }, [isVocational]);
+    }, [isVocational, isSchool, selectedSessionId]);
 
     useEffect(() => {
         fetchInitialData();
@@ -148,7 +158,7 @@ export default function MaterialsPage() {
                     type: formData.fileType,
                     originalName: formData.title
                 },
-                allowSubmissions: formData.category === 'assignment' ? formData.allowSubmissions : false,
+                allowSubmissions: formData.category === 'assignment' ? (formData.allowSubmissions ?? true) : false,
                 dueDate: formData.category === 'assignment' ? formData.dueDate : null,
                 totalMarks: formData.category === 'assignment' ? formData.totalMarks : null
             };
@@ -252,6 +262,13 @@ export default function MaterialsPage() {
     };
 
     const filteredBatches = batches.filter(b => {
+        // 1. Session Isolation (for schools)
+        const batchSessionStr = String(b.session?._id || b.session || '');
+        const currentSessionStr = String(selectedSessionId || '');
+        const matchesSession = !isSchool || !selectedSessionId || selectedSessionId === 'all' || !batchSessionStr || batchSessionStr === currentSessionStr;
+        if (!matchesSession) return false;
+
+        // 2. Course / Package matching
         if (formData.courses.length === 0) return false;
         const batchCourseId = typeof b.course === 'object' ? b.course?._id : b.course;
         const batchBundleId = typeof b.courseBundle === 'object' ? b.courseBundle?._id : b.courseBundle;
@@ -263,6 +280,11 @@ export default function MaterialsPage() {
 
     const handleCoursesChange = (selectedCourseIds) => {
         const validBatches = batches.filter(b => {
+            const batchSessionStr = String(b.session?._id || b.session || '');
+            const currentSessionStr = String(selectedSessionId || '');
+            const matchesSession = !isSchool || !selectedSessionId || selectedSessionId === 'all' || !batchSessionStr || batchSessionStr === currentSessionStr;
+            if (!matchesSession) return false;
+
             const batchCourseId = typeof b.course === 'object' ? b.course?._id : b.course;
             const batchBundleId = typeof b.courseBundle === 'object' ? b.courseBundle?._id : b.courseBundle;
             return selectedCourseIds.some(cid => String(batchCourseId) === String(cid) || String(batchBundleId) === String(cid));
@@ -287,7 +309,10 @@ export default function MaterialsPage() {
         }))
     ];
 
-    const batchOptions = filteredBatches.map(b => {
+    const batchOptions = [
+        ...filteredBatches,
+        ...batches.filter(b => formData.batches.includes(String(b._id)) && !filteredBatches.some(fb => String(fb._id) === String(b._id)))
+    ].map(b => {
         const cName = b.course?.name || courses.find(c => String(c._id) === String(b.course?._id || b.course))?.name;
         return {
             label: cName ? `${cName} - ${b.name}` : b.name,
@@ -557,7 +582,7 @@ export default function MaterialsPage() {
                                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Category</label>
                                 <Select
                                     value={formData.category}
-                                    onChange={(val) => setFormData({ ...formData, category: val })}
+                                    onChange={(val) => setFormData({ ...formData, category: val, allowSubmissions: val === 'assignment' ? true : false })}
                                     options={[
                                         { label: "Assignment", value: "assignment" },
                                         { label: "Lecture Note", value: "lecture" },
@@ -703,6 +728,21 @@ export default function MaterialsPage() {
                                 )}
                             </div>
                         </div>
+
+                        {formData.category === 'assignment' && (
+                            <div className="flex items-center justify-between bg-blue-50/50 border border-blue-200/60 rounded-lg p-3">
+                                <div>
+                                    <span className="text-xs font-bold text-slate-800 block">Allow Student Submissions</span>
+                                    <span className="text-[10px] text-slate-500 font-medium">Students can complete and upload their solutions</span>
+                                </div>
+                                <input 
+                                    type="checkbox" 
+                                    className="w-4 h-4 rounded border-blue-300 text-blue-600 focus:ring-0 cursor-pointer"
+                                    checked={formData.allowSubmissions}
+                                    onChange={(e) => setFormData({ ...formData, allowSubmissions: e.target.checked })}
+                                />
+                            </div>
+                        )}
 
                         <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg p-3">
                             <div>

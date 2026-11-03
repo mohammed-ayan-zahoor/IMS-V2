@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:student_app/features/assignments/data/models/assignment_model.dart';
 
 class MaterialModel {
   final String id;
@@ -12,6 +13,9 @@ class MaterialModel {
   final int sizeBytes;
   final int downloadCount;
   final DateTime createdAt;
+  final bool allowSubmissions;
+  final DateTime? dueDate;
+  final int? totalMarks;
 
   MaterialModel({
     required this.id,
@@ -25,10 +29,14 @@ class MaterialModel {
     required this.sizeBytes,
     required this.downloadCount,
     required this.createdAt,
+    this.allowSubmissions = false,
+    this.dueDate,
+    this.totalMarks,
   });
 
   bool get isPdf => fileType.toLowerCase() == 'pdf' || fileUrl.toLowerCase().endsWith('.pdf');
   bool get isVideo => fileType.toLowerCase() == 'video' || isYouTube;
+  bool get isAssignment => category.toLowerCase() == 'assignment' || allowSubmissions;
 
   bool get isYouTube {
     final lower = fileUrl.toLowerCase();
@@ -71,22 +79,45 @@ class MaterialModel {
     return const Color(0xFF10B981);
   }
 
+  AssignmentModel toAssignmentModel() {
+    return AssignmentModel(
+      id: id,
+      title: title,
+      description: description,
+      category: category,
+      allowSubmissions: allowSubmissions,
+      dueDate: dueDate,
+      totalMarks: totalMarks,
+      fileUrl: fileUrl,
+      fileName: originalName,
+      fileSize: sizeBytes,
+      courseName: courseName,
+      createdAt: createdAt,
+    );
+  }
+
   factory MaterialModel.fromJson(Map<String, dynamic> json) {
     final file = (json['file'] as Map?) ?? {};
     final course = (json['course'] as Map?) ?? {};
+    final cat = json['category']?.toString() ?? 'Lecture';
 
     return MaterialModel(
-      id: json['_id'] ?? '',
-      title: json['title'] ?? 'Learning Material',
-      description: json['description'] ?? '',
-      category: json['category'] ?? 'Lecture',
-      courseName: course['name'] ?? 'General',
+      id: json['_id']?.toString() ?? json['id']?.toString() ?? '',
+      title: json['title']?.toString() ?? 'Learning Material',
+      description: json['description']?.toString() ?? '',
+      category: cat,
+      courseName: course['name']?.toString() ?? 'General',
       fileUrl: file['url']?.toString() ?? '',
       fileType: file['type']?.toString() ?? 'pdf',
       originalName: file['originalName']?.toString() ?? 'document',
       sizeBytes: (file['size'] is num) ? (file['size'] as num).toInt() : 0,
       downloadCount: (json['downloadCount'] is num) ? (json['downloadCount'] as num).toInt() : 0,
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt']) : DateTime.now(),
+      createdAt: json['createdAt'] != null
+          ? (DateTime.tryParse(json['createdAt'].toString()) ?? DateTime.now())
+          : DateTime.now(),
+      allowSubmissions: json['allowSubmissions'] == true || cat.toLowerCase() == 'assignment',
+      dueDate: json['dueDate'] != null ? DateTime.tryParse(json['dueDate'].toString()) : null,
+      totalMarks: (json['totalMarks'] is num) ? (json['totalMarks'] as num).toInt() : null,
     );
   }
 }
@@ -97,10 +128,18 @@ class MaterialsResponse {
   MaterialsResponse({required this.materials});
 
   factory MaterialsResponse.fromJson(Map<String, dynamic> json) {
-    final list = (json['materials'] as List<dynamic>?)
-            ?.map((e) => MaterialModel.fromJson(e))
-            .toList() ??
-        [];
+    final list = <MaterialModel>[];
+    if (json['materials'] is List) {
+      for (final e in (json['materials'] as List)) {
+        if (e is Map) {
+          try {
+            list.add(MaterialModel.fromJson(Map<String, dynamic>.from(e)));
+          } catch (err) {
+            debugPrint('MaterialModel parse error: $err');
+          }
+        }
+      }
+    }
     return MaterialsResponse(materials: list);
   }
 }

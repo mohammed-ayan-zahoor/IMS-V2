@@ -28,25 +28,53 @@ export async function POST(req, { params }) {
 
         // 1. Verify assignment exists and allows submissions
         const assignment = await Material.findById(id);
-        if (!assignment || assignment.category !== 'assignment' || !assignment.allowSubmissions) {
+        const isAssignment = assignment && (assignment.category?.toLowerCase() === 'assignment' || assignment.allowSubmissions);
+        const allowsSubmission = isAssignment && (assignment.allowSubmissions !== false);
+        if (!assignment || !isAssignment || !allowsSubmission) {
             return NextResponse.json({ error: "Assignment not found or submissions are disabled" }, { status: 404 });
         }
 
         // 2. Verify student is enrolled in the course/batch for this assignment
-        // We check if the student is in any of the batches linked to the assignment, 
-        // OR if the assignment is course-wide and the student is in a batch of that course.
-        const enrollment = await Batch.findOne({
-            $or: [
-                { _id: { $in: assignment.batches } },
-                { course: { $in: assignment.courses } }
-            ],
+        const studentObjId = mongoose.Types.ObjectId.isValid(session.user.id)
+            ? new mongoose.Types.ObjectId(session.user.id)
+            : session.user.id;
+
+        const assignmentCourseIds = [
+            ...(Array.isArray(assignment.courses) ? assignment.courses : []),
+            ...(assignment.course ? [assignment.course] : [])
+        ];
+        const assignmentBundleIds = [
+            ...(Array.isArray(assignment.courseBundles) ? assignment.courseBundles : []),
+            ...(assignment.courseBundle ? [assignment.courseBundle] : [])
+        ];
+        const assignmentBatchIds = Array.isArray(assignment.batches) ? assignment.batches : [];
+
+        const batchConditions = [];
+        if (assignmentBatchIds.length > 0) {
+            batchConditions.push({ _id: { $in: assignmentBatchIds } });
+        }
+        if (assignmentCourseIds.length > 0) {
+            batchConditions.push({ course: { $in: assignmentCourseIds } });
+        }
+        if (assignmentBundleIds.length > 0) {
+            batchConditions.push({ courseBundle: { $in: assignmentBundleIds } });
+        }
+
+        const enrollmentQuery = {
+            deletedAt: null,
             "enrolledStudents": {
                 $elemMatch: {
-                    student: session.user.id,
-                    status: "active"
+                    student: { $in: [studentObjId, session.user.id] },
+                    status: { $in: ["active", "completed"] }
                 }
             }
-        });
+        };
+
+        if (batchConditions.length > 0) {
+            enrollmentQuery.$or = batchConditions;
+        }
+
+        const enrollment = await Batch.findOne(enrollmentQuery);
 
         if (!enrollment) {
             return NextResponse.json({ error: "Access denied: Not enrolled in the required course/batch" }, { status: 403 });

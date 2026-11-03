@@ -76,9 +76,11 @@ class MaterialsProvider extends ChangeNotifier {
     if (sessionId != null) _currentSessionId = sessionId;
     if (_materials.isNotEmpty && !refresh && sessionId == null) return;
 
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
+    if (_materials.isEmpty) {
+      _isLoading = true;
+      _errorMessage = null;
+      notifyListeners();
+    }
 
     try {
       final res = await _repository.fetchMaterials(sessionId: _currentSessionId);

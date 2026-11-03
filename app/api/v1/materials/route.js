@@ -187,7 +187,7 @@ export async function POST(req) {
             batches: body.batches || [], // Array of IDs
             visibleToStudents: !!body.visibleToStudents,
             tags: Array.isArray(body.tags) ? body.tags : [],
-            allowSubmissions: !!body.allowSubmissions,
+            allowSubmissions: body.category === 'assignment' ? (body.allowSubmissions !== undefined ? !!body.allowSubmissions : true) : false,
             dueDate: body.dueDate || null,
             totalMarks: body.totalMarks || null
         };
@@ -224,6 +224,52 @@ export async function POST(req) {
             ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
             userAgent: req.headers.get('user-agent') || 'unknown'
         });
+
+        // Dispatch In-App & Push Notifications to enrolled students
+        if (material.visibleToStudents) {
+            try {
+                const targetCourses = material.courses && material.courses.length > 0
+                    ? material.courses
+                    : (material.course ? [material.course] : []);
+                const targetBatches = material.batches && material.batches.length > 0
+                    ? material.batches
+                    : [];
+
+                const studentIds = await getStudentIdsForMaterial({
+                    courses: targetCourses,
+                    batches: targetBatches,
+                    instituteId
+                });
+
+                if (studentIds.length > 0) {
+                    const isAssignment = material.category === 'assignment';
+                    const title = isAssignment
+                        ? `New Assignment: ${material.title}`
+                        : `New Material: ${material.title}`;
+                    const message = isAssignment
+                        ? `A new assignment "${material.title}" has been published.${material.dueDate ? ` (Due: ${new Date(material.dueDate).toLocaleDateString()})` : ''}`
+                        : `New study material "${material.title}" has been uploaded.`;
+
+                    await sendNotification({
+                        instituteId,
+                        recipientIds: studentIds,
+                        recipientRole: 'student',
+                        title,
+                        message,
+                        type: isAssignment ? 'ASSIGNMENT' : 'NOTICE',
+                        link: isAssignment ? '/student/assignments' : '/student/materials',
+                        metadata: {
+                            materialId: material._id.toString(),
+                            category: material.category,
+                            dueDate: material.dueDate || null,
+                            totalMarks: material.totalMarks || null
+                        }
+                    });
+                }
+            } catch (notifErr) {
+                console.error('[Material Notification Error]:', notifErr);
+            }
+        }
 
         return NextResponse.json({ success: true, material }, { status: 201 });
 

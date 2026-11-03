@@ -32,6 +32,21 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
+        // Shield Super-Admin-assigned users from being edited by local institute admins
+        if (session.user.role !== "super_admin") {
+            const userMemberships = await Membership.find({ user: user._id, isActive: true });
+            const isSuperAdminAssigned = Boolean(
+                user.role === "super_admin" ||
+                userMemberships.some(m => m.isMasterAdmin) ||
+                userMemberships.length > 1
+            );
+            if (isSuperAdminAssigned) {
+                return NextResponse.json({
+                    error: "This user is managed via the Super Admin panel and cannot be modified by institute administrators."
+                }, { status: 403 });
+            }
+        }
+
         // Handle Password Update
         if (body.password) {
             // 1. Minimum Length
@@ -255,12 +270,58 @@ export async function DELETE(req, { params }) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
-        // Prevent deleting super_admin UNLESS the deleter is also super_admin
-        // Self-deletion is already blocked above. 
+        // 1. Prevent deleting super_admin
         if (user.role === "super_admin" && session.user.role !== "super_admin") {
             return NextResponse.json({ error: "Insufficient permissions to delete a super_admin account" }, { status: 403 });
         }
 
+        // 2. Check if user was granted permission via Super Admin panel or has multi-institute access
+        const userMemberships = await Membership.find({ user: user._id, isActive: true });
+        const isSuperAdminAssigned = Boolean(
+            user.role === "super_admin" ||
+            userMemberships.some(m => m.isMasterAdmin) ||
+            userMemberships.length > 1
+        );
+
+        if (session.user.role !== "super_admin" && isSuperAdminAssigned) {
+            return NextResponse.json({
+                error: "This user was assigned access through the Super Admin panel and cannot be deleted or removed by institute administrators."
+            }, { status: 403 });
+        }
+
+        // 3. Multi-tenant safety: If caller is NOT a super_admin, they can ONLY revoke membership for THEIR institute!
+        if (session.user.role !== "super_admin") {
+            const callerInstituteId = session.user.institute?.id || session.user.instituteId || session.user.institute?._id || (typeof session.user.institute === 'string' ? session.user.institute : null);
+            if (!callerInstituteId) {
+                return NextResponse.json({ error: "Institute context required for tenant-scoped deletion" }, { status: 400 });
+            }
+
+            await Membership.findOneAndUpdate(
+                { user: user._id, institute: callerInstituteId },
+                { isActive: false, deletedAt: new Date() }
+            );
+
+            try {
+                await AuditLog.create({
+                    actor: session.user.id,
+                    action: 'user.membership_revoke',
+                    resource: { type: 'User', id: user._id },
+                    details: {
+                        targetUser: user.email,
+                        instituteId: callerInstituteId,
+                        type: 'tenant-membership-revocation'
+                    },
+                    ipAddress: req.headers.get('x-forwarded-for') || 'unknown',
+                    userAgent: req.headers.get('user-agent') || 'unknown'
+                });
+            } catch (e) {
+                console.error("Audit log failed", e);
+            }
+
+            return NextResponse.json({ message: "User access to this institute has been removed successfully" });
+        }
+
+        // 4. Global Super Admin Deletion logic below:
         // Special handling for Students: Hard Delete via Service
         if (user.role === "student") {
             await StudentService.deleteStudent(id, session.user.id);
@@ -286,8 +347,7 @@ export async function DELETE(req, { params }) {
             return NextResponse.json({ message: "Student permanently deleted" });
         }
 
-        // Soft Delete for other roles (Admins/Staff)
-        // isActive is a virtual based on deletedAt
+        // Soft Delete globally across system (Super Admin only)
         user.deletedAt = new Date();
         user.deletedBy = session.user.id;
         await user.save();
