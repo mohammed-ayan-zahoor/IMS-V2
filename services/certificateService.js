@@ -9,6 +9,7 @@ import User from '../models/User.js';
 import Institute from '../models/Institute.js';
 import Counter from '../models/Counter.js';
 import { uploadToCloudinary } from '../lib/cloudinary.js';
+import { dateToWords, yearToWords, dayToWords, monthToWords } from '../lib/utils.js';
 
 /**
  * Certificate Service - Handles on-demand certificate PDF generation
@@ -61,6 +62,18 @@ Handlebars.registerHelper('formatDate', (date) => {
 
 Handlebars.registerHelper('toUpperCase', (str) => {
     return typeof str === 'string' ? str.toUpperCase() : str;
+});
+
+Handlebars.registerHelper('dateToWords', (date) => {
+    return dateToWords(date);
+});
+
+Handlebars.registerHelper('formatDateWords', (date) => {
+    return dateToWords(date);
+});
+
+Handlebars.registerHelper('dobWords', (date) => {
+    return dateToWords(date);
 });
 
 /**
@@ -228,7 +241,12 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
             dobDay: student.profile?.dateOfBirth ? new Date(student.profile.dateOfBirth).getDate() : '',
             dobMonth: student.profile?.dateOfBirth ? new Date(student.profile.dateOfBirth).getMonth() + 1 : '',
             dobYear: student.profile?.dateOfBirth ? new Date(student.profile.dateOfBirth).getFullYear() : '',
-            dobWords: 'N/A', // Potentially add a helper for this later
+            dobWords: student.dobWords || student.profile?.dateOfBirthInWords || (student.profile?.dateOfBirth ? dateToWords(student.profile.dateOfBirth) : 'N/A'),
+            dobInWords: student.dobWords || student.profile?.dateOfBirthInWords || (student.profile?.dateOfBirth ? dateToWords(student.profile.dateOfBirth) : 'N/A'),
+            dateOfBirthInWords: student.dobWords || student.profile?.dateOfBirthInWords || (student.profile?.dateOfBirth ? dateToWords(student.profile.dateOfBirth) : 'N/A'),
+            dobDayWords: student.profile?.dateOfBirth ? dayToWords(student.profile.dateOfBirth) : '',
+            dobMonthWords: student.profile?.dateOfBirth ? monthToWords(student.profile.dateOfBirth) : '',
+            dobYearWords: student.profile?.dateOfBirth ? yearToWords(new Date(student.profile.dateOfBirth).getFullYear()) : '',
 
             // Performance
             progress: student.progress || 'Good',
@@ -259,6 +277,9 @@ export const getHydratedContext = async (studentId, instituteId, options = {}) =
         class: courseName,
         courseName: courseName,
         section: batchName,
+        dobWords: student.dobWords || student.profile?.dateOfBirthInWords || (student.profile?.dateOfBirth ? dateToWords(student.profile.dateOfBirth) : 'N/A'),
+        dobInWords: student.dobWords || student.profile?.dateOfBirthInWords || (student.profile?.dateOfBirth ? dateToWords(student.profile.dateOfBirth) : 'N/A'),
+        dateOfBirthInWords: student.dobWords || student.profile?.dateOfBirthInWords || (student.profile?.dateOfBirth ? dateToWords(student.profile.dateOfBirth) : 'N/A'),
         
         institute: {
             name: institute.name,

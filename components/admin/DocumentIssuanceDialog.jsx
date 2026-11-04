@@ -19,7 +19,7 @@ import {
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import { useToast } from "@/contexts/ToastContext";
-import { cn } from "@/lib/utils";
+import { cn, dateToWords } from "@/lib/utils";
 import Handlebars from "handlebars";
 
 // Register custom helpers for frontend preview consistency
@@ -33,6 +33,18 @@ try {
 
     Handlebars.registerHelper('toUpperCase', (str) => {
         return typeof str === 'string' ? str.toUpperCase() : str;
+    });
+
+    Handlebars.registerHelper('dateToWords', (date) => {
+        return dateToWords(date);
+    });
+
+    Handlebars.registerHelper('formatDateWords', (date) => {
+        return dateToWords(date);
+    });
+
+    Handlebars.registerHelper('dobWords', (date) => {
+        return dateToWords(date);
     });
 } catch (e) {
     // Helper might already be registered in HMR
