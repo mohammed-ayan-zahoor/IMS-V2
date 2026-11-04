@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { 
     X, 
     Award, 
@@ -13,7 +13,8 @@ import {
     Search,
     RefreshCw,
     Download,
-    Eye
+    Eye,
+    Printer
 } from "lucide-react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -70,6 +71,7 @@ const DocumentIssuanceDialog = ({
 
     const [issueMode, setIssueMode] = useState("ISSUE"); // ISSUE or REPRINT
     const [isDuplicate, setIsDuplicate] = useState(false);
+    const iframeRef = useRef(null);
 
     // Sync internal state when prop changes
     useEffect(() => {
@@ -183,6 +185,126 @@ const DocumentIssuanceDialog = ({
             toast.error("Error issuing certificate");
         } finally {
             setLoading(false);
+        }
+    };
+
+    // Memoize rendered HTML for preview iframe and native printing
+    const renderedHtmlDocument = useMemo(() => {
+        if (!hydratedContext || !selectedTemplate) return "";
+        let bodyContent = "";
+        try {
+            const templateFn = Handlebars.compile(selectedTemplate?.htmlTemplate || "");
+            bodyContent = templateFn(hydratedContext || {});
+        } catch (err) {
+            bodyContent = `<div style="color:red; padding:20px; font-family:sans-serif;">
+                <strong>Template Error:</strong> ${err.message}
+            </div>`;
+        }
+
+        const isLandscape = selectedTemplate?.pageConfig?.orientation === 'landscape';
+        const pageWidth = isLandscape ? '297mm' : '210mm';
+        const pageHeight = isLandscape ? '210mm' : '297mm';
+        const margins = selectedTemplate?.pageConfig?.margins || { top: 15, right: 15, bottom: 15, left: 15 };
+        const pageSize = selectedTemplate?.pageConfig?.size || 'A4';
+        const orientation = isLandscape ? 'landscape' : 'portrait';
+
+        return `<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>${selectedTemplate?.templateName || "Certificate"} - ${student?.name || ""}</title>
+    <style>
+        html, body { 
+            margin: 0; 
+            padding: 0; 
+            background: white; 
+            width: 100%;
+            height: 100%;
+            -webkit-print-color-adjust: exact; 
+            print-color-adjust: exact; 
+        }
+        .page {
+            position: relative;
+            width: ${pageWidth};
+            height: ${pageHeight};
+            padding: ${margins?.top ?? 15}mm ${margins?.right ?? 15}mm ${margins?.bottom ?? 15}mm ${margins?.left ?? 15}mm;
+            box-sizing: border-box;
+            overflow: hidden;
+            background: white;
+        }
+        ${selectedTemplate?.cssContent || ''}
+        @page {
+            size: ${pageSize} ${orientation};
+            margin: 0;
+        }
+        .duplicate-mark {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);
+            font-size: 120px; color: rgba(0,0,0,0.1); pointer-events: none; z-index: 999;
+            font-weight: bold; white-space: nowrap; font-family: sans-serif;
+        }
+        @media print {
+            html, body { 
+                margin: 0 !important; 
+                padding: 0 !important; 
+                background: transparent !important; 
+                width: 100% !important;
+                height: 100% !important;
+                overflow: hidden !important;
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+            }
+            .page { 
+                margin: 0 !important; 
+                box-shadow: none !important; 
+                page-break-after: avoid !important; 
+                page-break-inside: avoid !important; 
+                break-after: avoid !important; 
+                break-inside: avoid !important; 
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        ${bodyContent}
+        ${isDuplicate ? '<div class="duplicate-mark">DUPLICATE</div>' : ''}
+    </div>
+</body>
+</html>`;
+    }, [selectedTemplate, hydratedContext, isDuplicate, student?.name]);
+
+    const handlePrint = () => {
+        if (!hydratedContext || !renderedHtmlDocument) {
+            toast.error("Preview is not ready to print yet");
+            return;
+        }
+
+        try {
+            if (iframeRef.current && iframeRef.current.contentWindow) {
+                iframeRef.current.contentWindow.focus();
+                iframeRef.current.contentWindow.print();
+                return;
+            }
+        } catch (e) {
+            console.warn("Direct iframe print failed, trying print window:", e);
+        }
+
+        try {
+            const printWin = window.open('', '_blank');
+            if (printWin) {
+                printWin.document.open();
+                printWin.document.write(renderedHtmlDocument);
+                printWin.document.close();
+                printWin.focus();
+                setTimeout(() => {
+                    printWin.print();
+                }, 350);
+            } else {
+                toast.error("Print popup was blocked by browser. Please enable popups.");
+            }
+        } catch (err) {
+            console.error("Print error:", err);
+            toast.error("Failed to trigger print: " + err.message);
         }
     };
 
@@ -437,64 +559,14 @@ const DocumentIssuanceDialog = ({
                              }}>
                             {hydratedContext ? (
                                 <iframe
+                                    ref={iframeRef}
                                     className="w-full h-full border-none"
                                     style={{ 
                                         width: selectedTemplate?.pageConfig?.orientation === 'portrait' ? '210mm' : '297mm',
                                         height: selectedTemplate?.pageConfig?.orientation === 'portrait' ? '297mm' : '210mm',
                                     }}
                                     title="Issuance Preview"
-                                    srcDoc={`
-                                        <!DOCTYPE html>
-                                        <html>
-                                        <head>
-                                            <meta charset="UTF-8">
-                                            <style>
-                                                html, body { 
-                                                    margin: 0; 
-                                                    padding: 0; 
-                                                    background: white; 
-                                                    width: 100%;
-                                                    height: 100%;
-                                                    -webkit-print-color-adjust: exact; 
-                                                }
-                                                .page {
-                                                    position: relative;
-                                                    width: ${selectedTemplate?.pageConfig?.orientation === 'portrait' ? '210mm' : '297mm'};
-                                                    height: ${selectedTemplate?.pageConfig?.orientation === 'portrait' ? '297mm' : '210mm'};
-                                                    padding: ${selectedTemplate?.pageConfig?.margins?.top || 15}mm ${selectedTemplate?.pageConfig?.margins?.right || 15}mm ${selectedTemplate?.pageConfig?.margins?.bottom || 15}mm ${selectedTemplate?.pageConfig?.margins?.left || 15}mm;
-                                                    box-sizing: border-box;
-                                                    overflow: hidden;
-                                                    background: white;
-                                                }
-                                                ${selectedTemplate?.cssContent || ''}
-                                                @page {
-                                                    size: ${selectedTemplate?.pageConfig?.size || 'A4'} ${selectedTemplate?.pageConfig?.orientation || 'portrait'};
-                                                    margin: 0;
-                                                }
-                                                .duplicate-mark {
-                                                    position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) rotate(-45deg);
-                                                    font-size: 120px; color: rgba(0,0,0,0.1); pointer-events: none; z-index: 999;
-                                                    font-weight: bold; white-space: nowrap; font-family: sans-serif;
-                                                }
-                                            </style>
-                                        </head>
-                                        <body>
-                                            <div class="page">
-                                                ${(() => {
-                                                    try {
-                                                        const templateFn = Handlebars.compile(selectedTemplate?.htmlTemplate || "");
-                                                        return templateFn(hydratedContext || {});
-                                                    } catch (err) {
-                                                        return `<div style="color:red; padding:20px; font-family:sans-serif;">
-                                                            <strong>Template Error:</strong> ${err.message}
-                                                        </div>`;
-                                                    }
-                                                })()}
-                                                ${isDuplicate ? '<div class="duplicate-mark">DUPLICATE</div>' : ''}
-                                            </div>
-                                        </body>
-                                        </html>
-                                    `}
+                                    srcDoc={renderedHtmlDocument}
                                 />
                             ) : (
                                 <div className="flex flex-col items-center justify-center h-full gap-4 text-slate-400">
@@ -512,8 +584,10 @@ const DocumentIssuanceDialog = ({
                         <div className="flex items-center gap-2 text-amber-700 text-[11px] font-medium bg-amber-50 px-2 py-0.5 rounded border border-amber-200">
                             <span>💡 Print: Set Scale to <b>100% / Actual Size</b> and Margins to <b>None</b></span>
                         </div>
-                        <Search size={16} />
-                        <span className="text-xs font-medium italic">Preview is generated using live institute data</span>
+                        <div className="flex items-center gap-1.5 text-xs font-medium italic text-slate-400">
+                            <Search size={14} />
+                            <span>Preview is generated using live institute data</span>
+                        </div>
                     </div>
                     <div className="flex items-center gap-3">
                         <Button
@@ -521,6 +595,16 @@ const DocumentIssuanceDialog = ({
                             onClick={onClose}
                         >
                             Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:text-slate-900 shadow-sm"
+                            onClick={handlePrint}
+                            disabled={previewLoading || !hydratedContext}
+                        >
+                            <Printer size={16} className="text-slate-600" />
+                            Print
                         </Button>
                         <Button
                             variant="primary"

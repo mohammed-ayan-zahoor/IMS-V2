@@ -21,7 +21,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
-  ShieldOff
+  ShieldOff,
+  Printer
 } from "lucide-react";
 import { useToast } from "@/contexts/ToastContext";
 import DocumentIssuanceDialog from "@/components/admin/DocumentIssuanceDialog";
@@ -669,6 +670,17 @@ const CertificateManagementPage = () => {
                             </td>
                             <td className="p-4 text-right">
                                 <div className="flex items-center justify-end gap-1">
+                                    {student.isTemplateIssued && (student.targetCertificateId || student.certificateId) && (
+                                        <a 
+                                            href={`/api/v1/students/certificates/${student.targetCertificateId || student.certificateId}/download`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded transition-colors"
+                                            title="Print Certificate"
+                                        >
+                                            <Printer size={18} />
+                                        </a>
+                                    )}
                                     {student.isTemplateIssued ? (
                                         <button 
                                             onClick={() => {
