@@ -195,16 +195,37 @@ export async function GET(req) {
 
         // 3. Search Students (if mode is all or student)
         if (filterMode === "all" || filterMode === "student") {
+            const queryWords = queryLower.split(/\s+/).filter(Boolean);
+            const studentOrConditions = [
+                { "profile.firstName": { $regex: escaped, $options: "i" } },
+                { "profile.lastName": { $regex: escaped, $options: "i" } },
+                { "profile.studentId": { $regex: escaped, $options: "i" } },
+                { "profile.registrationNumber": { $regex: escaped, $options: "i" } },
+                { "profile.admissionNumber": { $regex: escaped, $options: "i" } },
+                { enrollmentNumber: { $regex: escaped, $options: "i" } },
+                { "profile.phone": { $regex: escaped, $options: "i" } },
+                { email: { $regex: escaped, $options: "i" } }
+            ];
+
+            // Multi-word name matching (e.g. "Fathima M", "Mohammed Ayan")
+            if (queryWords.length > 1) {
+                studentOrConditions.push({
+                    $and: queryWords.map(w => {
+                        const esc = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        return {
+                            $or: [
+                                { "profile.firstName": { $regex: esc, $options: "i" } },
+                                { "profile.lastName": { $regex: esc, $options: "i" } }
+                            ]
+                        };
+                    })
+                });
+            }
+
             const studentFilter = {
                 ...tenantFilter,
                 role: "student",
-                $or: [
-                    { "profile.firstName": { $regex: escaped, $options: "i" } },
-                    { "profile.lastName": { $regex: escaped, $options: "i" } },
-                    { enrollmentNumber: { $regex: escaped, $options: "i" } },
-                    { "profile.phone": { $regex: escaped, $options: "i" } },
-                    { email: { $regex: escaped, $options: "i" } }
-                ]
+                $or: studentOrConditions
             };
 
             const students = await User.find(studentFilter)

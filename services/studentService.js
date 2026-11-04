@@ -588,13 +588,31 @@ export class StudentService {
         
         if (search) {
             const escapedSearch = escapeRegExp(search);
+            const words = search.trim().split(/\s+/).filter(Boolean);
+            const orList = [
+                { 'profile.firstName': { $regex: escapedSearch, $options: 'i' } },
+                { 'profile.lastName': { $regex: escapedSearch, $options: 'i' } },
+                { 'profile.studentId': { $regex: escapedSearch, $options: 'i' } },
+                { 'profile.registrationNumber': { $regex: escapedSearch, $options: 'i' } },
+                { 'profile.admissionNumber': { $regex: escapedSearch, $options: 'i' } },
+                { email: { $regex: escapedSearch, $options: 'i' } },
+                { enrollmentNumber: { $regex: escapedSearch, $options: 'i' } }
+            ];
+
+            // Multi-word name matching (e.g. "Fathima M")
+            if (words.length > 1) {
+                orList.push({
+                    $and: words.map(w => ({
+                        $or: [
+                            { 'profile.firstName': { $regex: escapeRegExp(w), $options: 'i' } },
+                            { 'profile.lastName': { $regex: escapeRegExp(w), $options: 'i' } }
+                        ]
+                    }))
+                });
+            }
+
             const searchFilter = {
-                $or: [
-                    { 'profile.firstName': { $regex: escapedSearch, $options: 'i' } },
-                    { 'profile.lastName': { $regex: escapedSearch, $options: 'i' } },
-                    { email: { $regex: escapedSearch, $options: 'i' } },
-                    { enrollmentNumber: { $regex: escapedSearch, $options: 'i' } }
-                ]
+                $or: orList
             };
 
             // Combine session filter and search filter using $and if both exist
