@@ -6,6 +6,7 @@ import Material from "@/models/Material";
 import Submission from "@/models/Submission";
 import Batch from "@/models/Batch";
 import { sendNotification } from "@/lib/notifications";
+import mongoose from "mongoose";
 
 /**
  * @route   POST /api/v1/assignments/[id]/submit
@@ -49,15 +50,31 @@ export async function POST(req, { params }) {
         ];
         const assignmentBatchIds = Array.isArray(assignment.batches) ? assignment.batches : [];
 
+        const validBatchObjIds = assignmentBatchIds
+            .filter(id => id && mongoose.Types.ObjectId.isValid(id))
+            .map(id => new mongoose.Types.ObjectId(id));
+        const allBatchIds = [...assignmentBatchIds, ...validBatchObjIds];
+
+        const validCourseObjIds = assignmentCourseIds
+            .filter(id => id && mongoose.Types.ObjectId.isValid(id))
+            .map(id => new mongoose.Types.ObjectId(id));
+        const allCourseIds = [...assignmentCourseIds, ...validCourseObjIds];
+
+        const validBundleObjIds = assignmentBundleIds
+            .filter(id => id && mongoose.Types.ObjectId.isValid(id))
+            .map(id => new mongoose.Types.ObjectId(id));
+        const allBundleIds = [...assignmentBundleIds, ...validBundleObjIds];
+
         const batchConditions = [];
         if (assignmentBatchIds.length > 0) {
-            batchConditions.push({ _id: { $in: assignmentBatchIds } });
-        }
-        if (assignmentCourseIds.length > 0) {
-            batchConditions.push({ course: { $in: assignmentCourseIds } });
-        }
-        if (assignmentBundleIds.length > 0) {
-            batchConditions.push({ courseBundle: { $in: assignmentBundleIds } });
+            batchConditions.push({ _id: { $in: allBatchIds } });
+        } else {
+            if (assignmentCourseIds.length > 0) {
+                batchConditions.push({ course: { $in: allCourseIds } });
+            }
+            if (assignmentBundleIds.length > 0) {
+                batchConditions.push({ courseBundle: { $in: allBundleIds } });
+            }
         }
 
         const enrollmentQuery = {
