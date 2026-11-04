@@ -610,12 +610,16 @@ export class StudentService {
             // Multi-word name matching (e.g. "Fathima M")
             if (words.length > 1) {
                 orList.push({
-                    $and: words.map(w => ({
-                        $or: [
-                            { 'profile.firstName': { $regex: escapeRegExp(w), $options: 'i' } },
-                            { 'profile.lastName': { $regex: escapeRegExp(w), $options: 'i' } }
-                        ]
-                    }))
+                    $and: words.map(w => {
+                        const esc = escapeRegExp(w);
+                        const tokenPattern = w.length === 1 ? `(^|\\s)${esc}($|\\s)` : esc;
+                        return {
+                            $or: [
+                                { "profile.firstName": { $regex: tokenPattern, $options: "i" } },
+                                { "profile.lastName": { $regex: tokenPattern, $options: "i" } }
+                            ]
+                        };
+                    })
                 });
             }
 
@@ -1176,10 +1180,9 @@ export class StudentService {
             student: studentId,
             deletedAt: null
         }).populate([
-            { path: 'batch', select: 'name session semester course', populate: [{ path: 'session', select: 'sessionName' }, { path: 'course', select: 'name code' }] },
-            { path: 'session', select: 'sessionName startDate endDate' },
-            { path: 'course', select: 'name code' },
-            { path: 'courseBundle', select: 'title code bundlePrice' },
+            { path: 'batch', select: 'name session semester course', populate: [{ path: 'session', select: 'sessionName' }, { path: 'course', select: 'name code' }], strictPopulate: false },
+            { path: 'session', select: 'sessionName startDate endDate', strictPopulate: false },
+                        { path: 'courseBundle', select: 'title code bundlePrice', strictPopulate: false },
             { path: 'feePreset', select: 'name', strictPopulate: false }
         ]);
 

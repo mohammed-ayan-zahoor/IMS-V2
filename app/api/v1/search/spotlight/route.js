@@ -211,11 +211,13 @@ export async function GET(req) {
             if (queryWords.length > 1) {
                 studentOrConditions.push({
                     $and: queryWords.map(w => {
-                        const esc = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        const esc = w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                        // Single-letter word (initial like "M") must match word boundary so it does not match inside other words
+                        const tokenPattern = w.length === 1 ? `(^|\\s)${esc}($|\\s)` : esc;
                         return {
                             $or: [
-                                { "profile.firstName": { $regex: esc, $options: "i" } },
-                                { "profile.lastName": { $regex: esc, $options: "i" } }
+                                { "profile.firstName": { $regex: tokenPattern, $options: "i" } },
+                                { "profile.lastName": { $regex: tokenPattern, $options: "i" } }
                             ]
                         };
                     })
@@ -229,24 +231,45 @@ export async function GET(req) {
             };
 
             const studentLimit = Math.max(8, Number(limit) || 8);
-            const students = await User.find(studentFilter)
+            // Fetch generous pool so relevance ranking prioritizes exact/prefix matches before truncation
+            const candidatePool = await User.find(studentFilter)
                 .select("profile email enrollmentNumber status")
-                .limit(studentLimit)
+                .limit(60)
                 .lean();
 
-            // Sort by relevance: exact match or starts-with query gets priority
-            students.sort((a, b) => {
-                const aName = `${a.profile?.firstName || ""} ${a.profile?.lastName || ""}`.trim().toLowerCase();
-                const bName = `${b.profile?.firstName || ""} ${b.profile?.lastName || ""}`.trim().toLowerCase();
+            // Rank candidates by relevance
+            candidatePool.sort((a, b) => {
+                const aFirst = (a.profile?.firstName || "").trim().toLowerCase();
+                const aLast = (a.profile?.lastName || "").trim().toLowerCase();
+                const aName = `${aFirst} ${aLast}`.trim();
+
+                const bFirst = (b.profile?.firstName || "").trim().toLowerCase();
+                const bLast = (b.profile?.lastName || "").trim().toLowerCase();
+                const bName = `${bFirst} ${bLast}`.trim();
+
                 const q = queryLower.trim();
-                const aExact = aName === q ? 1 : 0;
-                const bExact = bName === q ? 1 : 0;
-                if (aExact !== bExact) return bExact - aExact;
-                const aStarts = aName.startsWith(q) ? 1 : 0;
-                const bStarts = bName.startsWith(q) ? 1 : 0;
-                if (aStarts !== bStarts) return bStarts - aStarts;
-                return 0;
+
+                const score = (fullName, first, last, roll, email) => {
+                    if (fullName === q) return 1000;
+                    if (roll?.toLowerCase() === q) return 900;
+                    if (fullName.startsWith(q)) return 800;
+                    if (first === q || last === q) return 700;
+                    if (first.startsWith(q) || last.startsWith(q)) return 600;
+                    const allWordsMatch = queryWords.every(w => {
+                        if (w.length === 1) return first.startsWith(w) || last === w || last.startsWith(w);
+                        return first.includes(w) || last.includes(w);
+                    });
+                    if (allWordsMatch) return 500;
+                    return 100;
+                };
+
+                const scoreA = score(aName, aFirst, aLast, a.enrollmentNumber, a.email);
+                const scoreB = score(bName, bFirst, bLast, b.enrollmentNumber, b.email);
+                if (scoreA !== scoreB) return scoreB - scoreA;
+                return aName.localeCompare(bName);
             });
+
+            const students = candidatePool.slice(0, studentLimit);
 
             for (const s of students) {
                 const fullName = `${s.profile?.firstName || ""} ${s.profile?.lastName || ""}`.trim() || s.email || "Student";
