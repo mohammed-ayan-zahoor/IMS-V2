@@ -222,6 +222,8 @@ const getInitialFormData = (selectedSessionId = "") => ({
     const isFirstRender = useRef(true);
     const abortControllerRef = useRef(null);
 
+    const activeInstId = liveInstitute?._id || session?.user?.institute?._id || (typeof session?.user?.institute === 'string' ? session?.user?.institute : '');
+
     useEffect(() => {
         fetchInitialData();
         if (isTransportEnabled) {
@@ -232,7 +234,7 @@ const getInitialFormData = (selectedSessionId = "") => ({
                 abortControllerRef.current.abort();
             }
         };
-    }, [isTransportEnabled]);
+    }, [isTransportEnabled, activeInstId, selectedSessionId]);
 
     const fetchTransportData = async () => {
         try {
@@ -270,24 +272,28 @@ const getInitialFormData = (selectedSessionId = "") => ({
 
     const fetchInitialData = async () => {
         try {
+            const instId = liveInstitute?._id || session?.user?.institute?._id || (typeof session?.user?.institute === 'string' ? session?.user?.institute : '');
+            const batchUrl = `/api/v1/batches?allSessions=true${instId ? `&instituteId=${instId}` : ''}`;
+            const courseUrl = `/api/v1/courses${instId ? `?instituteId=${instId}` : ''}`;
+
             const fetches = [
-                fetch("/api/v1/batches"),
-                fetch("/api/v1/courses")
+                fetch(batchUrl, { headers: { 'x-session-id': selectedSessionId || '' } }),
+                fetch(courseUrl)
             ];
-            if (!isSchool) fetches.push(fetch("/api/v1/course-bundles"));
+            if (!isSchool) fetches.push(fetch(`/api/v1/course-bundles${instId ? `?instituteId=${instId}` : ''}`));
 
             const [bRes, cRes, bundleRes] = await Promise.all(fetches);
             if (bRes && bRes.ok) {
                 const bData = await bRes.json();
-                setBatches(bData.batches || []);
+                setBatches(Array.isArray(bData) ? bData : (bData.batches || []));
             }
             if (cRes && cRes.ok) {
                 const cData = await cRes.json();
-                setCourses(cData.courses || []);
+                setCourses(Array.isArray(cData) ? cData : (cData.courses || []));
             }
             if (bundleRes && bundleRes.ok) {
                 const bundleData = await bundleRes.json();
-                setCourseBundles(bundleData.bundles || []);
+                setCourseBundles(Array.isArray(bundleData) ? bundleData : (bundleData.bundles || []));
             }
 
             // Try fetching institutes (only for Super Admin)
