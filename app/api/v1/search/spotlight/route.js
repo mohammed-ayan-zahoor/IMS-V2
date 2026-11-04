@@ -228,10 +228,25 @@ export async function GET(req) {
                 $or: studentOrConditions
             };
 
+            const studentLimit = Math.max(8, Number(limit) || 8);
             const students = await User.find(studentFilter)
                 .select("profile email enrollmentNumber status")
-                .limit(4)
+                .limit(studentLimit)
                 .lean();
+
+            // Sort by relevance: exact match or starts-with query gets priority
+            students.sort((a, b) => {
+                const aName = `${a.profile?.firstName || ""} ${a.profile?.lastName || ""}`.trim().toLowerCase();
+                const bName = `${b.profile?.firstName || ""} ${b.profile?.lastName || ""}`.trim().toLowerCase();
+                const q = queryLower.trim();
+                const aExact = aName === q ? 1 : 0;
+                const bExact = bName === q ? 1 : 0;
+                if (aExact !== bExact) return bExact - aExact;
+                const aStarts = aName.startsWith(q) ? 1 : 0;
+                const bStarts = bName.startsWith(q) ? 1 : 0;
+                if (aStarts !== bStarts) return bStarts - aStarts;
+                return 0;
+            });
 
             for (const s of students) {
                 const fullName = `${s.profile?.firstName || ""} ${s.profile?.lastName || ""}`.trim() || s.email || "Student";
