@@ -409,8 +409,16 @@ async function run() {
                 }
             }
 
-            // 4. Enroll in Active Batch (Semester 3)
+            // 4. Enroll in Batches (Sem 1, Sem 2 as completed history, Sem 3 as active)
             if (!isDryRun) {
+                await Batch.updateOne(
+                    { _id: sem1Batch._id, 'enrolledStudents.student': { $ne: student._id } },
+                    { $push: { enrolledStudents: { student: student._id, enrolledAt: admissionDate || new Date('2025-06-01'), status: 'completed' } } }
+                );
+                await Batch.updateOne(
+                    { _id: sem2Batch._id, 'enrolledStudents.student': { $ne: student._id } },
+                    { $push: { enrolledStudents: { student: student._id, enrolledAt: new Date('2026-01-01'), status: 'completed' } } }
+                );
                 await Batch.updateOne(
                     { _id: sem3Batch._id, 'enrolledStudents.student': { $ne: student._id } },
                     { $push: { enrolledStudents: { student: student._id, enrolledAt: admissionDate || new Date(), status: 'active' } } }

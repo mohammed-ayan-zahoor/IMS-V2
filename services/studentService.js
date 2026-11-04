@@ -1158,7 +1158,9 @@ export class StudentService {
             student: studentId,
             deletedAt: null
         }).populate([
-            { path: 'batch', select: 'name session', populate: { path: 'session', select: 'sessionName' } },
+            { path: 'batch', select: 'name session semester course', populate: [{ path: 'session', select: 'sessionName' }, { path: 'course', select: 'name code' }] },
+            { path: 'session', select: 'sessionName startDate endDate' },
+            { path: 'course', select: 'name code' },
             { path: 'courseBundle', select: 'title code bundlePrice' },
             { path: 'feePreset', select: 'name', strictPopulate: false }
         ]);

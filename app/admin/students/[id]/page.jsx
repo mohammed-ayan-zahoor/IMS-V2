@@ -2232,25 +2232,54 @@ export default function StudentDetailsPage({ params }) {
                         <h3 className="text-lg font-bold text-slate-900 px-1">Fee & Payment Status</h3>
                         <div className="grid gap-4">
                             {(() => {
-                                const displayBatches = isSchool && selectedSessionId
-                                    ? (studentData?.batches || []).filter(b => b.session?._id === selectedSessionId || b.session === selectedSessionId || !b.session)
-                                    : (studentData?.batches || []);
-                                
-                                const displayFees = isSchool && selectedSessionId
-                                    ? (studentData?.fees || []).filter(f => f.batch?.session === selectedSessionId || f.batch?.session?._id === selectedSessionId || !f.batch?.session)
-                                    : (studentData?.fees || []);
+                                const allFees = studentData?.fees || [];
+                                const allBatches = studentData?.batches || [];
 
-                                if (displayBatches.length === 0) {
+                                const sessionFilteredFees = selectedSessionId
+                                    ? allFees.filter(f => {
+                                        const fSess = (f.session?._id || f.session || f.batch?.session?._id || f.batch?.session || '').toString();
+                                        return fSess === selectedSessionId.toString();
+                                    })
+                                    : allFees;
+
+                                const sessionFilteredBatches = selectedSessionId
+                                    ? allBatches.filter(b => {
+                                        const bSess = (b.session?._id || b.session || '').toString();
+                                        return bSess === selectedSessionId.toString();
+                                    })
+                                    : allBatches;
+
+                                // Build list of items to render: Fees matching session + any unbilled Batches
+                                const displayFees = selectedSessionId ? sessionFilteredFees : allFees;
+                                const displayBatches = selectedSessionId ? sessionFilteredBatches : allBatches;
+
+                                const renderedItems = [];
+                                const seenBatchIds = new Set();
+
+                                for (const fee of displayFees) {
+                                    const bId = fee.batch?._id || fee.batch;
+                                    const batch = allBatches.find(b => b._id === bId);
+                                    if (batch) seenBatchIds.add(batch._id);
+                                    renderedItems.push({ fee, batch: batch || fee.batch });
+                                }
+
+                                for (const batch of displayBatches) {
+                                    if (!seenBatchIds.has(batch._id)) {
+                                        renderedItems.push({ fee: null, batch });
+                                    }
+                                }
+
+                                if (renderedItems.length === 0) {
+                                    const curSess = sessions?.find(s => s._id === selectedSessionId);
                                     return (
-                                        <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                                            <p className="text-slate-400 font-medium">No active enrollments found for this session.</p>
-                                            <p className="text-[10px] text-slate-400 mt-1 uppercase font-bold tracking-widest">Enroll in a batch to see fee status</p>
+                                        <div className="p-8 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-1">
+                                            <p className="text-slate-500 font-medium">No fee records found for {curSess?.sessionName || 'the selected session'}.</p>
+                                            <p className="text-xs text-slate-400">Switch to an active session in the top header to view fees for other semesters.</p>
                                         </div>
                                     );
                                 }
 
-                                return displayBatches.map(batch => {
-                                    const fee = displayFees.find(f => f.batch?._id === batch._id);
+                                return renderedItems.map(({ fee, batch }, renderIdx) => {
                                     const originalTotal = fee?.totalAmount || batch.courseBundle?.bundlePrice || batch.course?.fees?.amount || 0;
                                     const discountAmount = fee?.discount?.amount || 0;
                                     const totalPayable = originalTotal - discountAmount;
@@ -2258,16 +2287,26 @@ export default function StudentDetailsPage({ params }) {
                                     const isPaid = fee?.status === 'paid';
 
                                     return (
-                                        <Card key={batch._id}>
+                                        <Card key={fee?._id || batch?._id || renderIdx}>
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-4">
                                                     <div className="p-3 rounded-xl bg-emerald-100/80 text-emerald-700 border border-emerald-200">
                                                         <CreditCard size={20} />
                                                     </div>
                                                     <div>
-                                                        <div className="flex items-center gap-2">
-                                                            <h4 className="font-bold text-slate-900">{batch.name}</h4>
-                                                            {batch.courseBundle && (
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <h4 className="font-bold text-slate-900">{batch?.name || fee?.batch?.name || (fee?.course?.name ? `${fee.course.name} Fee` : 'Fee Ledger')}</h4>
+                                                            {(batch?.semester || fee?.batch?.semester) && (
+                                                                <span className="px-2 py-0.5 text-[10px] bg-slate-100 text-slate-700 rounded-full border border-slate-200 font-bold">
+                                                                    Semester {batch?.semester || fee?.batch?.semester}
+                                                                </span>
+                                                            )}
+                                                            {(fee?.session?.sessionName || fee?.batch?.session?.sessionName || batch?.session?.sessionName) && (
+                                                                <span className="px-2 py-0.5 text-[10px] bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200 font-semibold">
+                                                                    📅 {fee?.session?.sessionName || fee?.batch?.session?.sessionName || batch?.session?.sessionName}
+                                                                </span>
+                                                            )}
+                                                            {batch?.courseBundle && (
                                                                 <span className="px-2 py-0.5 text-[10px] bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100 font-bold">
                                                                     🎁 {batch.courseBundle.title}
                                                                 </span>
