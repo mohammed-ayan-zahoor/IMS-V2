@@ -49,6 +49,13 @@ function normalizeDate(val) {
     return null;
 }
 
+function normalizeBloodGroup(val) {
+    if (!val) return undefined;
+    const clean = String(val).trim().toUpperCase();
+    const valid = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+    return valid.includes(clean) ? clean : undefined;
+}
+
 function normalizeNumber(val) {
     if (val === undefined || val === null || val === '') return 0;
     if (typeof val === 'number') return isNaN(val) ? 0 : val;
@@ -89,12 +96,17 @@ async function run() {
     // File paths
     let admFile = get('--adm-file') || path.join(__dirname, 'data', '2026 BATCH ADMISSION FEE DETAILS.xlsx');
     let semFile = get('--sem-file') || path.join(__dirname, 'data', '2026 BATCH SEM FEE DETAILS.xlsx');
+    let profileFile = get('--profile-file') || path.join(__dirname, 'data', 'SDC Kolar Data Collection (GSheet).xlsx');
+    let photoUrlsFile = get('--photos-json') || path.join(__dirname, 'data', 'sdc-photo-urls.json');
 
     if (!fs.existsSync(admFile)) {
         admFile = path.resolve('C:/Users/Comp/Downloads/2026 BATCH ADMISSION FEE DETAILS.xlsx');
     }
     if (!fs.existsSync(semFile)) {
         semFile = path.resolve('C:/Users/Comp/Downloads/2026 BATCH SEM FEE DETAILS.xlsx');
+    }
+    if (!fs.existsSync(profileFile)) {
+        profileFile = path.resolve('E:/Users/SN01-01-15/Desktop/Schools/SDC/SDC Degree Kolar/SDC Kolar Data Collection (GSheet).xlsx');
     }
 
     console.log('=================================================================');
@@ -105,6 +117,8 @@ async function run() {
     console.log(`Mode       : ${isDryRun ? '⚠️  DRY-RUN (no writes)' : '🚀 LIVE'}`);
     console.log(`Adm File   : ${admFile}`);
     console.log(`Sem File   : ${semFile}`);
+    console.log(`Profile Doc: ${fs.existsSync(profileFile) ? profileFile : 'None (skipped)'}`);
+    console.log(`Photo URLs : ${fs.existsSync(photoUrlsFile) ? photoUrlsFile : 'None (skipped)'}`);
     console.log('-----------------------------------------------------------------\n');
 
     if (!fs.existsSync(admFile) || !fs.existsSync(semFile)) {
@@ -274,7 +288,54 @@ async function run() {
         const r = dSem[i];
         if (r && r[7]) semMap.set(String(r[7]).trim(), r);
     }
-    console.log(`Loaded ${dAdm.length - 2} admission rows and ${semMap.size} semester fee rows.\n`);
+    console.log(`Loaded ${dAdm.length - 2} admission rows and ${semMap.size} semester fee rows.`);
+
+    // Map Extended Profile (DOB, Blood Group, Parents, Address)
+    const profileMap = new Map();
+    if (fs.existsSync(profileFile)) {
+        try {
+            const wbProfile = XLSX.readFile(profileFile);
+            const pSheet = wbProfile.Sheets['Sheet1'] ? 'Sheet1' : wbProfile.SheetNames[0];
+            const pRows = XLSX.utils.sheet_to_json(wbProfile.Sheets[pSheet], { header: 1 });
+            for (let i = 1; i < pRows.length; i++) {
+                const r = pRows[i];
+                if (!r) continue;
+                const studId = String(r[2] || '').trim();
+                const regNo = String(r[3] || '').trim();
+                const info = {
+                    dob: r[4],
+                    bloodGroup: normalizeBloodGroup(r[5]),
+                    fatherName: r[6] ? String(r[6]).trim() : undefined,
+                    motherName: r[7] ? String(r[7]).trim() : undefined,
+                    phone: r[8] ? String(r[8]).replace(/\D/g, '').slice(-10) : undefined,
+                    street: r[9] ? String(r[9]).trim() : (r[12] ? String(r[12]).trim() : undefined),
+                    city: r[10] ? String(r[10]).trim() : undefined,
+                    pincode: r[11] ? String(r[11]).trim() : undefined,
+                    photoNo: r[15] ? String(r[15]).trim() : undefined
+                };
+                if (studId) profileMap.set(studId.toUpperCase(), info);
+                if (regNo) profileMap.set(regNo.toUpperCase(), info);
+            }
+            console.log(`Loaded ${profileMap.size} student profile records from Data Collection sheet.`);
+        } catch (e) {
+            console.warn(`⚠️  Could not read Data Collection sheet: ${e.message}`);
+        }
+    }
+
+    // Map Photo CDN URLs
+    const photoUrlMap = new Map();
+    if (fs.existsSync(photoUrlsFile)) {
+        try {
+            const photoJson = JSON.parse(fs.readFileSync(photoUrlsFile, 'utf8'));
+            for (const [k, v] of Object.entries(photoJson)) {
+                photoUrlMap.set(k.toUpperCase(), v);
+            }
+            console.log(`Loaded ${photoUrlMap.size} photo CDN URLs from ${photoUrlsFile}.`);
+        } catch (e) {
+            console.warn(`⚠️  Could not read photo URLs file: ${e.message}`);
+        }
+    }
+    console.log('');
 
     const defaultStudentHash = await bcrypt.hash('Student@123', 10);
 
@@ -340,6 +401,22 @@ async function run() {
             const safeId = studentId.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
             let email = `${safeId}@sdcdeg.edu.in`;
 
+            // Match extended profile
+            const profileInfo = profileMap.get(studentId.toUpperCase()) || (regNo ? profileMap.get(regNo.toUpperCase()) : null);
+            const avatarUrl = photoUrlMap.get(studentId.toUpperCase()) || (regNo ? photoUrlMap.get(regNo.toUpperCase()) : undefined);
+
+            const dobDate = profileInfo?.dob ? normalizeDate(profileInfo.dob) : undefined;
+            const bloodGroup = profileInfo?.bloodGroup || undefined;
+            const fatherName = profileInfo?.fatherName || undefined;
+            const motherName = profileInfo?.motherName || undefined;
+            const fatherPhoneFinal = profileInfo?.phone || parentPhone || undefined;
+
+            const addressObj = (profileInfo?.street || profileInfo?.city || profileInfo?.pincode) ? {
+                street: profileInfo.street || '',
+                city: profileInfo.city || '',
+                pincode: profileInfo.pincode || ''
+            } : undefined;
+
             let student = await User.findOne({ institute: inst._id, enrollmentNumber: studentId, deletedAt: null })
                        || await User.findOne({ email, deletedAt: null });
 
@@ -359,9 +436,15 @@ async function run() {
                             firstName: firstName || 'Student',
                             lastName: lastName || '',
                             gender: 'Not Specified',
-                            ...(studentPhone && { phone: studentPhone })
+                            ...(studentPhone && { phone: studentPhone }),
+                            ...(dobDate && { dateOfBirth: dobDate }),
+                            ...(bloodGroup && { bloodGroup }),
+                            ...(addressObj && { address: addressObj }),
+                            ...(avatarUrl && { avatar: avatarUrl })
                         },
-                        ...(parentPhone && { fatherPhone: parentPhone }),
+                        ...(fatherName && { fatherName }),
+                        ...(motherName && { motherName }),
+                        ...(fatherPhoneFinal && { fatherPhone: fatherPhoneFinal }),
                         ...(admissionDate && { admissionDate }),
                         admissionStd: targetCourse.name,
                         activeSession: session._id,
@@ -386,6 +469,20 @@ async function run() {
                 }
             } else {
                 stats.existing++;
+                if (!isDryRun) {
+                    // Enrich existing student if profile info is present
+                    const updateFields = {};
+                    if (dobDate && !student.profile?.dateOfBirth) updateFields['profile.dateOfBirth'] = dobDate;
+                    if (bloodGroup && !student.profile?.bloodGroup) updateFields['profile.bloodGroup'] = bloodGroup;
+                    if (addressObj && !student.profile?.address?.city) updateFields['profile.address'] = addressObj;
+                    if (avatarUrl && !student.profile?.avatar) updateFields['profile.avatar'] = avatarUrl;
+                    if (fatherName && !student.fatherName) updateFields['fatherName'] = fatherName;
+                    if (motherName && !student.motherName) updateFields['motherName'] = motherName;
+                    if (fatherPhoneFinal && !student.fatherPhone) updateFields['fatherPhone'] = fatherPhoneFinal;
+                    if (Object.keys(updateFields).length > 0) {
+                        await User.updateOne({ _id: student._id }, { $set: updateFields });
+                    }
+                }
             }
 
             // 4. Enroll in Batch
