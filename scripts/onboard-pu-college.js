@@ -1,17 +1,17 @@
 /**
- * SDC Independent PU College — Student Onboarding Script
+ * SDC Independent PU College — Comprehensive Student Onboarding Script
+ * Supports both I PUC and II PUC.
  *
- * Assumes institute, session, courses, and batches already exist in prod.
- * This script ONLY creates: Users, Memberships, Batch enrollments, Fee records.
+ * For II PUC, auto-creates active sections (e.g., II M1, II S1 A) under their
+ * respective courses if they do not exist yet.
  *
  * Usage:
- *   node scripts/onboard-pu-college.js --dry-run
- *   node scripts/onboard-pu-college.js
+ *   node scripts/onboard-pu-college.js --puc 2 --dry-run
+ *   node scripts/onboard-pu-college.js --puc 2
  *
- * Optional overrides:
- *   --file     "path/to/students.xlsx"
- *   --fee-file "path/to/fees.xlsx"
- *   --session  "2026-27"
+ * (For I PUC):
+ *   node scripts/onboard-pu-college.js --puc 1 --dry-run
+ *   node scripts/onboard-pu-college.js --puc 1
  */
 
 const mongoose = require('mongoose');
@@ -20,18 +20,6 @@ const path = require('path');
 const fs = require('fs');
 const bcrypt = require('bcryptjs');
 require('dotenv').config({ path: '.env.local' });
-
-// ============================================================================
-// SECTION NAME MAP
-// Spreadsheet has bare "C1", "J1" — prod batches are named "I C1", "I J1"
-// ============================================================================
-const SECTION_NAME_MAP = {
-    'C1': 'I C1',
-    'C2': 'I C2',
-    'C3': 'I C3',
-    'J1': 'I J1',
-    'J2': 'I J2',
-};
 
 // ============================================================================
 // HELPERS
@@ -46,8 +34,13 @@ function normalizeDate(val) {
     if (typeof val === 'string') {
         const cleaned = val.trim();
         if (!cleaned) return null;
-        const ddmmyyyy = cleaned.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/);
-        if (ddmmyyyy) return new Date(+ddmmyyyy[3], +ddmmyyyy[2] - 1, +ddmmyyyy[1]);
+        // Supports DD.MM.YY, DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY
+        const ddmmyyyy = cleaned.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/);
+        if (ddmmyyyy) {
+            let yr = +ddmmyyyy[3];
+            if (yr < 100) yr += 2000;
+            return new Date(yr, +ddmmyyyy[2] - 1, +ddmmyyyy[1]);
+        }
         const parsed = new Date(cleaned);
         if (!isNaN(parsed)) return parsed;
     }
@@ -76,7 +69,6 @@ function normalizeGender(g) {
     return 'Other';
 }
 
-// Flexible column lookup — ignores case, spaces, special chars
 function col(row, ...aliases) {
     for (const k of Object.keys(row)) {
         const nk = k.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -95,41 +87,47 @@ async function run() {
     const args = process.argv.slice(2);
     const isDryRun = args.includes('--dry-run');
 
-    // --- CLI args ---
     const get = (flag) => { const i = args.indexOf(flag); return i !== -1 ? args[i + 1] : null; };
 
     const sessionName = get('--session') || '2026-27';
     const instituteCode = (get('--institute') || 'SDCPUK').toUpperCase();
+    const pucYear = get('--puc') || get('--year') || '2'; // default to II PUC if not specified
 
-    // Student file — try CLI arg then project data folder then common default paths
-    let filePath = get('--file') ? path.resolve(get('--file')) : null;
-    if (!filePath) {
-        for (const c of [
-            path.join(__dirname, 'data', 'I PUC DETAILS id cards.xlsx'),
-            path.join(__dirname, 'data', 'I PUC DETAILS 2026-27.xlsx'),
-            'C:/Users/Comp/Downloads/I PUC DETAILS id cards.xlsx',
-            'C:/Users/Comp/Downloads/I PUC DETAILS 2026-27.xlsx',
-        ]) {
+    // Determine default file paths according to PUC year
+    let defaultStudentFile, defaultFeeFile;
+    if (String(pucYear).includes('2')) {
+        defaultStudentFile = path.join(__dirname, 'data', 'II PUC DETAILS 2026-27-1.xlsx');
+        defaultFeeFile = path.join(__dirname, 'data', 'II PU Fees 2026 - 27 (ARP).xlsx');
+    } else {
+        defaultStudentFile = path.join(__dirname, 'data', 'I PUC DETAILS id cards.xlsx');
+        defaultFeeFile = path.join(__dirname, 'data', 'I PU Fees 2026 - 27 (ARP).xlsx');
+    }
+
+    let filePath = get('--file') ? path.resolve(get('--file')) : defaultStudentFile;
+    let feeFilePath = get('--fee-file') ? path.resolve(get('--fee-file')) : defaultFeeFile;
+
+    // Fallbacks if not in scripts/data/
+    if (!fs.existsSync(filePath)) {
+        const altCandidates = [
+            'C:/Users/Comp/Downloads/II PUC DETAILS 2026-27-1.xlsx',
+            'C:/Users/Comp/Downloads/I PUC DETAILS id cards.xlsx'
+        ];
+        for (const c of altCandidates) {
             if (fs.existsSync(c)) { filePath = c; break; }
         }
     }
-
-    // Fee file
-    let feeFilePath = get('--fee-file') ? path.resolve(get('--fee-file')) : null;
-    if (!feeFilePath) {
-        for (const c of [
-            path.join(__dirname, 'data', 'I PU Fees 2026 - 27 (ARP).xlsx'),
-            path.join(__dirname, 'data', 'I PUC DETAILS 2026-27 (1).xlsx'),
-            'C:/Users/Comp/Downloads/I PU Fees 2026 - 27 (ARP).xlsx',
-            'C:/Users/Comp/Downloads/I PUC DETAILS 2026-27 (1).xlsx',
-        ]) {
+    if (!fs.existsSync(feeFilePath)) {
+        const altFeeCandidates = [
+            'C:/Users/Comp/Downloads/II PU Fees 2026 - 27 (ARP).xlsx',
+            'C:/Users/Comp/Downloads/I PU Fees 2026 - 27 (ARP).xlsx'
+        ];
+        for (const c of altFeeCandidates) {
             if (fs.existsSync(c)) { feeFilePath = c; break; }
         }
     }
 
-    // --- Banner ---
     console.log('=================================================================');
-    console.log('   SDC INDEPENDENT PU COLLEGE — STUDENT ONBOARDING              ');
+    console.log(`   SDC INDEPENDENT PU COLLEGE — ${pucYear === '2' ? 'II PUC' : 'I PUC'} ONBOARDING`);
     console.log('=================================================================');
     console.log(`Institute  : ${instituteCode}`);
     console.log(`Session    : ${sessionName}`);
@@ -143,7 +141,6 @@ async function run() {
         process.exit(1);
     }
 
-    // --- Connect ---
     const mongoUri = process.env.MONGODB_URI;
     if (!mongoUri) { console.error('❌ MONGODB_URI not set in .env.local'); process.exit(1); }
 
@@ -156,7 +153,7 @@ async function run() {
     await mongoose.connect(mongoUri);
     console.log('✅ Connected to MongoDB\n');
 
-    // --- Load models ---
+    // Load models
     const Institute  = mongoose.models.Institute  || (await import('../models/Institute.js')).default;
     const Session    = mongoose.models.Session    || (await import('../models/Session.js')).default;
     const Course     = mongoose.models.Course     || (await import('../models/Course.js')).default;
@@ -166,13 +163,13 @@ async function run() {
     const Membership = mongoose.models.Membership || (await import('../models/Membership.js')).default;
 
     // =========================================================================
-    // PREFLIGHT — verify institute, session, courses, batches exist
+    // PREFLIGHT CHECK
     // =========================================================================
     console.log('--- Preflight Check ---');
 
     const inst = await Institute.findOne({ code: instituteCode, deletedAt: null });
     if (!inst) {
-        console.error(`❌ Institute "${instituteCode}" not found in this database. Wrong MONGODB_URI?`);
+        console.error(`❌ Institute "${instituteCode}" not found in this database.`);
         process.exit(1);
     }
     console.log(`✅ Institute : ${inst.name} (${inst._id})`);
@@ -188,33 +185,44 @@ async function run() {
     }
     console.log(`✅ Session   : ${session.sessionName} (${session._id})`);
 
-    // Load all courses for this institute
+    // Actor ID for createdBy
+    let adminUser = await User.findOne({
+        $or: [
+            { institute: inst._id, role: { $in: ['admin', 'super_admin'] } },
+            { role: 'super_admin' }
+        ],
+        deletedAt: null
+    });
+    const actorId = adminUser?._id || new mongoose.Types.ObjectId();
+
+    // Load courses
     const allCourses = await Course.find({ institute: inst._id, deletedAt: null });
     console.log(`✅ Courses   : ${allCourses.length} found`);
     allCourses.forEach(c => console.log(`     ${c.code.padEnd(8)} ${c.name}`));
 
-    // Build course lookup map: code, name, and bare combination ("EBACS") -> course
     const courseMap = new Map();
     for (const c of allCourses) {
         courseMap.set(c.code.toUpperCase(), c);
         courseMap.set(c.name.toUpperCase(), c);
-        // "EBACS" -> I PUC EBACS (only for I PUC rows)
+        // Map combinations: "EBACS" -> "II PUC EBACS" (or "I PUC EBACS" depending on year)
         const m = c.name.match(/(EBACS|EBAS|PCMB|PCMCS)/i);
-        if (m && c.name.startsWith('I PUC')) courseMap.set(m[1].toUpperCase(), c);
+        if (m) {
+            if (pucYear === '2' && c.name.startsWith('II PUC')) {
+                courseMap.set(m[1].toUpperCase(), c);
+            } else if (pucYear !== '2' && c.name.startsWith('I PUC')) {
+                courseMap.set(m[1].toUpperCase(), c);
+            }
+        }
     }
 
-    // Load all batches for this institute + session
+    // Load batches
     const allBatches = await Batch.find({ institute: inst._id, session: session._id, deletedAt: null });
-    console.log(`✅ Batches   : ${allBatches.length} found`);
-    allBatches.forEach(b => console.log(`     ${b.name.padEnd(8)} (course: ${b.course})`));
+    console.log(`✅ Batches   : ${allBatches.length} existing found`);
 
-    // Build batch lookup: `${courseId}_${batchName}` -> batch
-    // Register under both prod name ("I C1") and raw name ("C1") for each batch
     const batchMap = new Map();
     for (const b of allBatches) {
         const cid = b.course.toString();
         batchMap.set(`${cid}_${b.name.toUpperCase()}`, b);
-        // Also register under bare suffix ("I C1" -> also "C1")
         const bare = b.name.replace(/^I\s+/i, '').replace(/^II\s+/i, '').trim().toUpperCase();
         if (bare !== b.name.toUpperCase()) batchMap.set(`${cid}_${bare}`, b);
     }
@@ -225,21 +233,62 @@ async function run() {
     // LOAD EXCEL DATA
     // =========================================================================
     const wb = XLSX.readFile(filePath);
-    const sheetName = wb.SheetNames.includes('Data') ? 'Data' : wb.SheetNames[0];
+    const sheetName = wb.SheetNames.includes('Sheet1') ? 'Sheet1' : (wb.SheetNames.includes('Data') ? 'Data' : wb.SheetNames[0]);
     const rawRows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { defval: '' });
     console.log(`Loaded students sheet "${sheetName}": ${rawRows.length} rows`);
 
-    // Load fee master
+    // Load Fee Master with robust 2D array parsing
     const feeMap = new Map();
     if (feeFilePath && fs.existsSync(feeFilePath)) {
         const fwb = XLSX.readFile(feeFilePath);
         const fsn = fwb.SheetNames.includes('Admission') ? 'Admission' : fwb.SheetNames[0];
-        const frows = XLSX.utils.sheet_to_json(fwb.Sheets[fsn], { defval: '' });
-        for (const fr of frows) {
-            const sid = String(fr['Student id'] || fr['COLLEGE ID'] || '').trim();
-            if (sid) feeMap.set(sid, fr);
+        const rawGrid = XLSX.utils.sheet_to_json(fwb.Sheets[fsn], { header: 1 });
+        
+        // Find row that contains "Student id"
+        const headerIdx = rawGrid.findIndex(r => r && r.some(c => typeof c === 'string' && c.trim().toLowerCase().includes('student id')));
+        if (headerIdx !== -1) {
+            const fHeaders = rawGrid[headerIdx];
+            const dataRows = rawGrid.slice(headerIdx + 1);
+
+            for (const r of dataRows) {
+                if (!r || !r.length) continue;
+                // Student ID is typically at column index 3 (or match by header)
+                const idColIdx = fHeaders.findIndex(h => typeof h === 'string' && h.trim().toLowerCase().includes('student id'));
+                const sid = String(r[idColIdx] || '').trim();
+                if (!sid) continue;
+
+                // Extract installments & dates directly from grid columns
+                const installments = [];
+                for (let k = 1; k <= 10; k++) {
+                    const instColIdx = fHeaders.findIndex(h => typeof h === 'string' && new RegExp(`^${k}(st|nd|rd|th)?\\s*install`, 'i').test(h.trim()));
+                    if (instColIdx !== -1) {
+                        const amt = normalizeNumber(r[instColIdx]);
+                        if (amt > 0) {
+                            const dateVal = r[instColIdx + 1]; // Date is in adjacent column
+                            installments.push({
+                                num: k,
+                                amount: amt,
+                                date: normalizeDate(dateVal)
+                            });
+                        }
+                    }
+                }
+
+                // Extract fixation, paid, balance
+                const fixColIdx = fHeaders.findIndex(h => typeof h === 'string' && h.trim().toLowerCase().includes('fixation'));
+                const paidColIdx = fHeaders.findIndex(h => typeof h === 'string' && h.trim().toLowerCase() === 'paid');
+                const balColIdx = fHeaders.findIndex(h => typeof h === 'string' && h.trim().toLowerCase().includes('balance'));
+
+                feeMap.set(sid, {
+                    studentId: sid,
+                    fixation: fixColIdx !== -1 ? normalizeNumber(r[fixColIdx]) : 0,
+                    paid: paidColIdx !== -1 ? normalizeNumber(r[paidColIdx]) : 0,
+                    balance: balColIdx !== -1 ? normalizeNumber(r[balColIdx]) : 0,
+                    installments
+                });
+            }
+            console.log(`Loaded fee sheet "${fsn}": ${feeMap.size} records with installment schedules`);
         }
-        console.log(`Loaded fee sheet "${fsn}": ${feeMap.size} records`);
     }
 
     const defaultHash = await bcrypt.hash('Student@123', 10);
@@ -247,7 +296,18 @@ async function run() {
     // =========================================================================
     // PROCESS STUDENTS
     // =========================================================================
-    const stats = { total: rawRows.length, processed: 0, skipped: 0, created: 0, existing: 0, enrolled: 0, fees: 0, feeSkipped: 0, errors: [] };
+    const stats = {
+        total: rawRows.length,
+        processed: 0,
+        skipped: 0,
+        created: 0,
+        existing: 0,
+        enrolled: 0,
+        batchesCreated: 0,
+        fees: 0,
+        feeSkipped: 0,
+        errors: []
+    };
 
     console.log('\n--- Importing Students ---');
 
@@ -256,19 +316,18 @@ async function run() {
         const rowNum = i + 2;
 
         try {
-            // Strip phantom __EMPTY_* columns from merged cells
             const row = {};
             for (const [k, v] of Object.entries(rawRow)) {
                 if (k.startsWith('__EMPTY') && (v === '' || v === undefined)) continue;
                 row[k.trim()] = v;
             }
 
-            const collegeId   = String(col(row, 'COLLEGE ID', 'Student id', 'COLLEGEID') || '').trim();
-            const studentName = String(col(row, 'NAME', 'Student Name', 'STUDENTNAME') || '').trim();
+            const collegeId   = String(col(row, 'COLLEGE ID', 'COLLEGE ID ', 'Student id', 'COLLEGEID') || '').trim();
+            const studentName = String(col(row, 'NAME', 'NAME ', 'Student Name', 'STUDENTNAME') || '').trim();
             const combination = String(col(row, 'COMBINATION', 'Combination', 'COMB') || '').trim().toUpperCase();
-            const rawSection  = String(col(row, 'SEC', 'Section', 'SECTION') || '').trim().toUpperCase();
+            const rawSection  = String(col(row, 'Section', 'SEC', 'SECTION') || '').trim().toUpperCase();
+            const classOfAdm  = String(col(row, 'Class of Admission ', 'Class of Admission', 'CLASS OF ADMISSION') || '').trim();
 
-            // Skip empty rows
             if (!studentName && !collegeId) { stats.skipped++; continue; }
             if (!studentName || !collegeId) {
                 stats.errors.push(`Row ${rowNum}: Missing name or ID — name="${studentName}" id="${collegeId}"`);
@@ -279,48 +338,78 @@ async function run() {
             stats.processed++;
 
             // --- Resolve Course ---
-            let course = courseMap.get(combination) || courseMap.get(`I PUC ${combination}`);
+            let course = null;
+            if (classOfAdm) {
+                course = courseMap.get(classOfAdm.toUpperCase());
+            }
+            if (!course && combination) {
+                const prefix = pucYear === '2' ? 'II PUC ' : 'I PUC ';
+                course = courseMap.get(`${prefix}${combination}`) || courseMap.get(combination);
+            }
             if (!course) {
-                stats.errors.push(`Row ${rowNum}: Unknown combination "${combination}" for "${studentName}" (${collegeId})`);
+                stats.errors.push(`Row ${rowNum}: Unknown course/combination "${classOfAdm || combination}" for "${studentName}" (${collegeId})`);
                 continue;
             }
 
-            // --- Resolve Batch ---
+            // --- Resolve or Auto-Create Batch (Option A: "II M1", "II S1 A") ---
             const cid = course._id.toString();
-            const prodSectionName = SECTION_NAME_MAP[rawSection] || `I ${rawSection}`;
-            let batch = batchMap.get(`${cid}_${prodSectionName.toUpperCase()}`)
+            const secPrefix = pucYear === '2' ? 'II ' : 'I ';
+            const targetSectionName = rawSection.startsWith(secPrefix) ? rawSection : `${secPrefix}${rawSection}`;
+
+            let batch = batchMap.get(`${cid}_${targetSectionName.toUpperCase()}`)
                      || batchMap.get(`${cid}_${rawSection}`);
 
             if (!batch) {
-                stats.errors.push(`Row ${rowNum}: Section "${rawSection}" (expected "${prodSectionName}") not found under ${course.name}. Available batches: ${allBatches.filter(b => b.course.toString() === cid).map(b => b.name).join(', ')}`);
-                continue;
+                // Section does not exist yet under this course -> Auto-create section (Option A)
+                console.log(`  Row ${rowNum}: Creating section "${targetSectionName}" under course "${course.name}"`);
+                if (!isDryRun) {
+                    batch = await Batch.create({
+                        institute: inst._id,
+                        course: course._id,
+                        session: session._id,
+                        name: targetSectionName,
+                        capacity: 60,
+                        schedule: {
+                            startDate: session.startDate || new Date('2026-06-01'),
+                            endDate: session.endDate || new Date('2027-03-31')
+                        },
+                        createdBy: actorId,
+                        enrolledStudents: []
+                    });
+                } else {
+                    batch = { _id: new mongoose.Types.ObjectId(), name: targetSectionName, course: course._id, session: session._id, enrolledStudents: [] };
+                }
+                batchMap.set(`${cid}_${targetSectionName.toUpperCase()}`, batch);
+                batchMap.set(`${cid}_${rawSection}`, batch);
+                stats.batchesCreated++;
             }
 
             // --- Demographics ---
             const { firstName, lastName } = parseName(studentName);
-            const phone          = String(col(row, 'PHONE NO', 'PHONENO', 'Mobile No') || '').replace(/\D/g, '').slice(-10);
-            const phone2         = String(col(row, 'PHONE NO.2', 'PHONENO2', 'Phone 2') || '').replace(/\D/g, '').slice(-10);
+            const phone          = String(col(row, 'Contact Number', 'PHONE NO', 'PHONE NO.', 'Mobile No') || '').replace(/\D/g, '').slice(-10);
+            const phone2         = String(col(row, 'PHONE NO.2', 'Contact Num 1') || '').replace(/\D/g, '').slice(-10);
             const satsNo         = String(col(row, 'SATS NO', 'SATS NO.', 'SATSNO') || '').trim();
-            const admissionNo    = String(col(row, 'ADMISSION NO', 'Admission No', 'ADMISSIONNO') || '').trim();
-            const regNo          = String(col(row, 'REG . NO', 'REG NO', 'Reg No', 'REGNO') || '').trim();
-            const admissionDate  = normalizeDate(col(row, 'ADMISSION DATE', 'Admission Date', 'admissio n date'));
+            const admissionNo    = String(col(row, 'ADMISSION NO.\r\n', 'ADMISSION NO', 'Admission No') || '').trim();
+            const regNo          = String(col(row, 'REG . NO', 'REG NO', 'Reg No') || '').trim();
+            const admissionDate  = normalizeDate(col(row, 'ADMISSION DATE', 'Admission Date'));
             const dob            = normalizeDate(col(row, 'DATE OF BIRTH', 'Date of Birth', 'DOB'));
-            const gender         = normalizeGender(col(row, 'GENDER', 'Gender'));
-            const fatherName     = String(col(row, 'FATHER NAME', 'Father Name', 'FATHERNAME') || '').trim();
-            const motherName     = String(col(row, 'MOTHER NAME', 'Mother Name', 'MOTHERNAME') || '').trim();
+            const gender         = normalizeGender(col(row, 'GENDER ', 'GENDER', 'Gender'));
+            const fatherName     = String(col(row, 'FATHER NAME ', 'FATHER NAME', 'Father Name') || '').trim();
+            const motherName     = String(col(row, 'MOTHER NAME ', 'MOTHER NAME', 'Mother Name') || '').trim();
             const address        = String(col(row, 'ADDRESS', 'Address') || '').trim();
             const nationality    = String(col(row, 'NATIONALITY', 'Nationality') || 'Indian').trim();
-            const language       = String(col(row, 'LANGUAGE', 'Language', 'Mother Tongue') || '').trim();
-            const tcDetails      = String(col(row, 'Transfer Certificate No/Date', 'TC') || '').trim();
-            const lastSchool     = String(col(row, 'INSTITUTION STUDIED', 'Previous School') || '').trim();
+            const religionCaste  = String(col(row, 'RELIGION CASTE AND CATEGORY', 'Category') || '').trim();
+            const lastSchool     = String(col(row, 'INSTITUTION STUDIED ', 'INSTITUTION STUDIED') || '').trim();
+            const tcNo           = String(col(row, 'Transfer Certificate Number\r\n', 'Transfer Certificate No') || '').trim();
+            const tcDate         = normalizeDate(col(row, 'Transfer Certificate\r\n Date ', 'Transfer Certificate Date'));
 
             const safeId = collegeId.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
             let email = `${safeId}@sdcpuk.edu.in`;
 
             const remarks = [
-                regNo     ? `Reg: ${regNo}`         : '',
-                tcDetails ? `TC: ${tcDetails}`       : '',
-                phone2    ? `Alt: ${phone2}`         : '',
+                regNo     ? `Reg: ${regNo}`      : '',
+                tcNo      ? `TC: ${tcNo}`        : '',
+                phone2    ? `Alt: ${phone2}`      : '',
             ].filter(Boolean).join(' | ');
 
             // --- Find or Create Student ---
@@ -354,7 +443,7 @@ async function run() {
                         ...(motherName    && { motherName }),
                         ...(phone2        && { fatherPhone: phone2 }),
                         ...(nationality   && { nationality }),
-                        ...(language      && { motherTongue: language }),
+                        ...(religionCaste && { religion: religionCaste }),
                         ...(lastSchool    && { lastSchoolAttended: lastSchool }),
                         ...(remarks       && { remarks }),
                         admissionStd: course.name,
@@ -366,14 +455,12 @@ async function run() {
                         student = await User.create(userDoc);
                     } catch (e) {
                         if (e.code === 11000) {
-                            // Duplicate email — suffix with row number
                             userDoc.email = `${safeId}${rowNum}@sdcpuk.edu.in`;
                             student = await User.create(userDoc);
                             console.log(`  Row ${rowNum}: Email collision, used ${userDoc.email}`);
                         } else throw e;
                     }
 
-                    // Membership (upsert — safe if re-run)
                     await Membership.findOneAndUpdate(
                         { user: student._id, institute: inst._id },
                         { $setOnInsert: { user: student._id, institute: inst._id, role: 'student', isActive: true } },
@@ -385,7 +472,7 @@ async function run() {
                 stats.existing++;
             }
 
-            // --- Enroll in Batch (idempotent) ---
+            // --- Enroll in Batch ---
             if (!isDryRun) {
                 await Batch.updateOne(
                     { _id: batch._id, 'enrolledStudents.student': { $ne: student._id } },
@@ -394,41 +481,59 @@ async function run() {
             }
             stats.enrolled++;
 
-            // --- Fee Record ---
-            const feeRow = { ...row, ...(feeMap.get(collegeId) || {}) };
-            const fixation  = normalizeNumber(col(feeRow, 'Fixation', 'FIXATION', 'Total Fee'));
-            const paidSheet = normalizeNumber(col(feeRow, 'Paid', 'PAID'));
+            // ===================================================================
+            // FEE LEDGER RECONCILIATION
+            // ===================================================================
+            const feeRecord = feeMap.get(collegeId);
+            const fixation  = (feeRecord && feeRecord.fixation) ? feeRecord.fixation : normalizeNumber(col(row, 'Fixation', 'Total Fee'));
+            const paidSheet = (feeRecord && feeRecord.paid) ? feeRecord.paid : normalizeNumber(col(row, 'Paid'));
 
             if (fixation <= 0) {
                 stats.feeSkipped++;
             } else {
-                // Collect paid installments (up to 10)
                 const installments = [];
                 let totalPaid = 0;
-                const allKeys = Object.keys(feeRow);
 
-                for (let k = 1; k <= 10; k++) {
-                    const amtKey = allKeys.find(key =>
-                        new RegExp(`^${k}(st|nd|rd|th)?\\s*Install\\s*ment`, 'i').test(key.trim())
-                    );
-                    if (!amtKey) continue;
-                    const amount = normalizeNumber(feeRow[amtKey]);
-                    if (amount <= 0) continue;
+                // Use parsed installments from feeRecord if available
+                if (feeRecord && feeRecord.installments && feeRecord.installments.length > 0) {
+                    for (const inst of feeRecord.installments) {
+                        const paidOn = inst.date || admissionDate || new Date();
+                        installments.push({
+                            _id: new mongoose.Types.ObjectId(),
+                            amount: inst.amount,
+                            dueDate: paidOn,
+                            paidDate: paidOn,
+                            status: 'paid',
+                            paymentMethod: 'cash',
+                            notes: `Installment #${inst.num} — imported`
+                        });
+                        totalPaid += inst.amount;
+                    }
+                } else {
+                    // Fallback to row fields in student sheet
+                    const allKeys = Object.keys(row);
+                    for (let k = 1; k <= 10; k++) {
+                        const amtKey = allKeys.find(key =>
+                            new RegExp(`^${k}(st|nd|rd|th)?\\s*install`, 'i').test(key.trim())
+                        );
+                        if (!amtKey) continue;
+                        const amt = normalizeNumber(row[amtKey]);
+                        if (amt <= 0) continue;
 
-                    // Date column is always the next column in the sheet
-                    const dateKey = allKeys[allKeys.indexOf(amtKey) + 1];
-                    const paidOn  = normalizeDate(dateKey ? feeRow[dateKey] : null) || admissionDate || new Date();
+                        const dateKey = allKeys[allKeys.indexOf(amtKey) + 1];
+                        const paidOn = normalizeDate(dateKey ? row[dateKey] : null) || admissionDate || new Date();
 
-                    installments.push({
-                        _id: new mongoose.Types.ObjectId(),
-                        amount,
-                        dueDate: paidOn,
-                        paidDate: paidOn,
-                        status: 'paid',
-                        paymentMethod: 'cash',
-                        notes: `Installment #${k} — imported`,
-                    });
-                    totalPaid += amount;
+                        installments.push({
+                            _id: new mongoose.Types.ObjectId(),
+                            amount: amt,
+                            dueDate: paidOn,
+                            paidDate: paidOn,
+                            status: 'paid',
+                            paymentMethod: 'cash',
+                            notes: `Installment #${k} — imported`
+                        });
+                        totalPaid += amt;
+                    }
                 }
 
                 const effectivePaid = totalPaid > 0 ? totalPaid : paidSheet;
@@ -440,11 +545,11 @@ async function run() {
                         amount: Math.round(balance * 100) / 100,
                         dueDate: session.endDate || new Date('2027-03-31'),
                         status: 'pending',
-                        notes: 'Remaining balance — imported',
+                        notes: 'Remaining balance — imported'
                     });
                 }
 
-                // Plug any rounding gap so pre-save hook doesn't throw
+                // Auto-balance rounding gap for pre-save hook
                 const instTotal = installments.reduce((s, x) => s + x.amount, 0);
                 if (Math.abs(instTotal - fixation) > 0.01) {
                     installments[installments.length - 1].amount += (fixation - instTotal);
@@ -462,7 +567,7 @@ async function run() {
                             paidAmount: effectivePaid,
                             balanceAmount: balance,
                             status: balance <= 0 ? 'paid' : effectivePaid > 0 ? 'partial' : 'not_started',
-                            installments,
+                            installments
                         });
                         stats.fees++;
                     }
@@ -472,14 +577,14 @@ async function run() {
             }
 
         } catch (err) {
-            const id = String(rawRows[i]?.['COLLEGE ID'] || rawRows[i]?.['Student id'] || '').trim();
+            const id = String(rawRows[i]?.['COLLEGE ID '] || rawRows[i]?.['COLLEGE ID'] || '').trim();
             stats.errors.push(`Row ${rowNum} (${id}): ${err.message}`);
             console.error(`  ❌ Row ${rowNum} ${id}: ${err.message}`);
         }
     }
 
     // =========================================================================
-    // SUMMARY
+    // SUMMARY REPORT
     // =========================================================================
     console.log('\n=================================================================');
     console.log('                      SUMMARY REPORT                            ');
@@ -491,6 +596,7 @@ async function run() {
     console.log(`Students Created  : ${stats.created}`);
     console.log(`Students Existing : ${stats.existing}`);
     console.log(`Enrollments       : ${stats.enrolled}`);
+    console.log(`Batches Created   : ${stats.batchesCreated}`);
     console.log(`Fee Records       : ${stats.fees}`);
     console.log(`Fees Skipped      : ${stats.feeSkipped}  (no fee data in sheet)`);
     console.log(`Errors            : ${stats.errors.length}`);
@@ -501,11 +607,10 @@ async function run() {
     }
     console.log('=================================================================');
     if (!isDryRun && stats.created > 0) {
-        const sample = String(rawRows.find(r => r['COLLEGE ID'] || r['Student id'])?.[' COLLEGE ID'] || rawRows[0]?.['COLLEGE ID'] || 'sdcpuk001').replace(/[^A-Za-z0-9]/g,'').toLowerCase();
         console.log('\n✅ Login credentials for imported students:');
         console.log(`   Email    : <collegeid_lowercase>@sdcpuk.edu.in`);
         console.log(`   Password : Student@123`);
-        console.log(`   Example  : ${sample}@sdcpuk.edu.in / Student@123`);
+        console.log(`   Example  : 2025klpu002@sdcpuk.edu.in / Student@123`);
     }
     console.log('');
 
