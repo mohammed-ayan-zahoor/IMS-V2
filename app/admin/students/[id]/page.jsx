@@ -70,7 +70,7 @@ export default function StudentDetailsPage({ params }) {
     const confirm = useConfirm();
     const { id } = use(params);
     const { data: session } = useSession();
-    const { selectedSessionId } = useAcademicSession();
+    const { selectedSessionId, sessions } = useAcademicSession();
     const [studentData, setStudentData] = useState(null);
     const [liveInstitute, setLiveInstitute] = useState(null);
 
@@ -2280,7 +2280,7 @@ export default function StudentDetailsPage({ params }) {
                                 }
 
                                 return renderedItems.map(({ fee, batch }, renderIdx) => {
-                                    const originalTotal = fee?.totalAmount || batch.courseBundle?.bundlePrice || batch.course?.fees?.amount || 0;
+                                    const originalTotal = fee?.totalAmount || batch?.courseBundle?.bundlePrice || batch?.course?.fees?.amount || 0;
                                     const discountAmount = fee?.discount?.amount || 0;
                                     const totalPayable = originalTotal - discountAmount;
                                     const paidAmount = fee?.paidAmount || 0;
