@@ -101,10 +101,12 @@ async function run() {
     const sessionName = get('--session') || '2026-27';
     const instituteCode = (get('--institute') || 'SDCPUK').toUpperCase();
 
-    // Student file — try CLI arg then common default paths
+    // Student file — try CLI arg then project data folder then common default paths
     let filePath = get('--file') ? path.resolve(get('--file')) : null;
     if (!filePath) {
         for (const c of [
+            path.join(__dirname, 'data', 'I PUC DETAILS id cards.xlsx'),
+            path.join(__dirname, 'data', 'I PUC DETAILS 2026-27.xlsx'),
             'C:/Users/Comp/Downloads/I PUC DETAILS id cards.xlsx',
             'C:/Users/Comp/Downloads/I PUC DETAILS 2026-27.xlsx',
         ]) {
@@ -116,6 +118,8 @@ async function run() {
     let feeFilePath = get('--fee-file') ? path.resolve(get('--fee-file')) : null;
     if (!feeFilePath) {
         for (const c of [
+            path.join(__dirname, 'data', 'I PU Fees 2026 - 27 (ARP).xlsx'),
+            path.join(__dirname, 'data', 'I PUC DETAILS 2026-27 (1).xlsx'),
             'C:/Users/Comp/Downloads/I PU Fees 2026 - 27 (ARP).xlsx',
             'C:/Users/Comp/Downloads/I PUC DETAILS 2026-27 (1).xlsx',
         ]) {
