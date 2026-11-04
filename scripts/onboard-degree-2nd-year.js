@@ -317,6 +317,7 @@ async function run() {
         const studentId = String(r[8]).trim(); // SDC2025567
         const regNo = String(r[7] || '').trim(); // U19ZE25S0291
         const rawCourse = String(r[2] || '').trim().toUpperCase(); // BCA, BCOM, BBA, CBZ, PCM, PMCS
+        const concessionNote = r[3] ? String(r[3]).trim() : '';
         const studentName = String(r[9] || '').trim();
         const parentPhone = String(r[5] || '').replace(/\D/g, '').slice(-10);
         const studentPhone = String(r[6] || '').replace(/\D/g, '').slice(-10);
@@ -504,6 +505,7 @@ async function run() {
             const s2Paid = normalizeNumber(r[43]);
             const s2Due = Math.max(0, normalizeNumber(r[44]));
             const s2Fix = normalizeNumber(r[40]);
+            const s2Carry = normalizeNumber(r[39]); // I SEM DUE carry forward
 
             if (s2Total > 0) {
                 const s2Installments = parseInstallments(r, 45, 63, 'Semester 2 Fee', sem2Session.startDate || new Date('2026-01-01'));
@@ -524,6 +526,11 @@ async function run() {
                 if (!isDryRun) {
                     const exists = await Fee.findOne({ institute: inst._id, student: student._id, batch: sem2Batch._id, deletedAt: null });
                     if (!exists) {
+                        const comps2 = [{ name: 'Semester 2 Tuition Fee', amount: s2Fix || (s2Total - s2Carry) }];
+                        if (s2Carry > 0) {
+                            comps2.push({ name: 'Previous Arrears (Carry Forward from Sem 1)', amount: s2Carry });
+                        }
+
                         await Fee.create({
                             institute: inst._id,
                             student: student._id,
@@ -533,7 +540,7 @@ async function run() {
                             paidAmount: s2Paid,
                             balanceAmount: s2Due,
                             status: s2Due <= 0 ? 'paid' : (s2Paid > 0 ? 'partial' : 'not_started'),
-                            components: [{ name: 'Semester 2 Tuition Fee', amount: s2Fix || s2Total }],
+                            components: comps2,
                             installments: s2Installments
                         });
                         stats.feesSem2++;
@@ -550,6 +557,7 @@ async function run() {
             const s3Paid = normalizeNumber(r[16]);
             const s3Due = Math.max(0, normalizeNumber(r[17]));
             const s3Fix = normalizeNumber(r[13]);
+            const s3Carry = normalizeNumber(r[12]); // II SEM DUE carry forward
 
             if (s3Total > 0) {
                 const s3Installments = parseInstallments(r, 18, 36, 'Semester 3 Fee', currentSession.startDate || new Date('2026-06-01'));
@@ -570,6 +578,11 @@ async function run() {
                 if (!isDryRun) {
                     const exists = await Fee.findOne({ institute: inst._id, student: student._id, batch: sem3Batch._id, deletedAt: null });
                     if (!exists) {
+                        const comps3 = [{ name: 'Semester 3 Tuition Fee', amount: s3Fix || (s3Total - s3Carry) }];
+                        if (s3Carry > 0) {
+                            comps3.push({ name: 'Previous Arrears (Carry Forward from Sem 2)', amount: s3Carry });
+                        }
+
                         await Fee.create({
                             institute: inst._id,
                             student: student._id,
@@ -579,8 +592,9 @@ async function run() {
                             paidAmount: s3Paid,
                             balanceAmount: s3Due,
                             status: s3Due <= 0 ? 'paid' : (s3Paid > 0 ? 'partial' : 'not_started'),
-                            components: [{ name: 'Semester 3 Tuition Fee', amount: s3Fix || s3Total }],
-                            installments: s3Installments
+                            components: comps3,
+                            installments: s3Installments,
+                            notes: concessionNote || undefined
                         });
                         stats.feesSem3++;
                     }
