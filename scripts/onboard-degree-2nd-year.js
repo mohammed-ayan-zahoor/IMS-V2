@@ -449,9 +449,10 @@ async function run() {
             // -----------------------------------------------------------------
             // SEMESTER 1 FEE
             // -----------------------------------------------------------------
-            const s1Total = normalizeNumber(r[70]);
+            const s1TotalRaw = normalizeNumber(r[70]);
             const s1Paid = normalizeNumber(r[71]);
             const s1Due = Math.max(0, normalizeNumber(r[72]));
+            const s1Total = Math.max(s1TotalRaw, s1Paid);
             const s1Fix = normalizeNumber(r[66]);
             const s1Mgmt = normalizeNumber(r[67]);
             const s1Mscp = normalizeNumber(r[69]);
@@ -468,7 +469,7 @@ async function run() {
                     });
                 }
                 const sum1 = s1Installments.reduce((s, x) => s + x.amount, 0);
-                if (Math.abs(sum1 - s1Total) > 0.01 && s1Installments.length > 0) {
+                if (s1Total > sum1 && s1Installments.length > 0) {
                     s1Installments[s1Installments.length - 1].amount += (s1Total - sum1);
                 }
 
@@ -501,9 +502,10 @@ async function run() {
             // -----------------------------------------------------------------
             // SEMESTER 2 FEE
             // -----------------------------------------------------------------
-            const s2Total = normalizeNumber(r[42]);
+            const s2TotalRaw = normalizeNumber(r[42]);
             const s2Paid = normalizeNumber(r[43]);
             const s2Due = Math.max(0, normalizeNumber(r[44]));
+            const s2Total = Math.max(s2TotalRaw, s2Paid);
             const s2Fix = normalizeNumber(r[40]);
             const s2Carry = normalizeNumber(r[39]); // I SEM DUE carry forward
 
@@ -519,7 +521,7 @@ async function run() {
                     });
                 }
                 const sum2 = s2Installments.reduce((s, x) => s + x.amount, 0);
-                if (Math.abs(sum2 - s2Total) > 0.01 && s2Installments.length > 0) {
+                if (s2Total > sum2 && s2Installments.length > 0) {
                     s2Installments[s2Installments.length - 1].amount += (s2Total - sum2);
                 }
 
@@ -553,9 +555,10 @@ async function run() {
             // -----------------------------------------------------------------
             // SEMESTER 3 FEE (CURRENT ACTIVE SESSION)
             // -----------------------------------------------------------------
-            const s3Total = normalizeNumber(r[15]);
+            const s3TotalRaw = normalizeNumber(r[15]);
             const s3Paid = normalizeNumber(r[16]);
             const s3Due = Math.max(0, normalizeNumber(r[17]));
+            const s3Total = Math.max(s3TotalRaw, s3Paid);
             const s3Fix = normalizeNumber(r[13]);
             const s3Carry = normalizeNumber(r[12]); // II SEM DUE carry forward
 
@@ -571,7 +574,7 @@ async function run() {
                     });
                 }
                 const sum3 = s3Installments.reduce((s, x) => s + x.amount, 0);
-                if (Math.abs(sum3 - s3Total) > 0.01 && s3Installments.length > 0) {
+                if (s3Total > sum3 && s3Installments.length > 0) {
                     s3Installments[s3Installments.length - 1].amount += (s3Total - sum3);
                 }
 
