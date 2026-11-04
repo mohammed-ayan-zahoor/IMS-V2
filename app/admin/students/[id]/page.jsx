@@ -72,10 +72,22 @@ export default function StudentDetailsPage({ params }) {
     const { data: session } = useSession();
     const { selectedSessionId } = useAcademicSession();
     const [studentData, setStudentData] = useState(null);
-    const instituteType = studentData?.student?.institute?.type || session?.user?.institute?.type;
-    const isVocational = instituteType === 'VOCATIONAL';
-    const isCollege = instituteType === 'COLLEGE';
-    const isSchool = instituteType === 'SCHOOL' || (!isVocational && !isCollege && session?.user?.institute?.code === 'QUANTECH');
+    const [liveInstitute, setLiveInstitute] = useState(null);
+
+    useEffect(() => {
+        fetch("/api/v1/institute")
+            .then(res => res.json())
+            .then(data => { if (data?.institute) setLiveInstitute(data.institute); })
+            .catch(() => {});
+    }, []);
+
+    const activeInstituteType = liveInstitute?.type || studentData?.student?.institute?.type || session?.user?.institute?.type;
+    const activeStructure = liveInstitute?.settings?.structure || studentData?.student?.institute?.settings?.structure || session?.user?.institute?.structure;
+    const isClassBasedCollege = activeInstituteType === 'COLLEGE' && activeStructure === 'CLASS_BASED';
+    const isVocational = activeInstituteType === 'VOCATIONAL';
+    const isCollege = activeInstituteType === 'COLLEGE';
+    const isSemesterCollege = isCollege && !isClassBasedCollege;
+    const isSchool = activeInstituteType === 'SCHOOL' || (!isVocational && !isCollege && session?.user?.institute?.code === 'QUANTECH');
     const [isEnrollFaceOpen, setIsEnrollFaceOpen] = useState(false);
     const [isIDCardOpen, setIsIDCardOpen] = useState(false);
     const [loading, setLoading] = useState(true);
@@ -1718,12 +1730,12 @@ export default function StudentDetailsPage({ params }) {
                                             </h3>
                                         </div>
                                         <div className="p-5 space-y-1">
-                                            <InfoRow icon={Shield} label={isCollege ? "UUCMS / Reg No" : isVocational ? "Registration No" : "G.R. Number"} value={student.grNumber} />
+                                            <InfoRow icon={Shield} label={isClassBasedCollege ? "Reg No / Roll No" : isCollege ? "UUCMS / Reg No" : isVocational ? "Registration No" : "G.R. Number"} value={student.grNumber} />
                                             <InfoRow icon={CreditCard} label="Aadhar Number" value={student.aadharNumber} />
                                             {isSchool && (
                                                 <InfoRow icon={FileText} label="U-DISE Student ID" value={student.studentIdUdise} />
                                             )}
-                                            <InfoRow icon={Percent} label={isCollege ? "APAAR / ABC ID" : "APAAR ID"} value={student.apaarId} />
+                                            <InfoRow icon={Percent} label={isClassBasedCollege ? "APAAR ID" : isCollege ? "APAAR / ABC ID" : "APAAR ID"} value={student.apaarId} />
                                             {isSchool && (
                                                 <InfoRow icon={Tag} label="PEN Number" value={student.penNumber} />
                                             )}
@@ -1784,7 +1796,7 @@ export default function StudentDetailsPage({ params }) {
                                         <div className="p-5 space-y-1">
                                             <InfoRow icon={Calendar} label="Admission Date" value={student.admissionDate ? format(new Date(student.admissionDate), "dd MMM yyyy") : null} />
                                             <InfoRow icon={BookOpen} label={isCollege ? "Degree / Program" : isSchool ? "Admission Std" : "Course"} value={courses.find(c => c._id === student.admissionStd || c.name === student.admissionStd)?.name || student.admissionStd || batches?.[0]?.course?.name} />
-                                            <InfoRow icon={Calendar} label={isCollege ? "Semester / Batch" : "Admitted Batch / Std"} value={student.studyingSinceStandard || (batches?.[0]?.semester ? `Sem ${batches[0].semester} - ${batches[0].name}` : batches?.[0]?.name)} />
+                                            <InfoRow icon={Calendar} label={isClassBasedCollege ? "Section / Batch" : isCollege ? "Semester / Batch" : "Admitted Batch / Std"} value={student.studyingSinceStandard || (batches?.[0]?.semester && !isClassBasedCollege ? `Sem ${batches[0].semester} - ${batches[0].name}` : batches?.[0]?.name)} />
                                             <InfoRow icon={History} label={isCollege ? "Previous Institution" : "Last School"} value={student.lastSchoolAttended} />
                                             <InfoRow icon={Award} label="Previous School Marks" value={student.previousSchoolMarks} />
                                             <InfoRow icon={UserPlus} label="Referred By" value={student.referredBy} />
@@ -1886,8 +1898,10 @@ export default function StudentDetailsPage({ params }) {
                                             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                                                 <div className="space-y-1">
                                                     <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-                                                        {primaryCourse?.name || "Degree Program"}
-                                                        <span className="text-slate-400 font-normal"> — Semester {currentSem} of {totalSemesters}</span>
+                                                        {primaryCourse?.name || (isClassBasedCollege ? "Academic Class" : "Degree Program")}
+                                                        {!isClassBasedCollege && (
+                                                            <span className="text-slate-400 font-normal"> — Semester {currentSem} of {totalSemesters}</span>
+                                                        )}
                                                     </h3>
                                                     <p className="text-xs text-slate-500">
                                                         {primaryCourse?.department?.name ? `${primaryCourse.department.name} · ` : ""}
@@ -1921,46 +1935,54 @@ export default function StudentDetailsPage({ params }) {
                                                 </div>
                                             </div>
 
-                                            {/* Compact Segmented Progress Stepper */}
-                                            <div className="space-y-2.5 pt-1">
-                                                <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${totalSemesters}, minmax(0, 1fr))` }}>
-                                                    {Array.from({ length: totalSemesters }, (_, i) => i + 1).map(sem => {
-                                                        const isCurrent = sem === currentSem;
-                                                        const isPast = sem < currentSem;
-                                                        return (
-                                                            <div
-                                                                key={sem}
-                                                                title={`Semester ${sem}${isCurrent ? ' (Current)' : isPast ? ' (Passed)' : ''}`}
-                                                                className={cn(
-                                                                    "h-2 rounded-full transition-all",
-                                                                    isCurrent 
-                                                                        ? "bg-premium-blue ring-2 ring-premium-blue/25 shadow-xs" 
-                                                                        : isPast 
-                                                                        ? "bg-premium-blue/45" 
-                                                                        : "bg-slate-200 border border-slate-300/40"
-                                                                )}
-                                                            />
-                                                        );
-                                                    })}
+                                            {/* Compact Segmented Progress Stepper (Only for Semester-based Degree Colleges) */}
+                                            {!isClassBasedCollege && (
+                                                <div className="space-y-2.5 pt-1">
+                                                    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${totalSemesters}, minmax(0, 1fr))` }}>
+                                                        {Array.from({ length: totalSemesters }, (_, i) => i + 1).map(sem => {
+                                                            const isCurrent = sem === currentSem;
+                                                            const isPast = sem < currentSem;
+                                                            return (
+                                                                <div
+                                                                    key={sem}
+                                                                    title={`Semester ${sem}${isCurrent ? ' (Current)' : isPast ? ' (Passed)' : ''}`}
+                                                                    className={cn(
+                                                                        "h-2 rounded-full transition-all",
+                                                                        isCurrent 
+                                                                            ? "bg-premium-blue ring-2 ring-premium-blue/25 shadow-xs" 
+                                                                            : isPast 
+                                                                            ? "bg-premium-blue/45" 
+                                                                            : "bg-slate-200 border border-slate-300/40"
+                                                                    )}
+                                                                />
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
+                                                        <span>Sem {currentSem} of {totalSemesters} · Year {currentYear} of {totalYears}</span>
+                                                        <span>{progressPercent}% completed</span>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
-                                                    <span>Sem {currentSem} of {totalSemesters} · Year {currentYear} of {totalYears}</span>
-                                                    <span>{progressPercent}% completed</span>
-                                                </div>
-                                            </div>
+                                            )}
 
                                             {/* Definition List Metadata Block (Zero nesting, clean text grid) */}
                                             <dl className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-5 border-t border-slate-100 text-xs">
                                                 <div>
-                                                    <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">UUCMS / Univ Reg No</dt>
-                                                    <dd className="text-slate-900 font-semibold mt-1">{student.grNumber || "—"}</dd>
+                                                    <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">
+                                                        {isClassBasedCollege ? "Reg No / Roll No" : "UUCMS / Univ Reg No"}
+                                                    </dt>
+                                                    <dd className="text-slate-900 font-semibold mt-1">{student.grNumber || student.statsNo || "—"}</dd>
                                                 </div>
                                                 <div>
-                                                    <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">APAAR / ABC ID</dt>
+                                                    <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">
+                                                        {isClassBasedCollege ? "APAAR ID" : "APAAR / ABC ID"}
+                                                    </dt>
                                                     <dd className="text-slate-900 font-semibold mt-1">{student.apaarId || "—"}</dd>
                                                 </div>
                                                 <div>
-                                                    <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">Prior Qualification (10+2 / PUC)</dt>
+                                                    <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">
+                                                        {isClassBasedCollege ? "Prior Qualification (10th / SSLC)" : "Prior Qualification (10+2 / PUC)"}
+                                                    </dt>
                                                     <dd className="text-slate-900 font-semibold mt-1 truncate" title={student.lastSchoolAttended || "—"}>
                                                         {student.lastSchoolAttended || "—"}
                                                     </dd>
@@ -2040,7 +2062,7 @@ export default function StudentDetailsPage({ params }) {
                                                     <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 px-1">
                                                         <div className="flex items-center gap-3">
                                                             <h4 className="text-sm font-semibold text-slate-900">Course Curriculum</h4>
-                                                            {hasSemesterMapping && (
+                                                            {hasSemesterMapping && !isClassBasedCollege && (
                                                                 <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg text-[11px]">
                                                                     <button
                                                                         type="button"
@@ -2113,7 +2135,7 @@ export default function StudentDetailsPage({ params }) {
                                                             <span className="text-slate-500">
                                                                 {hasSemesterMapping 
                                                                     ? `No subjects mapped for Semester ${curriculumSemTab === 'CURRENT' ? currentSem : curriculumSemTab}.` 
-                                                                    : "No subjects mapped to this degree course blueprint yet."}
+                                                                    : (isClassBasedCollege ? "No subjects mapped to this class curriculum yet." : "No subjects mapped to this degree course blueprint yet.")}
                                                             </span>
                                                             <Button 
                                                                 size="sm" 
@@ -3236,6 +3258,7 @@ export default function StudentDetailsPage({ params }) {
                         selectedSessionId={selectedSessionId}
                         isSchool={isSchool}
                         isCollege={isCollege}
+                        isClassBasedCollege={isClassBasedCollege}
                         isVocational={isVocational}
                         isRteEnabled={isRteEnabled}
                         isTransportEnabled={isTransportEnabled}
@@ -4064,7 +4087,7 @@ export default function StudentDetailsPage({ params }) {
     );
 }
 
-function EditModalContent({ formData, setFormData, uploading, handleFileChange, courses, transportRoutes, transportVehicles, transportPresets, studentData, selectedSessionId, isSchool, isCollege, isVocational, isRteEnabled, isTransportEnabled }) {
+function EditModalContent({ formData, setFormData, uploading, handleFileChange, courses, transportRoutes, transportVehicles, transportPresets, studentData, selectedSessionId, isSchool, isCollege, isClassBasedCollege, isVocational, isRteEnabled, isTransportEnabled }) {
     const [editTab, setEditTab] = useState("basic");
 
     const tabClasses = (tab) => `
@@ -4079,7 +4102,7 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                 <button type="button" onClick={() => setEditTab("basic")} className={tabClasses("basic")}>Basic Profile</button>
                 <button type="button" onClick={() => setEditTab("parents")} className={tabClasses("parents")}>Parents & Origins</button>
                 <button type="button" onClick={() => setEditTab("school")} className={tabClasses("school")}>
-                    {isCollege ? "College & Academics" : "School & Certificate"}
+                    {isClassBasedCollege ? "Academics & College" : isCollege ? "College & Academics" : "School & Certificate"}
                 </button>
                 {isRteEnabled && !isCollege && (
                     <button type="button" onClick={() => setEditTab("rte")} className={tabClasses("rte")}>RTE & Scholarship</button>
@@ -4250,12 +4273,12 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                     <div className="space-y-6">
                         <div className="space-y-4 p-5 bg-premium-blue/5 rounded-2xl border border-premium-blue/10">
                             <h4 className="text-[10px] font-black text-premium-blue uppercase tracking-widest flex items-center gap-2">
-                                <Shield size={12}/> {isCollege ? "University & Government Identity (UUCMS / NEP)" : isVocational ? "Identity & Verification" : "Government & Institutional IDs"}
+                                <Shield size={12}/> {isClassBasedCollege ? "Government & Institutional Identity (Reg / SATS)" : isCollege ? "University & Government Identity (UUCMS / NEP)" : isVocational ? "Identity & Verification" : "Government & Institutional IDs"}
                             </h4>
                             <div className="grid grid-cols-2 gap-4">
                                 <Input
-                                    label={isCollege ? "UUCMS / University Reg No" : isVocational ? "Registration / Roll No" : "G.R. Number"}
-                                    placeholder={isCollege ? "e.g. U03TJ21S0001" : isVocational ? "REG-001" : "GR123"}
+                                    label={isClassBasedCollege ? "Registration / Roll No" : isCollege ? "UUCMS / University Reg No" : isVocational ? "Registration / Roll No" : "G.R. Number"}
+                                    placeholder={isClassBasedCollege ? "e.g. 2026KLPU001" : isCollege ? "e.g. U03TJ21S0001" : "GR123"}
                                     value={formData.grNumber}
                                     onChange={(e) => setFormData({ ...formData, grNumber: e.target.value })}
                                 />
@@ -4304,8 +4327,8 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                             </h4>
                             <div className="grid grid-cols-2 gap-4">
                                 <Input
-                                    label={isCollege ? "Previous Institution / PU College Attended" : "Last School Attended"}
-                                    placeholder={isCollege ? "e.g. St. Joseph PU College" : "School name"}
+                                    label={isClassBasedCollege ? "Previous School (10th / SSLC)" : isCollege ? "Previous Institution / PU College Attended" : "Last School Attended"}
+                                    placeholder={isClassBasedCollege ? "School name (SSLC)" : isCollege ? "e.g. St. Joseph PU College" : "School name"}
                                     value={formData.lastSchoolAttended}
                                     onChange={(e) => setFormData({ ...formData, lastSchoolAttended: e.target.value })}
                                 />
@@ -4319,7 +4342,7 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                             <div className="grid grid-cols-2 gap-4">
                                 <Input label="Admission Date" type="date" value={formData.admissionDate} onChange={(e) => setFormData({ ...formData, admissionDate: e.target.value })} />
                                 <Select 
-                                    label={isCollege ? "Admitted Degree / Program" : isVocational ? "Course / Trade" : "Admission Std"} 
+                                    label={isClassBasedCollege ? "Admitted Class / Stream" : isCollege ? "Admitted Degree / Program" : isVocational ? "Course / Trade" : "Admission Std"} 
                                     value={courses.find(c => c._id === formData.admissionStd || c.name === formData.admissionStd)?._id || formData.admissionStd || ""} 
                                     onChange={(val) => setFormData({ ...formData, admissionStd: val })} 
                                     options={[
@@ -4330,8 +4353,8 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <Input
-                                    label={isCollege ? "Admitted Semester / Batch" : isVocational ? "Batch / Section" : "Studying Since (Words/Date)"}
-                                    placeholder={isCollege ? "e.g. Semester 1" : ""}
+                                    label={isClassBasedCollege ? "Admitted Section / Batch" : isCollege ? "Admitted Semester / Batch" : isVocational ? "Batch / Section" : "Studying Since (Words/Date)"}
+                                    placeholder={isClassBasedCollege ? "e.g. Section J1" : isCollege ? "e.g. Semester 1" : ""}
                                     value={formData.studyingSinceStandard}
                                     onChange={(e) => setFormData({ ...formData, studyingSinceStandard: e.target.value })}
                                 />
