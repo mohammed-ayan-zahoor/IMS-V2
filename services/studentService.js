@@ -333,9 +333,9 @@ export class StudentService {
             }
         }
 
-        // Strict Session Isolation for Schools
-        // Note: Defaulting to SCHOOL-style isolation if type is unknown for safety
-        if (targetInstituteType === 'SCHOOL' || !targetInstituteType) {
+        // Strict Session Isolation for Schools and Colleges
+        // Note: Defaulting to strict isolation if type is unknown for safety
+        if (targetInstituteType === 'SCHOOL' || targetInstituteType === 'COLLEGE' || !targetInstituteType) {
             if (sessionId) {
                 // Security Hardening: Verify session ownership at the service level
                 // Optimized: Skip if already validated by caller (e.g. API route)
@@ -357,14 +357,22 @@ export class StudentService {
                 } catch (e) {
                     sessObjId = sessionId;
                 }
+
+                // Find all student IDs enrolled in batches for this session
+                const sessionBatches = await Batch.find({
+                    ...(instituteId ? { institute: instituteId } : {}),
+                    session: sessObjId,
+                    deletedAt: null
+                }).select('enrolledStudents.student');
+                const sessionEnrolledIds = sessionBatches.flatMap(b => (b.enrolledStudents || []).map(e => e.student));
+
                 sessionFilter = {
                     $or: [
+                        { _id: { $in: sessionEnrolledIds } },
                         { activeSessions: sessObjId },
                         { activeSession: sessObjId },
                         { activeSessions: sessionId },
-                        { activeSession: sessionId },
-                        { activeSession: null },
-                        { activeSession: { $exists: false } }
+                        { activeSession: sessionId }
                     ]
                 };
             }
@@ -442,7 +450,7 @@ export class StudentService {
             }
 
             // Strictly scope course/batch filtering by academic year, but gracefully include batches with null session
-            if (sessionId && (targetInstituteType === 'SCHOOL' || !targetInstituteType)) {
+            if (sessionId && (targetInstituteType === 'SCHOOL' || targetInstituteType === 'COLLEGE' || !targetInstituteType)) {
                 let sessObjId = null;
                 try {
                     sessObjId = new mongoose.Types.ObjectId(sessionId);
@@ -694,10 +702,18 @@ export class StudentService {
 
         // Fetch all active batches for the page's students to map course and batch/section details
         const studentIds = students.map(s => s._id);
-        const enrolledBatches = await Batch.find({
+        const batchQueryForPage = {
             'enrolledStudents.student': { $in: studentIds },
             deletedAt: null
-        }).populate('course', 'name code').populate('courseBundle', 'title code');
+        };
+        if (sessionId) {
+            batchQueryForPage.session = sessionId;
+        }
+        const enrolledBatches = await Batch.find(batchQueryForPage)
+            .select('_id name semester session course courseBundle enrolledStudents')
+            .populate('course', 'name code')
+            .populate('courseBundle', 'title code')
+            .populate('session', 'sessionName');
 
         // Create a map of student ID string -> array of batches
         const studentBatchMap = {};
@@ -729,6 +745,8 @@ export class StudentService {
             studentObj.batches = studentBatches.map(b => ({
                 _id: b._id,
                 name: b.name,
+                semester: b.semester,
+                session: b.session,
                 course: b.course ? {
                     _id: b.course._id,
                     name: b.course.name,

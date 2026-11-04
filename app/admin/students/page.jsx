@@ -1488,10 +1488,15 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                                     </td>
                                                     <td className="px-5 py-3.5">
                                                         {student.batches && student.batches.length > 0 ? (
-                                                            <div className="flex flex-col gap-0.5">
+                                                            <div className="flex flex-col gap-1">
                                                                 {student.batches.map((b) => (
-                                                                    <span key={b._id} className="text-xs font-medium text-slate-700">
-                                                                        {(b.courseBundle ? b.courseBundle.title : (b.course?.name || "No Class"))} / {b.name}
+                                                                    <span key={b._id} className="text-xs font-medium text-slate-700 flex items-center gap-1.5 flex-wrap">
+                                                                        <span>{(b.courseBundle ? b.courseBundle.title : (b.course?.name || "No Class"))} / {b.name}</span>
+                                                                        {b.semester && (
+                                                                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+                                                                                Sem {b.semester}
+                                                                            </span>
+                                                                        )}
                                                                     </span>
                                                                 ))}
                                                             </div>
