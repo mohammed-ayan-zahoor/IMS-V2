@@ -328,7 +328,36 @@ export default function StudentDetailsPage({ params }) {
 
         try {
             setIsSavingInstallments(true);
-            const res = await fetch(`/api/v1/fees/${selectedFee._id}`, {
+            let feeId = selectedFee._id;
+
+            // If this is an unbilled / imported student with no fee document yet, initialize it first
+            if (feeId === "new") {
+                const batchId = selectedFee.batch?._id || selectedFee.batch;
+                if (!batchId) {
+                    throw new Error("Batch information is missing to create fee record.");
+                }
+
+                const initRes = await fetch(`/api/v1/students/${id}/enroll`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        batchId,
+                        customAmount: selectedFee.totalAmount
+                    })
+                });
+
+                if (!initRes.ok) {
+                    const err = await initRes.json();
+                    throw new Error(err.error || "Failed to initialize fee record");
+                }
+
+                const initData = await initRes.json();
+                feeId = initData.data?.fee?._id;
+
+                if (!feeId) throw new Error("Fee record initialization failed to return ID");
+            }
+
+            const res = await fetch(`/api/v1/fees/${feeId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -1181,10 +1210,7 @@ export default function StudentDetailsPage({ params }) {
 
     const handleApplyDiscount = async (e) => {
         e.preventDefault();
-        if (!selectedFee || selectedFee._id === "new") {
-            toast.error("Please record a payment first to create a fee record before applying a discount.");
-            return;
-        }
+        if (!selectedFee) return;
 
         const amount = parseFloat(discountData.amount);
         if (isNaN(amount) || amount <= 0 || !Number.isFinite(amount)) {
@@ -1203,7 +1229,36 @@ export default function StudentDetailsPage({ params }) {
 
         try {
             setIsApplyingDiscount(true);
-            const res = await fetch(`/api/v1/fees/${selectedFee._id}`, {
+            let feeId = selectedFee._id;
+
+            // If this is an unbilled / imported student with no fee document yet, initialize it first
+            if (feeId === "new") {
+                const batchId = selectedFee.batch?._id || selectedFee.batch;
+                if (!batchId) {
+                    throw new Error("Batch information is missing to create fee record.");
+                }
+
+                const initRes = await fetch(`/api/v1/students/${id}/enroll`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        batchId,
+                        customAmount: selectedFee.totalAmount
+                    })
+                });
+
+                if (!initRes.ok) {
+                    const err = await initRes.json();
+                    throw new Error(err.error || "Failed to initialize fee record");
+                }
+
+                const initData = await initRes.json();
+                feeId = initData.data?.fee?._id;
+
+                if (!feeId) throw new Error("Fee record initialization failed to return ID");
+            }
+
+            const res = await fetch(`/api/v1/fees/${feeId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -1236,10 +1291,7 @@ export default function StudentDetailsPage({ params }) {
 
     const handleAddExtraCharges = async (e) => {
         e.preventDefault();
-        if (!selectedFee || selectedFee._id === "new") {
-            toast.error("Please record a payment first to create a fee record before adding extra charges.");
-            return;
-        }
+        if (!selectedFee) return;
 
         const amount = parseFloat(extraChargesData.amount);
         if (isNaN(amount) || amount <= 0 || !Number.isFinite(amount)) {
@@ -1254,7 +1306,36 @@ export default function StudentDetailsPage({ params }) {
 
         try {
             setIsApplyingExtraCharges(true);
-            const res = await fetch(`/api/v1/fees/${selectedFee._id}`, {
+            let feeId = selectedFee._id;
+
+            // If this is an unbilled / imported student with no fee document yet, initialize it first
+            if (feeId === "new") {
+                const batchId = selectedFee.batch?._id || selectedFee.batch;
+                if (!batchId) {
+                    throw new Error("Batch information is missing to create fee record.");
+                }
+
+                const initRes = await fetch(`/api/v1/students/${id}/enroll`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ 
+                        batchId,
+                        customAmount: selectedFee.totalAmount
+                    })
+                });
+
+                if (!initRes.ok) {
+                    const err = await initRes.json();
+                    throw new Error(err.error || "Failed to initialize fee record");
+                }
+
+                const initData = await initRes.json();
+                feeId = initData.data?.fee?._id;
+
+                if (!feeId) throw new Error("Fee record initialization failed to return ID");
+            }
+
+            const res = await fetch(`/api/v1/fees/${feeId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -1300,7 +1381,10 @@ export default function StudentDetailsPage({ params }) {
                 const initRes = await fetch(`/api/v1/students/${id}/enroll`, {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ batchId: selectedFee.batch._id })
+                    body: JSON.stringify({ 
+                        batchId: selectedFee.batch?._id || selectedFee.batch,
+                        customAmount: selectedFee.totalAmount
+                    })
                 });
 
                 if (!initRes.ok) {
@@ -2423,9 +2507,74 @@ export default function StudentDetailsPage({ params }) {
                                                                 )}
                                                             </>
                                                         ) : (
-                                                            <Button size="sm" variant="outline" onClick={() => openPaymentModal({ batch, totalAmount: originalTotal, _id: "new" })}>
-                                                                Pay Fee
-                                                            </Button>
+                                                            <>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="text-amber-500 hover:text-amber-700 hover:bg-amber-50"
+                                                                    onClick={() => {
+                                                                        setSelectedFee({
+                                                                            _id: "new",
+                                                                            batch,
+                                                                            totalAmount: originalTotal,
+                                                                            paidAmount: 0,
+                                                                            balanceAmount: originalTotal
+                                                                        });
+                                                                        setDiscountData({
+                                                                            amount: "",
+                                                                            reason: ""
+                                                                        });
+                                                                        setIsDiscountModalOpen(true);
+                                                                    }}
+                                                                    title="Apply Discount"
+                                                                >
+                                                                    <Percent size={14} />
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="text-orange-500 hover:text-orange-700 hover:bg-orange-50"
+                                                                    onClick={() => {
+                                                                        setSelectedFee({
+                                                                            _id: "new",
+                                                                            batch,
+                                                                            totalAmount: originalTotal,
+                                                                            paidAmount: 0,
+                                                                            balanceAmount: originalTotal
+                                                                        });
+                                                                        setExtraChargesData({
+                                                                            amount: "",
+                                                                            reason: ""
+                                                                        });
+                                                                        setIsExtraChargesModalOpen(true);
+                                                                    }}
+                                                                    title="Add Extra Charges"
+                                                                >
+                                                                    <Plus size={14} />
+                                                                </Button>
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="text-premium-blue hover:text-blue-700 hover:bg-blue-50"
+                                                                    onClick={() => {
+                                                                        setSelectedFee({
+                                                                            _id: "new",
+                                                                            batch,
+                                                                            totalAmount: originalTotal,
+                                                                            paidAmount: 0,
+                                                                            balanceAmount: originalTotal
+                                                                        });
+                                                                        setManageInstallmentsList([]);
+                                                                        setIsInstallmentsModalOpen(true);
+                                                                    }}
+                                                                    title="Manage Installment Plan"
+                                                                >
+                                                                    <Calendar size={14} />
+                                                                </Button>
+                                                                <Button size="sm" variant="outline" onClick={() => openPaymentModal({ batch, totalAmount: originalTotal, _id: "new" })}>
+                                                                    Pay Fee
+                                                                </Button>
+                                                            </>
                                                         )}
                                                     </div>
                                                 </div>
