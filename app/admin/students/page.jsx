@@ -222,7 +222,7 @@ const getInitialFormData = (selectedSessionId = "") => ({
     const isFirstRender = useRef(true);
     const abortControllerRef = useRef(null);
 
-    const activeInstId = liveInstitute?._id || session?.user?.institute?._id || (typeof session?.user?.institute === 'string' ? session?.user?.institute : '');
+    const activeInstId = liveInstitute?._id || session?.user?.institute?._id || session?.user?.institute?.id || (typeof session?.user?.institute === 'string' ? session?.user?.institute : '');
 
     useEffect(() => {
         fetchInitialData();
@@ -315,7 +315,7 @@ const getInitialFormData = (selectedSessionId = "") => ({
                 search,
                 batchId: filters.batchId,
                 courseId: filters.courseId,
-                instituteId: filters.instituteId, // Include in API call
+                instituteId: filters.instituteId || activeInstId || '', // Include in API call
                 isActive: filters.isActive,
                 page: page.toString(),
                 limit: customLimit.toString()
@@ -358,7 +358,7 @@ const getInitialFormData = (selectedSessionId = "") => ({
                 search,
                 batchId: filters.batchId,
                 courseId: filters.courseId,
-                instituteId: filters.instituteId,
+                instituteId: filters.instituteId || activeInstId || '',
                 isActive: filters.isActive,
                 page: '1',
                 limit: '1000' // Get all for print

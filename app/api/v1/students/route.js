@@ -24,7 +24,7 @@ export async function GET(req) {
 
         // Global View Logic: 
         // 1. Super Admin + (instituteId='all' OR no instituteId provided)
-        const isGlobalView = scope.isSuperAdmin && (!targetInstParam || targetInstParam === "all");
+        const isGlobalView = scope.isSuperAdmin && targetInstParam === "all";
 
         // ponytail: Strict tenant isolation. Only super_admin may query arbitrary or all institutes.
         // Non-superadmin users attempting cross-tenant querying are blocked.
@@ -47,7 +47,7 @@ export async function GET(req) {
         let sessionValidationResult = null;
 
         const targetInstituteId = scope.isSuperAdmin
-            ? (isGlobalView ? null : (targetInstParam || null))
+            ? (targetInstParam === "all" ? null : (targetInstParam || scope.instituteId || null))
             : scope.instituteId;
 
         // SECURITY FIX: Server-side session derivation & validation

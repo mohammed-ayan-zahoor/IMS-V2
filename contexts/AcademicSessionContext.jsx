@@ -11,7 +11,7 @@ export function AcademicSessionProvider({ children }) {
     const [selectedSessionId, setSelectedSessionId] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const instituteId = session?.user?.institute?._id || session?.user?.institute;
+    const instituteId = session?.user?.institute?._id || session?.user?.institute?.id || session?.user?.institute;
 
     const fetchSessions = async (signal) => {
         try {
