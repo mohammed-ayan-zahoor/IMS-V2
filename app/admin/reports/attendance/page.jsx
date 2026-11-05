@@ -177,7 +177,7 @@ export default function AttendanceReportPage() {
                 endDate,
                 ...(selectedCourse && { courseId: selectedCourse }),
                 ...(selectedBatch && { batchId: selectedBatch }),
-                ...(isSchool && selectedSessionId && { sessionId: selectedSessionId }),
+                ...(!isVocational && selectedSessionId && { sessionId: selectedSessionId }),
             });
 
             const res = await fetch(`/api/v1/reports/attendance?${query}`, {

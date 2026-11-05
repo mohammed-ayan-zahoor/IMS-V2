@@ -557,7 +557,7 @@ export default function StudentDetailsPage({ params }) {
 
     const fetchFollowUps = async () => {
         try {
-            const sessionQuery = isSchool && selectedSessionId ? `?session=${selectedSessionId}` : "";
+            const sessionQuery = !isVocational && selectedSessionId ? `?session=${selectedSessionId}` : "";
             const res = await fetch(`/api/v1/students/${id}/follow-ups${sessionQuery}`);
             const data = await res.json();
             setFollowUps(data.followUps || []);
@@ -698,7 +698,7 @@ export default function StudentDetailsPage({ params }) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     ...followUpFormData,
-                    session: isSchool ? selectedSessionId : null
+                    session: !isVocational ? selectedSessionId : null
                 })
             });
 
@@ -727,7 +727,7 @@ export default function StudentDetailsPage({ params }) {
         try {
             const month = currentMonth.getMonth() + 1;
             const year = currentMonth.getFullYear();
-            const sessionQuery = isSchool && selectedSessionId ? `&session=${selectedSessionId}` : "";
+            const sessionQuery = !isVocational && selectedSessionId ? `&session=${selectedSessionId}` : "";
             const res = await fetch(`/api/v1/attendance/students/${id}?month=${month}&year=${year}${sessionQuery}`);
             const data = await res.json();
             setAttendanceData(data.attendance || []);
@@ -934,7 +934,7 @@ export default function StudentDetailsPage({ params }) {
             let fetchedBatches = data.batches || [];
             
             // For schools, only show batches in the active session (or legacy batches with no session)
-            if (isSchool && selectedSessionId) {
+            if (!isVocational && selectedSessionId) {
                 fetchedBatches = fetchedBatches.filter(b => 
                     b.session?._id === selectedSessionId || 
                     b.session === selectedSessionId || 
@@ -2164,7 +2164,7 @@ export default function StudentDetailsPage({ params }) {
                                     </Button>
                                 </div>
                                 {(() => {
-                                    const displayBatches = isSchool && selectedSessionId
+                                    const displayBatches = !isVocational && selectedSessionId
                                         ? batches.filter(b => b.session?._id === selectedSessionId || b.session === selectedSessionId || !b.session)
                                         : batches;
 
@@ -2504,7 +2504,7 @@ export default function StudentDetailsPage({ params }) {
 
                         {/* Transport Fees Section */}
                         {(() => {
-                            const filteredTransportFees = (isSchool && selectedSessionId) 
+                            const filteredTransportFees = (!isVocational && selectedSessionId) 
                                 ? (studentData?.transportFees || []).filter(f => f.session?._id === selectedSessionId || f.session === selectedSessionId)
                                 : (studentData?.transportFees || []);
                             
@@ -2583,7 +2583,7 @@ export default function StudentDetailsPage({ params }) {
 
                         {/* Hostel Fees Section */}
                         {(() => {
-                            const filteredHostelAllotments = (isSchool && selectedSessionId)
+                            const filteredHostelAllotments = (!isVocational && selectedSessionId)
                                 ? (studentData?.hostelAllotments || []).filter(a => a.session?._id === selectedSessionId || a.session === selectedSessionId)
                                 : (studentData?.hostelAllotments || []);
                                 
@@ -4720,7 +4720,7 @@ function EditModalContent({ formData, setFormData, uploading, handleFileChange, 
 
                                 {/* Session Awareness - Manual Initialization */}
                                 {(() => {
-                                    const hasFeeForCurrentSession = (isSchool && selectedSessionId)
+                                    const hasFeeForCurrentSession = (!isVocational && selectedSessionId)
                                         ? (studentData?.transportFees || []).some(f => f.session?._id === selectedSessionId || f.session === selectedSessionId)
                                         : (studentData?.transportFees || []).length > 0;
 

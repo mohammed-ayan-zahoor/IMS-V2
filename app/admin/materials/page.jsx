@@ -66,7 +66,7 @@ export default function MaterialsPage() {
     const fetchInitialData = useCallback(async () => {
         try {
             const batchParams = new URLSearchParams();
-            if (isSchool && selectedSessionId && selectedSessionId !== 'all') {
+            if (!isVocational && selectedSessionId && selectedSessionId !== 'all') {
                 batchParams.set('sessionId', selectedSessionId);
             }
             const batchQuery = batchParams.toString() ? `?${batchParams.toString()}` : '';
@@ -265,7 +265,7 @@ export default function MaterialsPage() {
         // 1. Session Isolation (for schools)
         const batchSessionStr = String(b.session?._id || b.session || '');
         const currentSessionStr = String(selectedSessionId || '');
-        const matchesSession = !isSchool || !selectedSessionId || selectedSessionId === 'all' || !batchSessionStr || batchSessionStr === currentSessionStr;
+        const matchesSession = isVocational || !selectedSessionId || selectedSessionId === 'all' || !batchSessionStr || batchSessionStr === currentSessionStr;
         if (!matchesSession) return false;
 
         // 2. Course / Package matching
@@ -282,7 +282,7 @@ export default function MaterialsPage() {
         const validBatches = batches.filter(b => {
             const batchSessionStr = String(b.session?._id || b.session || '');
             const currentSessionStr = String(selectedSessionId || '');
-            const matchesSession = !isSchool || !selectedSessionId || selectedSessionId === 'all' || !batchSessionStr || batchSessionStr === currentSessionStr;
+            const matchesSession = isVocational || !selectedSessionId || selectedSessionId === 'all' || !batchSessionStr || batchSessionStr === currentSessionStr;
             if (!matchesSession) return false;
 
             const batchCourseId = typeof b.course === 'object' ? b.course?._id : b.course;

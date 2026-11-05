@@ -40,7 +40,7 @@ export default function MobileInstructorMaterials() {
     const fetchInitialData = useCallback(async () => {
         try {
             const batchParams = new URLSearchParams();
-            if (isSchool && selectedSessionId && selectedSessionId !== 'all') {
+            if (!isVocational && selectedSessionId && selectedSessionId !== 'all') {
                 batchParams.set('sessionId', selectedSessionId);
             }
             const batchQuery = batchParams.toString() ? `?${batchParams.toString()}` : '';

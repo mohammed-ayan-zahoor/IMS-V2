@@ -82,6 +82,10 @@ const mapFeeToResult = (fee) => ({
     student: fee.student,
     batch: fee.batch,
     totalAmount: fee.totalAmount || 0,
+    discount: fee.discount || { amount: 0 },
+    extraCharges: fee.extraCharges || { amount: 0 },
+    components: fee.components || [],
+    session: fee.session,
     paidAmount: fee.paidAmount || 0,
     balanceAmount: fee.balanceAmount || 0,
     percentagePaid: calculatePercentage(fee.paidAmount || 0, fee.totalAmount || 0),
@@ -472,7 +476,7 @@ export class FeeService {
         const total = await FeeDb.countDocuments(query);
         const fees = await FeeDb.find(query)
             .populate(populateOptions)
-            .populate('batch', 'name')
+            .populate({ path: 'batch', select: 'name semester course', populate: { path: 'course', select: 'name code' } })
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(parseInt(limit));
@@ -677,7 +681,7 @@ export class FeeService {
 
         const fees = await FeeDb.find(feeQuery)
             .populate('student', 'profile.firstName profile.lastName enrollmentNumber')
-            .populate('batch', 'name')
+            .populate({ path: 'batch', select: 'name semester course', populate: { path: 'course', select: 'name code' } })
             .sort({ createdAt: -1 });
 
         // 2. If no course/batch filter, return fees as-is (existing behavior)

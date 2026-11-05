@@ -1339,7 +1339,7 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                             const matchesCourse = !filters.courseId ||
                                                 b.course === filters.courseId || b.course?._id === filters.courseId ||
                                                 b.courseBundle === filters.courseId || b.courseBundle?._id === filters.courseId;
-                                            const matchesSession = !isSchool || !selectedSessionId || (b.session === selectedSessionId || b.session?._id === selectedSessionId || !b.session);
+                                            const matchesSession = isVocational || !selectedSessionId || (b.session === selectedSessionId || b.session?._id === selectedSessionId || !b.session);
                                             return matchesCourse && matchesSession;
                                         })
                                         .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))

@@ -110,7 +110,7 @@ export default function FeesPage() {
         // Fetch data if: 
         // 1. A session is selected
         // 2. OR it's NOT a school (vocational institutes don't always use sessions)
-        if (selectedSessionId || !isSchool) {
+        if (selectedSessionId || isVocational) {
             fetchFees();
             fetchStats();
         }
@@ -134,7 +134,7 @@ export default function FeesPage() {
     }, [selectedCourse]);
 
     useEffect(() => {
-        if (selectedSessionId || !isSchool) {
+        if (selectedSessionId || isVocational) {
             fetchFees();
             fetchStats();
             setCurrentPage(1);
@@ -274,7 +274,8 @@ export default function FeesPage() {
 
     const fetchBatches = async (courseId) => {
         try {
-            const res = await fetch(`/api/v1/batches?courseId=${courseId}`);
+            const sessionParam = selectedSessionId && selectedSessionId !== 'all' ? `&sessionId=${selectedSessionId}` : '';
+            const res = await fetch(`/api/v1/batches?courseId=${courseId}${sessionParam}`);
             if (res.ok) {
                 const data = await res.json();
                 setBatches(data.batches || []);
@@ -288,8 +289,8 @@ export default function FeesPage() {
         try {
             setLoading(true);
             const url = new URL('/api/v1/fees', window.location.origin);
-            // ponytail: only send session for schools — non-school batches have no session field
-            if (isSchool && selectedSessionId) url.searchParams.append('session', selectedSessionId);
+            // Send academic session for schools and colleges (exclude session-less vocational)
+            if (selectedSessionId && selectedSessionId !== 'all') url.searchParams.append('session', selectedSessionId);
             if (selectedCourse) url.searchParams.append('course', selectedCourse);
             if (selectedBatch) url.searchParams.append('batch', selectedBatch);
             if (percentageFilter) url.searchParams.append('percentage', percentageFilter);
@@ -334,8 +335,8 @@ export default function FeesPage() {
     const fetchStats = async () => {
         try {
             const url = new URL('/api/v1/fees/stats', window.location.origin);
-            // ponytail: only send session for schools
-            if (isSchool && selectedSessionId) url.searchParams.append('session', selectedSessionId);
+            // Send academic session for schools and colleges (exclude session-less vocational)
+            if (selectedSessionId && selectedSessionId !== 'all') url.searchParams.append('session', selectedSessionId);
             if (selectedCourse) url.searchParams.append('course', selectedCourse);
             if (selectedBatch) url.searchParams.append('batch', selectedBatch);
             if (showDiscountedOnly) url.searchParams.append('discountOnly', 'true');
@@ -810,9 +811,16 @@ export default function FeesPage() {
                                                         </div>
                                                     </td>
                                                     <td className="px-6 py-4">
-                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-slate-100 text-slate-700 border border-slate-200/80">
-                                                            {fee.batch?.name}
-                                                        </span>
+                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-slate-100 text-slate-700 border border-slate-200/80">
+                                                                {fee.batch?.course?.code ? `${fee.batch.course.code} / ${fee.batch.name}` : (fee.batch?.name || "-")}
+                                                            </span>
+                                                            {fee.batch?.semester && (
+                                                                <span className="px-1.5 py-0.2 text-[10px] bg-blue-50 text-blue-700 font-bold rounded border border-blue-200">
+                                                                    Sem {fee.batch.semester}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </td>
                                                     <td className="px-6 py-4 text-right text-sm font-semibold text-slate-700 font-mono">
                                                         <div>₹{fee.totalAmount?.toLocaleString()}</div>

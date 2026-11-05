@@ -366,10 +366,10 @@ export default function AttendanceMarkingPage() {
                             options={[
                                 ...batches
                                     .filter(b => {
-                                        // 1. Session Isolation (for Schools only)
+                                        // 1. Session Isolation (for Schools and Colleges)
                                         const batchSessionStr = String(b.session?._id || b.session || '');
                                         const currentSessionStr = String(selectedSessionId || '');
-                                        const matchesSession = !isSchool || !selectedSessionId || !batchSessionStr || batchSessionStr === currentSessionStr;
+                                        const matchesSession = isVocational || !selectedSessionId || !batchSessionStr || batchSessionStr === currentSessionStr;
                                         
                                         // 2. Course/Class or CourseBundle Cascading
                                         const batchCourseId = String(b.course?._id || b.course || '');

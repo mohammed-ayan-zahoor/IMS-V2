@@ -53,7 +53,7 @@ export default function FollowUpQueuePage() {
     const fetchQueue = async () => {
         try {
             setLoading(true);
-            const sessionParam = isSchool && selectedSessionId ? `session=${selectedSessionId}` : "";
+            const sessionParam = !isVocational && selectedSessionId ? `session=${selectedSessionId}` : "";
             const allSessionsParam = showAllSessions ? "allSessions=true" : "";
             const queryParams = [sessionParam, allSessionsParam].filter(Boolean).join("&");
             
