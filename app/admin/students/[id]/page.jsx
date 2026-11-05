@@ -2718,6 +2718,11 @@ export default function StudentDetailsPage({ params }) {
                                                                             {format(new Date(inst.dueDate), "MMM d")}
                                                                         </span>
                                                                     </div>
+                                                                    {inst.notes && (
+                                                                        <p className="mt-1.5 text-[10px] font-medium text-slate-600 line-clamp-1 border-t border-slate-200/50 pt-1" title={inst.notes}>
+                                                                            {inst.notes}
+                                                                        </p>
+                                                                    )}
                                                                     {(inst.penaltyAmount > 0 || inst.penaltyPaid > 0) && (
                                                                         <div className="mt-2 pt-1 border-t border-slate-200/60 flex justify-between items-center text-[9px] font-bold">
                                                                             <span className="text-rose-700 uppercase tracking-wider">Penalty: ₹{(inst.penaltyPaid || inst.penaltyAmount).toLocaleString()}</span>

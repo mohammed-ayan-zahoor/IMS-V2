@@ -314,6 +314,7 @@ function ClassicReceipt({ fee }) {
                     <thead>
                         <tr className="border-b border-slate-200 text-slate-500 uppercase text-[10px] font-black tracking-widest">
                             <th className="text-left py-3 pl-2">Date</th>
+                            <th className="text-left py-3">Description</th>
                             <th className="text-left py-3">Mode</th>
                             <th className="text-left py-3">Reference</th>
                             <th className="text-right py-3 pr-2">Amount</th>
@@ -323,6 +324,7 @@ function ClassicReceipt({ fee }) {
                         {paidInstallments.map((inst, i) => (
                             <tr key={i}>
                                 <td className="py-3 pl-2 text-slate-700">{inst.paidDate ? format(new Date(inst.paidDate), "MMM d, yyyy") : "-"}</td>
+                                <td className="py-3 text-slate-900 font-medium">{inst.notes || `Installment #${i + 1}`}</td>
                                 <td className="py-3 text-slate-700 capitalize">{inst.paymentMethod || "Cash"}</td>
                                 <td className="py-3 text-slate-500 font-mono text-[10px]">{inst.transactionId || "-"}</td>
                                 <td className="py-3 pr-2 text-right font-bold text-slate-900">{formatCurrency(inst.amount)}</td>
