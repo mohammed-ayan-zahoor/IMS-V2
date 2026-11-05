@@ -16,6 +16,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import XLSX from 'xlsx';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,6 +50,13 @@ function normalizeDate(val) {
     return isNaN(parsed.getTime()) ? null : parsed;
 }
 
+function parseName(fullName) {
+    if (!fullName) return { firstName: 'Student', lastName: '' };
+    const parts = String(fullName).trim().split(/\s+/);
+    if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+    return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+}
+
 async function run() {
     const args = process.argv.slice(2);
     const isDryRun = args.includes('--dry-run');
@@ -70,9 +78,11 @@ async function run() {
 
     const Institute = (await import('../models/Institute.js')).default;
     const Session = (await import('../models/Session.js')).default;
+    const Course = (await import('../models/Course.js')).default;
     const Batch = (await import('../models/Batch.js')).default;
     const User = (await import('../models/User.js')).default;
     const Fee = (await import('../models/Fee.js')).default;
+    const Membership = (await import('../models/Membership.js')).default;
 
     // 1. Resolve Institute
     const inst = await Institute.findOne({
@@ -90,23 +100,41 @@ async function run() {
     }
     console.log(`✅ Institute: ${inst.name} (${inst._id})`);
 
-    // 2. Resolve Active Session
-    const session = await Session.findOne({
-        institute: inst._id,
-        $or: [{ sessionName: '2026-27' }, { isActive: true }],
+    // 2. Resolve Active Session (using instituteId field!)
+    let session = await Session.findOne({
+        $or: [{ instituteId: inst._id }, { institute: inst._id }],
+        isActive: true,
+        deletedAt: null
+    }) || await Session.findOne({
+        $or: [{ instituteId: inst._id }, { institute: inst._id }],
+        sessionName: { $regex: /2026-27/i },
         deletedAt: null
     });
+
+    if (!session) {
+        // Fallback to any session for this institute
+        session = await Session.findOne({
+            $or: [{ instituteId: inst._id }, { institute: inst._id }],
+            deletedAt: null
+        });
+    }
+
     console.log(`✅ Session  : ${session?.sessionName || 'N/A'} (${session?._id})\n`);
+
+    const defaultHash = await bcrypt.hash('Student@123', 10);
 
     const filesToProcess = [
         {
             year: 'II PUC',
+            coursePrefix: 'II PUC',
             feeFile: path.join(__dirname, 'data', 'II PU Fees 2026 - 27 (ARP).xlsx'),
             sheetName: 'Admission',
             headerRowIdx: 2,
             idColIdx: 3,
+            altIdColIdx: 1,
             nameColIdx: 4,
             combColIdx: 6,
+            secColIdx: 2,
             fixColIdx: 36,
             paidColIdx: 37,
             instStartCol: 16,
@@ -114,12 +142,15 @@ async function run() {
         },
         {
             year: 'I PUC',
+            coursePrefix: 'I PUC',
             feeFile: path.join(__dirname, 'data', 'I PU Fees 2026 - 27 (ARP).xlsx'),
             sheetName: 'Admission',
             headerRowIdx: 0,
             idColIdx: 3,
+            altIdColIdx: 3,
             nameColIdx: 5,
             combColIdx: 7,
+            secColIdx: 1,
             fixColIdx: 26,
             paidColIdx: 27,
             instStartCol: 8,
@@ -129,6 +160,7 @@ async function run() {
 
     let grandTotalPaidAdded = 0;
     let grandStudentsReconciled = 0;
+    let grandStudentsCreated = 0;
 
     for (const cfg of filesToProcess) {
         console.log(`-----------------------------------------------------------------`);
@@ -151,9 +183,12 @@ async function run() {
             const row = data[r];
             if (!row || row.length === 0) continue;
 
-            const studentId = String(row[cfg.idColIdx] || '').trim();
+            const studentId = String(row[cfg.idColIdx] || row[cfg.altIdColIdx] || '').trim();
             const studentName = String(row[cfg.nameColIdx] || '').trim();
             if (!studentId && !studentName) continue;
+
+            const combination = String(row[cfg.combColIdx] || '').trim();
+            const sectionName = String(row[cfg.secColIdx] || 'A').trim();
 
             const fixation = normalizeNumber(row[cfg.fixColIdx]);
             const paidCol = normalizeNumber(row[cfg.paidColIdx]);
@@ -175,7 +210,7 @@ async function run() {
                         paidDate: paidDate,
                         status: 'paid',
                         paymentMethod: 'cash',
-                        notes: `Installment #${instNum} — ledger import`
+                        notes: `Installment #${instNum} — imported`
                     });
                     totalInstPaid += amt;
                     instNum++;
@@ -186,34 +221,109 @@ async function run() {
 
             // Target condition: Fixation is 0/empty, but student has paid > 0
             if (fixation <= 0 && effectivePaid > 0) {
-                // Find student in DB
-                const student = await User.findOne({
+                const safeId = studentId.replace(/[^A-Za-z0-9]/g, '').toLowerCase();
+                const expectedEmail = `${safeId}@sdcpuk.edu.in`;
+
+                // Query by enrollmentNumber, email, or name
+                let student = await User.findOne({
                     institute: inst._id,
                     role: 'student',
                     $or: [
-                        { studentId: studentId },
-                        { admissionNo: studentId },
-                        { statsNo: studentId },
-                        { fullName: { $regex: new RegExp(`^${studentName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') } }
+                        { enrollmentNumber: studentId },
+                        { enrollmentNumber: { $regex: new RegExp(`^${studentId}$`, 'i') } },
+                        { email: expectedEmail },
+                        { email: { $regex: new RegExp(`^${safeId}@`, 'i') } },
+                        { statsNo: studentId }
                     ],
                     deletedAt: null
                 });
 
-                if (!student) {
-                    console.warn(`  ⚠️  [${studentId}] ${studentName} — student record not found in MongoDB`);
-                    continue;
+                // Fallback search by first name + last name
+                if (!student && studentName) {
+                    const { firstName, lastName } = parseName(studentName);
+                    student = await User.findOne({
+                        institute: inst._id,
+                        role: 'student',
+                        'profile.firstName': { $regex: new RegExp(`^${firstName}$`, 'i') },
+                        ...(lastName ? { 'profile.lastName': { $regex: new RegExp(`^${lastName}$`, 'i') } } : {}),
+                        deletedAt: null
+                    });
                 }
 
-                // Find active batch for student
-                const studentBatches = await Batch.find({
+                // If student doesn't exist, create them
+                if (!student) {
+                    console.log(`  ➕ Student [${studentId}] ${studentName} not in DB -> Creating student...`);
+                    const { firstName, lastName } = parseName(studentName);
+                    
+                    if (!isDryRun) {
+                        student = await User.create({
+                            institute: inst._id,
+                            role: 'student',
+                            email: expectedEmail,
+                            passwordHash: defaultHash,
+                            enrollmentNumber: studentId,
+                            profile: {
+                                firstName: firstName || 'Student',
+                                lastName: lastName || ''
+                            },
+                            activeSession: session?._id,
+                            activeSessions: session ? [session._id] : [],
+                            admissionStd: `${cfg.coursePrefix} ${combination}`.trim()
+                        });
+
+                        await Membership.findOneAndUpdate(
+                            { user: student._id, institute: inst._id },
+                            { $setOnInsert: { user: student._id, institute: inst._id, role: 'student', isActive: true } },
+                            { upsert: true }
+                        );
+                    } else {
+                        student = { _id: new mongoose.Types.ObjectId(), fullName: studentName, enrollmentNumber: studentId };
+                    }
+                    grandStudentsCreated++;
+                }
+
+                // Resolve Course and Batch
+                const courseNameRegex = new RegExp(`${cfg.coursePrefix}.*${combination}`, 'i');
+                let course = await Course.findOne({
+                    institute: inst._id,
+                    name: { $regex: courseNameRegex },
+                    deletedAt: null
+                });
+
+                if (!course) {
+                    course = await Course.findOne({ institute: inst._id, deletedAt: null });
+                }
+
+                // Find batch
+                let batch = await Batch.findOne({
                     institute: inst._id,
                     'enrolledStudents.student': student._id,
                     deletedAt: null
                 });
 
-                const batch = studentBatches[0] || null;
-                const totalAmount = effectivePaid; // Final fee fixed to at least paid amount
-                const balanceAmount = 0; // Since totalAmount = effectivePaid, balance is 0 until admin sets higher fixation
+                if (!batch && course) {
+                    batch = await Batch.findOne({
+                        institute: inst._id,
+                        course: course._id,
+                        name: { $regex: new RegExp(`^${sectionName}`, 'i') },
+                        deletedAt: null
+                    }) || await Batch.findOne({
+                        institute: inst._id,
+                        course: course._id,
+                        deletedAt: null
+                    });
+
+                    // Enroll student in batch if not enrolled
+                    if (batch && !isDryRun) {
+                        await Batch.updateOne(
+                            { _id: batch._id, 'enrolledStudents.student': { $ne: student._id } },
+                            { $push: { enrolledStudents: { student: student._id, enrolledAt: new Date(), status: 'active' } } }
+                        );
+                    }
+                }
+
+                const totalAmount = effectivePaid; // Base fee fixed to at least paid amount
+                const balanceAmount = 0;
 
                 const existingFee = await Fee.findOne({
                     institute: inst._id,
@@ -221,8 +331,8 @@ async function run() {
                     deletedAt: null
                 });
 
-                console.log(`  👉 Reconciling [${studentId}] ${student.fullName}:`);
-                console.log(`     Paid: ₹${effectivePaid.toLocaleString('en-IN')} across ${installments.length} installments (Existing fee: ${existingFee ? `₹${existingFee.paidAmount} paid` : 'NONE'})`);
+                console.log(`  👉 [${studentId}] ${studentName || student.fullName}:`);
+                console.log(`     Total Paid to Add: ₹${effectivePaid.toLocaleString('en-IN')} (${installments.length} installments) | Existing: ${existingFee ? `₹${existingFee.paidAmount}` : 'NONE'}`);
 
                 if (!isDryRun) {
                     if (existingFee) {
@@ -230,9 +340,9 @@ async function run() {
                         existingFee.paidAmount = effectivePaid;
                         existingFee.balanceAmount = Math.max(0, existingFee.totalAmount - effectivePaid);
                         existingFee.status = existingFee.balanceAmount <= 0 ? 'paid' : 'partial';
-                        existingFee.installments = installments;
-                        if (batch) existingFee.batch = batch._id;
-                        if (session) existingFee.session = session._id;
+                        if (installments.length > 0) existingFee.installments = installments;
+                        if (batch && !existingFee.batch) existingFee.batch = batch._id;
+                        if (session && !existingFee.session) existingFee.session = session._id;
                         await existingFee.save();
                     } else {
                         await Fee.create({
@@ -264,6 +374,7 @@ async function run() {
     console.log('=================================================================');
     console.log(`Mode                   : ${isDryRun ? 'DRY-RUN (no writes)' : 'LIVE'}`);
     console.log(`Total Students Updated : ${grandStudentsReconciled}`);
+    console.log(`New Students Created   : ${grandStudentsCreated}`);
     console.log(`Total Fee Collections  : ₹${grandTotalPaidAdded.toLocaleString('en-IN')}`);
     console.log('=================================================================\n');
 
