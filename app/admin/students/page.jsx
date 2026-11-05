@@ -229,11 +229,6 @@ const getInitialFormData = (selectedSessionId = "") => ({
         if (isTransportEnabled) {
             fetchTransportData();
         }
-        return () => {
-            if (abortControllerRef.current) {
-                abortControllerRef.current.abort();
-            }
-        };
     }, [isTransportEnabled, activeInstId, selectedSessionId]);
 
     const fetchTransportData = async () => {
@@ -346,11 +341,13 @@ const getInitialFormData = (selectedSessionId = "") => ({
                     pages: data.pagination.pages
                 }));
             }
+            setLoading(false);
         } catch (error) {
-            if (error.name !== 'AbortError') {
-                console.error("Failed to fetch students", error);
+            if (error.name === 'AbortError') {
+                // Superseded by newer request - do not set loading to false or clear state
+                return;
             }
-        } finally {
+            console.error("Failed to fetch students", error);
             setLoading(false);
         }
     };
@@ -856,18 +853,22 @@ const getInitialFormData = (selectedSessionId = "") => ({
 
     // ... existing ...
 
+    // Fetch students debounced on search/filters/session/institute change
     useEffect(() => {
-        if (isFirstRender.current) {
-            isFirstRender.current = false;
-            fetchStudents(1); // Fetch page 1 initially
-            return;
-        }
-
         const timer = setTimeout(() => {
-            fetchStudents(1); // Reset to page 1 on filter change
-        }, 500);
+            fetchStudents(1);
+        }, 200);
         return () => clearTimeout(timer);
-    }, [search, filters, selectedSessionId]);
+    }, [search, filters, selectedSessionId, activeInstId]);
+
+    // Cleanup abort controller on component unmount only
+    useEffect(() => {
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
+    }, []);
 
     const toggleStudentSelection = (id) => {
         const newSelection = new Set(selectedStudents);

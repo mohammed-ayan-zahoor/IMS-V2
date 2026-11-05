@@ -488,56 +488,60 @@ async function run() {
             const fixation  = (feeRecord && feeRecord.fixation) ? feeRecord.fixation : normalizeNumber(col(row, 'Fixation', 'Total Fee'));
             const paidSheet = (feeRecord && feeRecord.paid) ? feeRecord.paid : normalizeNumber(col(row, 'Paid'));
 
-            if (fixation <= 0) {
+            const installments = [];
+            let totalPaid = 0;
+
+            // Use parsed installments from feeRecord if available
+            if (feeRecord && feeRecord.installments && feeRecord.installments.length > 0) {
+                for (const inst of feeRecord.installments) {
+                    const paidOn = inst.date || admissionDate || new Date();
+                    installments.push({
+                        _id: new mongoose.Types.ObjectId(),
+                        amount: inst.amount,
+                        dueDate: paidOn,
+                        paidDate: paidOn,
+                        status: 'paid',
+                        paymentMethod: 'cash',
+                        notes: `Installment #${inst.num} — imported`
+                    });
+                    totalPaid += inst.amount;
+                }
+            } else {
+                // Fallback to row fields in student sheet
+                const allKeys = Object.keys(row);
+                for (let k = 1; k <= 10; k++) {
+                    const amtKey = allKeys.find(key =>
+                        new RegExp(`^${k}(st|nd|rd|th)?\\s*install`, 'i').test(key.trim())
+                    );
+                    if (!amtKey) continue;
+                    const amt = normalizeNumber(row[amtKey]);
+                    if (amt <= 0) continue;
+
+                    const dateKey = allKeys[allKeys.indexOf(amtKey) + 1];
+                    const paidOn = normalizeDate(dateKey ? row[dateKey] : null) || admissionDate || new Date();
+
+                    installments.push({
+                        _id: new mongoose.Types.ObjectId(),
+                        amount: amt,
+                        dueDate: paidOn,
+                        paidDate: paidOn,
+                        status: 'paid',
+                        paymentMethod: 'cash',
+                        notes: `Installment #${k} — imported`
+                    });
+                    totalPaid += amt;
+                }
+            }
+
+            const effectivePaid = totalPaid > 0 ? totalPaid : paidSheet;
+
+            // If neither fixation nor paid exists, skip
+            if (fixation <= 0 && effectivePaid <= 0) {
                 stats.feeSkipped++;
             } else {
-                const installments = [];
-                let totalPaid = 0;
-
-                // Use parsed installments from feeRecord if available
-                if (feeRecord && feeRecord.installments && feeRecord.installments.length > 0) {
-                    for (const inst of feeRecord.installments) {
-                        const paidOn = inst.date || admissionDate || new Date();
-                        installments.push({
-                            _id: new mongoose.Types.ObjectId(),
-                            amount: inst.amount,
-                            dueDate: paidOn,
-                            paidDate: paidOn,
-                            status: 'paid',
-                            paymentMethod: 'cash',
-                            notes: `Installment #${inst.num} — imported`
-                        });
-                        totalPaid += inst.amount;
-                    }
-                } else {
-                    // Fallback to row fields in student sheet
-                    const allKeys = Object.keys(row);
-                    for (let k = 1; k <= 10; k++) {
-                        const amtKey = allKeys.find(key =>
-                            new RegExp(`^${k}(st|nd|rd|th)?\\s*install`, 'i').test(key.trim())
-                        );
-                        if (!amtKey) continue;
-                        const amt = normalizeNumber(row[amtKey]);
-                        if (amt <= 0) continue;
-
-                        const dateKey = allKeys[allKeys.indexOf(amtKey) + 1];
-                        const paidOn = normalizeDate(dateKey ? row[dateKey] : null) || admissionDate || new Date();
-
-                        installments.push({
-                            _id: new mongoose.Types.ObjectId(),
-                            amount: amt,
-                            dueDate: paidOn,
-                            paidDate: paidOn,
-                            status: 'paid',
-                            paymentMethod: 'cash',
-                            notes: `Installment #${k} — imported`
-                        });
-                        totalPaid += amt;
-                    }
-                }
-
-                const effectivePaid = totalPaid > 0 ? totalPaid : paidSheet;
-                const balance = Math.max(0, fixation - effectivePaid);
+                // If fixation is empty/0 but student has paid, set total to paid amount
+                const finalTotal = fixation > 0 ? fixation : effectivePaid;
+                const balance = Math.max(0, finalTotal - effectivePaid);
 
                 if (balance > 0) {
                     installments.push({
@@ -551,8 +555,8 @@ async function run() {
 
                 // Auto-balance rounding gap for pre-save hook
                 const instTotal = installments.reduce((s, x) => s + x.amount, 0);
-                if (Math.abs(instTotal - fixation) > 0.01) {
-                    installments[installments.length - 1].amount += (fixation - instTotal);
+                if (Math.abs(instTotal - finalTotal) > 0.01 && installments.length > 0) {
+                    installments[installments.length - 1].amount += (finalTotal - instTotal);
                 }
 
                 if (!isDryRun) {
@@ -563,12 +567,20 @@ async function run() {
                             student: student._id,
                             batch: batch._id,
                             session: session._id,
-                            totalAmount: fixation,
+                            totalAmount: finalTotal,
                             paidAmount: effectivePaid,
                             balanceAmount: balance,
                             status: balance <= 0 ? 'paid' : effectivePaid > 0 ? 'partial' : 'not_started',
                             installments
                         });
+                        stats.fees++;
+                    } else if (exists.paidAmount === 0 && effectivePaid > 0) {
+                        exists.totalAmount = Math.max(exists.totalAmount, finalTotal);
+                        exists.paidAmount = effectivePaid;
+                        exists.balanceAmount = Math.max(0, exists.totalAmount - effectivePaid);
+                        exists.status = exists.balanceAmount <= 0 ? 'paid' : 'partial';
+                        exists.installments = installments;
+                        await exists.save();
                         stats.fees++;
                     }
                 } else {
