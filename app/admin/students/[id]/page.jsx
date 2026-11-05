@@ -1952,18 +1952,23 @@ export default function StudentDetailsPage({ params }) {
                             /* ===== COLLEGE ACADEMIC PROFILE ===== */
                             (() => {
                                 const allBatches = batches || [];
-                                const sessionBatch = selectedSessionId 
+                                const isSessionSelected = Boolean(selectedSessionId && selectedSessionId !== "all");
+                                const sessionBatch = isSessionSelected
                                     ? allBatches.find(b => {
-                                        const bSess = (b.session?._id || b.session || '').toString();
+                                        const bSess = (b.session?._id || b.session || "").toString();
                                         return bSess === selectedSessionId.toString();
                                     })
                                     : null;
 
-                                // Prioritize batch matching the selected session; fallback to highest semester enrolled
+                                const notEnrolledInSelectedSession = isSessionSelected && !sessionBatch;
+                                const selectedSessionObj = isSessionSelected ? sessions?.find(s => s._id?.toString() === selectedSessionId.toString()) : null;
+                                const selectedSessionName = selectedSessionObj?.sessionName || "the selected session";
+
+                                // When not enrolled in selected session, primaryBatch is null so we show not-enrolled notice
                                 const sortedBatches = allBatches.slice().sort((a, b) => (Number(b.semester) || 0) - (Number(a.semester) || 0));
-                                const primaryBatch = sessionBatch || sortedBatches[0] || allBatches[0];
-                                const primaryCourse = primaryBatch?.course || courses.find(c => c._id === student.admissionStd || c.name === student.admissionStd);
-                                const totalSemesters = Number(primaryCourse?.collegeConfig?.totalSemesters) || (primaryCourse?.name?.toLowerCase().includes("m.") ? 4 : (primaryCourse?.code === 'BCA' || primaryCourse?.name?.toLowerCase().includes('computer') ? 6 : 6));
+                                const primaryBatch = sessionBatch || (!isSessionSelected ? (sortedBatches[0] || allBatches[0]) : null);
+                                const primaryCourse = primaryBatch?.course || sortedBatches[0]?.course || courses.find(c => c._id === student.admissionStd || c.name === student.admissionStd);
+                                const totalSemesters = Number(primaryCourse?.collegeConfig?.totalSemesters) || (primaryCourse?.name?.toLowerCase().includes("m.") ? 4 : (primaryCourse?.code === "BCA" || primaryCourse?.name?.toLowerCase().includes("computer") ? 6 : 6));
                                 const currentSem = Number(primaryBatch?.semester) || 1;
                                 const currentYear = Math.ceil(currentSem / 2);
                                 const totalYears = Math.ceil(totalSemesters / 2);
@@ -1985,110 +1990,168 @@ export default function StudentDetailsPage({ params }) {
 
                                 return (
                                     <div className="space-y-10">
-                                        {/* 1. Primary Anchor Card (Single Strong Card on the Page) */}
-                                        <div className="bg-white rounded-xl border border-slate-200/80 p-6 shadow-xs space-y-6">
-                                            {/* Prominent Header & Single Stated Hierarchy */}
-                                            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                                                <div className="space-y-1">
-                                                    <h3 className="text-xl font-bold text-slate-900 tracking-tight">
-                                                        {primaryCourse?.name || (isClassBasedCollege ? "Academic Class" : "Degree Program")}
-                                                        {!isClassBasedCollege && (
-                                                            <span className="text-slate-400 font-normal"> — Semester {currentSem} of {totalSemesters}</span>
-                                                        )}
-                                                    </h3>
-                                                    <p className="text-xs text-slate-500">
-                                                        {primaryCourse?.department?.name ? `${primaryCourse.department.name} · ` : ""}
-                                                        {primaryCourse?.code ? `Code: ${primaryCourse.code} · ` : ""}
-                                                        {primaryBatch?.session?.sessionName ? `Session ${primaryBatch.session.sessionName} · ` : ""}
-                                                        Section {primaryBatch?.name || "A"}
-                                                    </p>
-                                                </div>
-
-                                                <div className="flex items-center gap-2 shrink-0">
-                                                    {primaryBatch && (
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            className="text-slate-700 border-slate-200 hover:bg-slate-50"
-                                                            onClick={() => router.push(`/admin/students/${id}/admission-form?batchId=${primaryBatch._id}`)}
+                                        {/* 1. Primary Anchor Card or Not Enrolled Notice */}
+                                        {notEnrolledInSelectedSession ? (
+                                            <div className="bg-white rounded-xl border border-slate-200/80 p-8 shadow-xs space-y-6">
+                                                <div className="text-center space-y-3">
+                                                    <div className="w-12 h-12 rounded-full bg-slate-100 border border-slate-200 text-slate-500 mx-auto flex items-center justify-center">
+                                                        <GraduationCap size={22} />
+                                                    </div>
+                                                    <div className="space-y-1">
+                                                        <h3 className="text-base font-bold text-slate-900">
+                                                            Not Enrolled in {selectedSessionName}
+                                                        </h3>
+                                                        <p className="text-xs text-slate-500 max-w-md mx-auto">
+                                                            This student was not enrolled in any degree section or semester during {selectedSessionName}.
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex items-center justify-center gap-3 pt-1">
+                                                        <Button 
+                                                            size="sm" 
+                                                            variant="ghost" 
+                                                            className="text-premium-blue hover:bg-blue-50 text-xs font-medium"
+                                                            onClick={() => setIsEnrollModalOpen(true)}
                                                         >
-                                                            <Printer size={14} className="mr-1.5 text-slate-400" />
-                                                            Admission Form
+                                                            <Plus size={14} className="mr-1" />
+                                                            Enroll in {selectedSessionName}
                                                         </Button>
-                                                    )}
-                                                    <Button 
-                                                        size="sm" 
-                                                        variant="ghost"
-                                                        className="text-premium-blue hover:bg-blue-50"
-                                                        onClick={() => setIsEnrollModalOpen(true)}
-                                                    >
-                                                        <Plus size={14} className="mr-1" />
-                                                        Enroll Additional
-                                                    </Button>
+                                                    </div>
                                                 </div>
+
+                                                {/* Definition List Metadata Block */}
+                                                <dl className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-5 border-t border-slate-100 text-xs">
+                                                    <div>
+                                                        <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">
+                                                            {isClassBasedCollege ? "Reg No / Roll No" : "UUCMS / Univ Reg No"}
+                                                        </dt>
+                                                        <dd className="text-slate-900 font-semibold mt-1">{student.grNumber || student.statsNo || "—"}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">
+                                                            {isClassBasedCollege ? "APAAR ID" : "APAAR / ABC ID"}
+                                                        </dt>
+                                                        <dd className="text-slate-900 font-semibold mt-1">{student.apaarId || "—"}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">
+                                                            {isClassBasedCollege ? "Prior Qualification (10th / SSLC)" : "Prior Qualification (10+2 / PUC)"}
+                                                        </dt>
+                                                        <dd className="text-slate-900 font-semibold mt-1 truncate" title={student.lastSchoolAttended || "—"}>
+                                                            {student.lastSchoolAttended || "—"}
+                                                        </dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">Admission Date</dt>
+                                                        <dd className="text-slate-900 font-semibold mt-1">
+                                                            {student.admissionDate ? format(new Date(student.admissionDate), "MMM d, yyyy") : "—"}
+                                                        </dd>
+                                                    </div>
+                                                </dl>
                                             </div>
-
-                                            {/* Compact Segmented Progress Stepper (Only for Semester-based Degree Colleges) */}
-                                            {!isClassBasedCollege && (
-                                                <div className="space-y-2.5 pt-1">
-                                                    <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${totalSemesters}, minmax(0, 1fr))` }}>
-                                                        {Array.from({ length: totalSemesters }, (_, i) => i + 1).map(sem => {
-                                                            const isCurrent = sem === currentSem;
-                                                            const isPast = sem < currentSem;
-                                                            return (
-                                                                <div
-                                                                    key={sem}
-                                                                    title={`Semester ${sem}${isCurrent ? ' (Current)' : isPast ? ' (Passed)' : ''}`}
-                                                                    className={cn(
-                                                                        "h-2 rounded-full transition-all",
-                                                                        isCurrent 
-                                                                            ? "bg-premium-blue ring-2 ring-premium-blue/25 shadow-xs" 
-                                                                            : isPast 
-                                                                            ? "bg-premium-blue/45" 
-                                                                            : "bg-slate-200 border border-slate-300/40"
-                                                                    )}
-                                                                />
-                                                            );
-                                                        })}
+                                        ) : (
+                                            <div className="bg-white rounded-xl border border-slate-200/80 p-6 shadow-xs space-y-6">
+                                                {/* Prominent Header & Single Stated Hierarchy */}
+                                                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                                                    <div className="space-y-1">
+                                                        <h3 className="text-xl font-bold text-slate-900 tracking-tight">
+                                                            {primaryCourse?.name || (isClassBasedCollege ? "Academic Class" : "Degree Program")}
+                                                            {!isClassBasedCollege && (
+                                                                <span className="text-slate-400 font-normal"> — Semester {currentSem} of {totalSemesters}</span>
+                                                            )}
+                                                        </h3>
+                                                        <p className="text-xs text-slate-500">
+                                                            {primaryCourse?.department?.name ? `${primaryCourse.department.name} · ` : ""}
+                                                            {primaryCourse?.code ? `Code: ${primaryCourse.code} · ` : ""}
+                                                            {primaryBatch?.session?.sessionName ? `Session ${primaryBatch.session.sessionName} · ` : ""}
+                                                            Section {primaryBatch?.name || "A"}
+                                                        </p>
                                                     </div>
-                                                    <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
-                                                        <span>Sem {currentSem} of {totalSemesters} · Year {currentYear} of {totalYears}</span>
-                                                        <span>{progressPercent}% completed</span>
+
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        {primaryBatch && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="outline"
+                                                                className="text-slate-700 border-slate-200 hover:bg-slate-50"
+                                                                onClick={() => router.push(`/admin/students/${id}/admission-form?batchId=${primaryBatch._id}`)}
+                                                            >
+                                                                <Printer size={14} className="mr-1.5 text-slate-400" />
+                                                                Admission Form
+                                                            </Button>
+                                                        )}
+                                                        <Button 
+                                                            size="sm" 
+                                                            variant="ghost"
+                                                            className="text-premium-blue hover:bg-blue-50"
+                                                            onClick={() => setIsEnrollModalOpen(true)}
+                                                        >
+                                                            <Plus size={14} className="mr-1" />
+                                                            Enroll Additional
+                                                        </Button>
                                                     </div>
                                                 </div>
-                                            )}
 
-                                            {/* Definition List Metadata Block (Zero nesting, clean text grid) */}
-                                            <dl className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-5 border-t border-slate-100 text-xs">
-                                                <div>
-                                                    <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">
-                                                        {isClassBasedCollege ? "Reg No / Roll No" : "UUCMS / Univ Reg No"}
-                                                    </dt>
-                                                    <dd className="text-slate-900 font-semibold mt-1">{student.grNumber || student.statsNo || "—"}</dd>
-                                                </div>
-                                                <div>
-                                                    <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">
-                                                        {isClassBasedCollege ? "APAAR ID" : "APAAR / ABC ID"}
-                                                    </dt>
-                                                    <dd className="text-slate-900 font-semibold mt-1">{student.apaarId || "—"}</dd>
-                                                </div>
-                                                <div>
-                                                    <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">
-                                                        {isClassBasedCollege ? "Prior Qualification (10th / SSLC)" : "Prior Qualification (10+2 / PUC)"}
-                                                    </dt>
-                                                    <dd className="text-slate-900 font-semibold mt-1 truncate" title={student.lastSchoolAttended || "—"}>
-                                                        {student.lastSchoolAttended || "—"}
-                                                    </dd>
-                                                </div>
-                                                <div>
-                                                    <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">Admission Date</dt>
-                                                    <dd className="text-slate-900 font-semibold mt-1">
-                                                        {student.admissionDate ? format(new Date(student.admissionDate), "MMM d, yyyy") : "—"}
-                                                    </dd>
-                                                </div>
-                                            </dl>
-                                        </div>
+                                                {/* Compact Segmented Progress Stepper (Only for Semester-based Degree Colleges) */}
+                                                {!isClassBasedCollege && (
+                                                    <div className="space-y-2.5 pt-1">
+                                                        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${totalSemesters}, minmax(0, 1fr))` }}>
+                                                            {Array.from({ length: totalSemesters }, (_, i) => i + 1).map(sem => {
+                                                                const isCurrent = sem === currentSem;
+                                                                const isPast = sem < currentSem;
+                                                                return (
+                                                                    <div
+                                                                        key={sem}
+                                                                        title={`Semester ${sem}${isCurrent ? " (Current)" : isPast ? " (Passed)" : ""}`}
+                                                                        className={cn(
+                                                                            "h-2 rounded-full transition-all",
+                                                                            isCurrent 
+                                                                                ? "bg-premium-blue ring-2 ring-premium-blue/25 shadow-xs" 
+                                                                                : isPast 
+                                                                                ? "bg-premium-blue/45" 
+                                                                                : "bg-slate-200 border border-slate-300/40"
+                                                                        )}
+                                                                    />
+                                                                );
+                                                            })}
+                                                        </div>
+                                                        <div className="flex items-center justify-between text-xs text-slate-400 font-medium">
+                                                            <span>Sem {currentSem} of {totalSemesters} · Year {currentYear} of {totalYears}</span>
+                                                            <span>{progressPercent}% completed</span>
+                                                        </div>
+                                                    </div>
+                                                )}
 
+                                                {/* Definition List Metadata Block */}
+                                                <dl className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-5 border-t border-slate-100 text-xs">
+                                                    <div>
+                                                        <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">
+                                                            {isClassBasedCollege ? "Reg No / Roll No" : "UUCMS / Univ Reg No"}
+                                                        </dt>
+                                                        <dd className="text-slate-900 font-semibold mt-1">{student.grNumber || student.statsNo || "—"}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">
+                                                            {isClassBasedCollege ? "APAAR ID" : "APAAR / ABC ID"}
+                                                        </dt>
+                                                        <dd className="text-slate-900 font-semibold mt-1">{student.apaarId || "—"}</dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">
+                                                            {isClassBasedCollege ? "Prior Qualification (10th / SSLC)" : "Prior Qualification (10+2 / PUC)"}
+                                                        </dt>
+                                                        <dd className="text-slate-900 font-semibold mt-1 truncate" title={student.lastSchoolAttended || "—"}>
+                                                            {student.lastSchoolAttended || "—"}
+                                                        </dd>
+                                                    </div>
+                                                    <div>
+                                                        <dt className="text-slate-400 uppercase tracking-wider text-[10px] font-bold">Admission Date</dt>
+                                                        <dd className="text-slate-900 font-semibold mt-1">
+                                                            {student.admissionDate ? format(new Date(student.admissionDate), "MMM d, yyyy") : "—"}
+                                                        </dd>
+                                                    </div>
+                                                </dl>
+                                            </div>
+                                        )}
                                         {/* 2. Enrolled Sections (Clean flat table on canvas) */}
                                         <div className="space-y-3">
                                             <div className="flex items-baseline justify-between px-1">
@@ -2117,7 +2180,7 @@ export default function StudentDetailsPage({ params }) {
                                                                     )}
                                                                     {batch.session?.sessionName && (
                                                                         <span className="px-2 py-0.5 text-[11px] bg-emerald-50 text-emerald-700 font-medium rounded-full border border-emerald-200">
-                                                                            📅 {batch.session.sessionName}
+                                                                            {batch.session.sessionName}
                                                                         </span>
                                                                     )}
                                                                     {isMatchingSession && (
@@ -2127,7 +2190,7 @@ export default function StudentDetailsPage({ params }) {
                                                                     )}
                                                                 </div>
                                                                 <p className="text-xs text-slate-500">
-                                                                    {batch.courseBundle ? `🎁 ${batch.courseBundle.title}` : (batch.course?.name || "Program")} · Enrolled {batch.enrollment?.enrolledAt ? format(new Date(batch.enrollment.enrolledAt), "MMM d, yyyy") : "N/A"}
+                                                                    {batch.courseBundle ? `${batch.courseBundle.title}` : (batch.course?.name || "Program")} · Enrolled {batch.enrollment?.enrolledAt ? format(new Date(batch.enrollment.enrolledAt), "MMM d, yyyy") : "N/A"}
                                                                 </p>
                                                             </div>
 
@@ -2155,7 +2218,7 @@ export default function StudentDetailsPage({ params }) {
                                         </div>
 
                                         {/* 3. Course Curriculum (Clean, semester-aware coursework list) */}
-                                        {primaryCourse && (() => {
+                                        {!notEnrolledInSelectedSession && primaryCourse && (() => {
                                             const allSubjects = primaryCourse.subjects || [];
                                             const hasSemesterMapping = allSubjects.some(s => s && s.semester != null);
                                             const currentSemSubjects = allSubjects.filter(s => s && s.semester === currentSem);
@@ -2295,7 +2358,7 @@ export default function StudentDetailsPage({ params }) {
                                                                 <div>
                                                                     <h4 className="font-bold text-slate-900">{batch.name}</h4>
                                                                     <p className="text-xs text-slate-500 font-bold uppercase tracking-wide">
-                                                                        {batch.courseBundle ? `🎁 ${batch.courseBundle.title}` : (batch.course?.name || "")}
+                                                                        {batch.courseBundle ? `${batch.courseBundle.title}` : (batch.course?.name || "")}
                                                                     </p>
                                                                 </div>
                                                             </div>
@@ -2417,12 +2480,12 @@ export default function StudentDetailsPage({ params }) {
                                                             )}
                                                             {(fee?.session?.sessionName || fee?.batch?.session?.sessionName || batch?.session?.sessionName) && (
                                                                 <span className="px-2 py-0.5 text-[10px] bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200 font-semibold">
-                                                                    📅 {fee?.session?.sessionName || fee?.batch?.session?.sessionName || batch?.session?.sessionName}
+                                                                    {fee?.session?.sessionName || fee?.batch?.session?.sessionName || batch?.session?.sessionName}
                                                                 </span>
                                                             )}
                                                             {batch?.courseBundle && (
                                                                 <span className="px-2 py-0.5 text-[10px] bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100 font-bold">
-                                                                    🎁 {batch.courseBundle.title}
+                                                                    {batch.courseBundle.title}
                                                                 </span>
                                                             )}
                                                             {fee?.feePreset?.name && (
@@ -3592,9 +3655,9 @@ export default function StudentDetailsPage({ params }) {
                                 options={[
                                     { label: `-- Choose a ${isSchool ? "Class" : "Course or Package"} --`, value: "" },
                                     ...(courseBundles.filter(b => b.isActive !== false).length > 0 ? [
-                                        { label: "── 🎁 COURSE PACKAGES / SPECIAL OFFERS ──", value: "header_bundles", disabled: true },
+                                        { label: "── COURSE PACKAGES / SPECIAL OFFERS ──", value: "header_bundles", disabled: true },
                                         ...courseBundles.filter(b => b.isActive !== false).map(b => ({
-                                            label: `🎁 ${b.title} (${b.code}) — ₹${b.bundlePrice?.toLocaleString()} [Includes ${b.courses?.length || 0} Courses]`,
+                                            label: `${b.title} (${b.code}) — ₹${b.bundlePrice?.toLocaleString()} [Includes ${b.courses?.length || 0} Courses]`,
                                             value: `bundle_${b._id}`
                                         })),
                                         { label: "── INDIVIDUAL COURSES ──", value: "header_courses", disabled: true }
@@ -3614,7 +3677,7 @@ export default function StudentDetailsPage({ params }) {
                             return (
                                 <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl space-y-1 animate-fade-in">
                                     <div className="flex items-center justify-between text-xs font-bold text-blue-900">
-                                        <span>🎁 Course Package Offer Applied</span>
+                                        <span>Course Package Offer Applied</span>
                                         <span className="text-emerald-600 font-extrabold">Package Price: ₹{bObj.bundlePrice?.toLocaleString()}</span>
                                     </div>
                                     <p className="text-[11px] text-slate-600">

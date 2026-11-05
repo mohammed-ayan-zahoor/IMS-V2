@@ -685,8 +685,8 @@ export default function FeesPage() {
                             options={[
                                 { label: `All ${isSchool ? "Classes" : "Courses"}`, value: "" },
                                 ...(isVocational && courseBundles.filter(b => b.isActive !== false).length > 0 ? [
-                                    { label: "── 🎁 PACKAGES ──", value: "hdr_bundles", disabled: true },
-                                    ...courseBundles.filter(b => b.isActive !== false).map(b => ({ label: `🎁 ${b.title}`, value: b._id })),
+                                    { label: "── PACKAGES ──", value: "hdr_bundles", disabled: true },
+                                    ...courseBundles.filter(b => b.isActive !== false).map(b => ({ label: `${b.title}`, value: b._id })),
                                     { label: "── COURSES ──", value: "hdr_courses", disabled: true },
                                 ] : []),
                                 ...courses.map(c => ({ label: c.name, value: c._id }))
