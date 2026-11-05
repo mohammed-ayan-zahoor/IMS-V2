@@ -508,7 +508,7 @@ async function run() {
                     });
                 }
 
-                const feeStatus = effectiveBalance === 0 ? 'paid' : (sumPaid > 0 ? 'partial' : 'pending');
+                const feeStatus = effectiveBalance === 0 ? 'paid' : (sumPaid > 0 ? 'partial' : 'not_started');
 
                 if (!isDryRun) {
                     const existing = await Fee.findOne({
