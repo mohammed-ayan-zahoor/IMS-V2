@@ -560,6 +560,41 @@ export default function SettingsPage() {
                                     />
                                 </button>
                             </div>
+                                                    {/* Student Profile Photo Upload */}
+                            <div className="py-4 flex items-center justify-between gap-6">
+                                <div className="space-y-0.5">
+                                    <h3 className="text-sm font-semibold text-[#101828] flex items-center gap-2">
+                                        Allow Students to Upload Profile Photo
+                                    </h3>
+                                    <p className="text-xs text-[#667085]">
+                                        When enabled, students can take or upload their own profile photo directly from their mobile app. When disabled, profile photos can only be managed by staff.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setInstitute({
+                                        ...institute,
+                                        settings: {
+                                            ...institute.settings,
+                                            features: {
+                                                ...institute.settings?.features,
+                                                studentPhotoUpload: institute.settings?.features?.studentPhotoUpload === false ? true : false
+                                            }
+                                        }
+                                    })}
+                                    className={cn(
+                                        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                                        institute.settings?.features?.studentPhotoUpload !== false ? "bg-[#444CE7]" : "bg-[#EAECF0]"
+                                    )}
+                                >
+                                    <span
+                                        className={cn(
+                                            "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                                            institute.settings?.features?.studentPhotoUpload !== false ? "translate-x-5" : "translate-x-0"
+                                        )}
+                                    />
+                                </button>
+                            </div>
                         </div>
 
                         {/* Fee Bundling Rules */}

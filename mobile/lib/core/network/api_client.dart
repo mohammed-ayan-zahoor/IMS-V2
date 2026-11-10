@@ -388,6 +388,26 @@ class ApiClient {
         mimeType = 'application/msword';
       } else if (ext == 'docx') {
         mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      } else if (ext == 'ppt') {
+        mimeType = 'application/vnd.ms-powerpoint';
+      } else if (ext == 'pptx') {
+        mimeType = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      } else if (ext == 'xls') {
+        mimeType = 'application/vnd.ms-excel';
+      } else if (ext == 'xlsx') {
+        mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      } else if (ext == 'txt') {
+        mimeType = 'text/plain';
+      } else if (ext == 'csv') {
+        mimeType = 'text/csv';
+      } else if (ext == 'zip') {
+        mimeType = 'application/zip';
+      } else if (ext == 'mp4') {
+        mimeType = 'video/mp4';
+      } else if (ext == 'mov') {
+        mimeType = 'video/quicktime';
+      } else if (ext == 'webm') {
+        mimeType = 'video/webm';
       }
 
       final formData = FormData.fromMap({

@@ -1,3 +1,6 @@
+import 'package:file_picker/file_picker.dart';
+import 'package:student_app/core/network/api_client.dart';
+import 'package:student_app/core/constants/api_endpoints.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -5,6 +8,9 @@ import 'package:intl/intl.dart';
 import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:student_app/features/attendance/presentation/providers/attendance_provider.dart';
 import 'package:student_app/features/profile/presentation/screens/academic_history_screen.dart';
+import 'package:student_app/core/localization/language_picker_sheet.dart';
+import 'package:student_app/core/localization/locale_provider.dart';
+import 'package:student_app/l10n/app_localizations.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -14,7 +20,279 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  bool _isUploadingPhoto = false;
+
+  Future<void> _pickAndUploadPhoto(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp'],
+      );
+
+      if (result == null || result.files.isEmpty || result.files.first.path == null) {
+        return;
+      }
+
+      final file = result.files.first;
+      setState(() => _isUploadingPhoto = true);
+
+      final uploadRes = await ApiClient().uploadFile(
+        filePath: file.path!,
+        fileName: file.name,
+        fileType: 'image',
+      );
+
+      if (uploadRes != null && uploadRes['url'] != null) {
+        String uploadedUrl = uploadRes['url'].toString();
+        if (uploadedUrl.startsWith('/')) {
+          uploadedUrl = '${ApiEndpoints.host}$uploadedUrl';
+        }
+
+        final success = await authProvider.updateAvatar(uploadedUrl);
+        if (mounted) {
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  l10n?.photoUpdateSuccess ?? 'Profile photo updated successfully!',
+                  style: GoogleFonts.inter(),
+                ),
+                backgroundColor: const Color(0xFF16A34A),
+              ),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  l10n?.photoUpdateFailed ?? 'Failed to update profile photo.',
+                  style: GoogleFonts.inter(),
+                ),
+                backgroundColor: const Color(0xFFDC2626),
+              ),
+            );
+          }
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                l10n?.photoUpdateFailed ?? 'Failed to upload photo to server.',
+                style: GoogleFonts.inter(),
+              ),
+              backgroundColor: const Color(0xFFDC2626),
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              l10n?.photoUpdateFailed ?? 'Error picking photo. Please try again.',
+              style: GoogleFonts.inter(),
+            ),
+            backgroundColor: const Color(0xFFDC2626),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingPhoto = false);
+      }
+    }
+  }
+
+  Future<void> _confirmAndRemovePhoto(BuildContext context, {VoidCallback? onSuccess}) async {
+    final l10n = AppLocalizations.of(context);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: Text(
+          l10n?.removePhotoConfirmTitle ?? 'Remove Profile Photo?',
+          style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          l10n?.removePhotoConfirmMessage ?? 'Are you sure you want to remove your profile photo?',
+          style: GoogleFonts.inter(),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(false),
+            child: Text(
+              l10n?.cancel ?? 'Cancel',
+              style: GoogleFonts.inter(color: const Color(0xFF64748B)),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(true),
+            style: TextButton.styleFrom(foregroundColor: const Color(0xFFDC2626)),
+            child: Text(
+              l10n?.removePhoto ?? 'Remove',
+              style: GoogleFonts.inter(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      setState(() => _isUploadingPhoto = true);
+      try {
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        final success = await authProvider.updateAvatar('');
+        if (mounted) {
+          if (success) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  l10n?.photoRemovedSuccess ?? 'Profile photo removed successfully.',
+                  style: GoogleFonts.inter(),
+                ),
+                backgroundColor: const Color(0xFF16A34A),
+              ),
+            );
+            onSuccess?.call();
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  l10n?.photoUpdateFailed ?? 'Failed to remove profile photo.',
+                  style: GoogleFonts.inter(),
+                ),
+                backgroundColor: const Color(0xFFDC2626),
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                l10n?.photoUpdateFailed ?? 'Failed to remove profile photo.',
+                style: GoogleFonts.inter(),
+              ),
+              backgroundColor: const Color(0xFFDC2626),
+            ),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isUploadingPhoto = false);
+        }
+      }
+    }
+  }
+
+  void _showAvatarActionSheet(BuildContext context, String imageUrl, String studentName) {
+    final l10n = AppLocalizations.of(context);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final allowUpload = authProvider.allowStudentPhotoUpload;
+
+    if (!allowUpload) {
+      if (imageUrl.isNotEmpty) {
+        _openFullScreenImageViewer(context, imageUrl, studentName);
+      }
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      backgroundColor: Colors.white,
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCBD5E1),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                ListTile(
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFEFF6FF),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.add_a_photo_outlined, color: Color(0xFF1D4ED8), size: 20),
+                  ),
+                  title: Text(
+                    l10n?.uploadNewPhoto ?? 'Upload New Photo',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  subtitle: Text(
+                    'Choose a clear face photo from your gallery',
+                    style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF64748B)),
+                  ),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    _pickAndUploadPhoto(context);
+                  },
+                ),
+                if (imageUrl.isNotEmpty) ...[
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFF1F5F9),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.fullscreen_rounded, color: Color(0xFF334155), size: 20),
+                    ),
+                    title: Text(
+                      l10n?.viewFullPhoto ?? 'View Photo',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14),
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _openFullScreenImageViewer(context, imageUrl, studentName);
+                    },
+                  ),
+                  ListTile(
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFEF2F2),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.delete_outline_rounded, color: Color(0xFFDC2626), size: 20),
+                    ),
+                    title: Text(
+                      l10n?.removePhoto ?? 'Remove Photo',
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14, color: const Color(0xFFDC2626)),
+                    ),
+                    onTap: () {
+                      Navigator.pop(ctx);
+                      _confirmAndRemovePhoto(context);
+                    },
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   void _openFullScreenImageViewer(BuildContext context, String imageUrl, String studentName) {
+    final l10n = AppLocalizations.of(context);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
     Navigator.of(context).push(
       PageRouteBuilder(
         opaque: false,
@@ -37,6 +315,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+              actions: [
+                if (authProvider.allowStudentPhotoUpload && imageUrl.isNotEmpty)
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline_rounded, color: Colors.white),
+                    tooltip: l10n?.removePhoto ?? 'Remove Photo',
+                    onPressed: () {
+                      _confirmAndRemovePhoto(context, onSuccess: () {
+                        Navigator.of(context).pop();
+                      });
+                    },
+                  ),
+              ],
             ),
             body: Center(
               child: InteractiveViewer(
@@ -65,7 +355,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildLargeInitialsAvatar(String name) {
+    Widget _buildLargeInitialsAvatar(String name) {
     final initials = name.trim().isNotEmpty
         ? name.trim().split(' ').map((e) => e[0]).take(2).join('').toUpperCase()
         : 'ST';
@@ -93,6 +383,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Consumer2<AuthProvider, AttendanceProvider>(
       builder: (context, authProvider, attProvider, _) {
+        final l10n = AppLocalizations.of(context);
+        final localeProvider = context.watch<LocaleProvider>();
+        final currentLang = LocaleProvider.supportedLanguages.firstWhere(
+          (l) => l.code == localeProvider.currentLocale.languageCode,
+          orElse: () => LocaleProvider.supportedLanguages.first,
+        );
         final user = authProvider.user;
         final String name = authProvider.userName;
         final String email = user?['email'] ?? '';
@@ -145,39 +441,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Interactive Tappable Avatar
+                      // Interactive Tappable Avatar with Camera Badge
                       GestureDetector(
-                        onTap: () => _openFullScreenImageViewer(context, image, name),
-                        child: Hero(
-                          tag: 'profile_avatar_hero',
-                          child: Container(
-                            width: 96,
-                            height: 96,
-                            decoration: BoxDecoration(
-                              shape: BoxShape.circle,
-                              color: const Color(0xFF1E3A8A),
-                              border: Border.all(
-                                color: const Color(0xFFEFF4FF),
-                                width: 4,
-                              ),
-                              boxShadow: const [
-                                BoxShadow(
-                                  color: Colors.black26,
-                                  blurRadius: 8,
-                                  offset: Offset(0, 3),
-                                )
-                              ],
-                            ),
-                            child: ClipOval(
-                              child: image.isNotEmpty
-                                  ? Image.network(
-                                      image,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => _buildInitialsAvatar(name),
+                        onTap: () {
+                          if (authProvider.allowStudentPhotoUpload || image.isNotEmpty) {
+                            _showAvatarActionSheet(context, image, name);
+                          }
+                        },
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            Hero(
+                              tag: 'profile_avatar_hero',
+                              child: Container(
+                                width: 96,
+                                height: 96,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFF1E3A8A),
+                                  border: Border.all(
+                                    color: const Color(0xFFEFF4FF),
+                                    width: 4,
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black26,
+                                      blurRadius: 8,
+                                      offset: Offset(0, 3),
                                     )
-                                  : _buildInitialsAvatar(name),
+                                  ],
+                                ),
+                                child: ClipOval(
+                                  child: image.isNotEmpty
+                                      ? Image.network(
+                                          image,
+                                          fit: BoxFit.cover,
+                                          errorBuilder: (_, __, ___) => _buildInitialsAvatar(name),
+                                        )
+                                      : _buildInitialsAvatar(name),
+                                ),
+                              ),
                             ),
-                          ),
+                            if (_isUploadingPhoto)
+                              Positioned.fill(
+                                child: Container(
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black54,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Center(
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 3,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            if (authProvider.allowStudentPhotoUpload)
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF2563EB),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2.5),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Colors.black38,
+                                      blurRadius: 4,
+                                      offset: Offset(0, 2),
+                                    )
+                                  ],
+                                ),
+                                child: const Icon(
+                                  Icons.camera_alt_rounded,
+                                  size: 15,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -216,7 +562,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         _buildStatCard(Icons.event_available, 'ATTENDANCE', '$attendanceRate%', const Color(0xFFE6F4EA), const Color(0xFF137333), valueFontSize: 18),
                         const SizedBox(width: 8),
-                        _buildStatCard(Icons.school, 'TYPE', instituteType, const Color(0xFFD5E0F7), const Color(0xFF002045), valueFontSize: 15),
+                        _buildStatCard(Icons.school, 'TYPE', authProvider.isDegreeCollege ? 'DEGREE' : (authProvider.isPuCollege ? 'PU COLLEGE' : instituteType), const Color(0xFFD5E0F7), const Color(0xFF002045), valueFontSize: 15),
                         const SizedBox(width: 8),
                         _buildStatCard(Icons.bloodtype, 'BLOOD', bloodGroup, const Color(0xFFFCE8E6), const Color(0xFFA50E0E), valueFontSize: 16),
                       ],
@@ -288,16 +634,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             _buildInfoRow(
                               Icons.badge_outlined,
-                              authProvider.isCollege ? 'University Roll / Reg. No.' : 'Enrollment Number',
+                              authProvider.primaryIdLabel,
                               enrollment,
                             ),
                             if (grNumber.isNotEmpty)
                               _buildInfoRow(
                                 Icons.assignment_ind_outlined,
-                                authProvider.isCollege ? 'College Register (CR) No.' : 'General Register (GR) No.',
+                                authProvider.secondaryIdLabel,
                                 grNumber,
                               ),
-                            _buildInfoRow(Icons.apartment_outlined, 'Institute Name', '$instituteName ($instituteCode)', isLast: true),
+                            _buildInfoRow(Icons.apartment_outlined, 'Institute Name', '$instituteName ($instituteCode)'),
+                            _buildInfoRow(Icons.domain_outlined, 'Academic Type', authProvider.isDegreeCollege ? 'Degree College (Semester-Based)' : (authProvider.isPuCollege ? 'PU College (Pre-University 10+2)' : (authProvider.isSchool ? 'School (K-12 Education)' : 'Vocational Institute')), isLast: true),
                           ],
                         ),
                       ),
@@ -333,8 +680,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 24),
 
+                      // Group: Settings & Preferences
+                      _buildSectionHeader(l10n?.settingsAndPreferences.toUpperCase() ?? 'SETTINGS & PREFERENCES'),
+                      const SizedBox(height: 8),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          border: Border.all(color: const Color(0xFFC4C6CF)),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Column(
+                          children: [
+                            _buildActionRow(
+                              Icons.language_rounded,
+                              l10n?.changeLanguage ?? 'Change Language',
+                              trailingText: '${currentLang.nativeName} (${currentLang.englishName})',
+                              isLast: true,
+                              onTap: () => LanguagePickerSheet.show(context),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
                       // Group 5: System Actions
-                      _buildSectionHeader('ACCOUNT'),
+                      _buildSectionHeader(l10n?.profileSection ?? 'Profile'),
                       const SizedBox(height: 8),
                       Container(
                         decoration: BoxDecoration(
@@ -347,24 +718,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           children: [
                             _buildActionRow(
                               Icons.logout,
-                              'Sign Out',
+                              l10n?.signOut ?? 'Sign Out',
                               isLast: true,
                               isDestructive: true,
                               onTap: () async {
                                 final confirm = await showDialog<bool>(
                                   context: context,
                                   builder: (context) => AlertDialog(
-                                    title: Text('Sign Out', style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.bold)),
-                                    content: Text('Are you sure you want to sign out of your account?', style: GoogleFonts.inter()),
+                                    title: Text(l10n?.signOutConfirmTitle ?? 'Sign Out', style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.bold)),
+                                    content: Text(l10n?.signOutConfirmMessage ?? 'Are you sure you want to sign out of your account?', style: GoogleFonts.inter()),
                                     actions: [
                                       TextButton(
                                         onPressed: () => Navigator.pop(context, false),
-                                        child: Text('Cancel', style: GoogleFonts.inter(color: const Color(0xFF545F72))),
+                                        child: Text(l10n?.cancel ?? 'Cancel', style: GoogleFonts.inter(color: const Color(0xFF545F72))),
                                       ),
                                       ElevatedButton(
                                         onPressed: () => Navigator.pop(context, true),
                                         style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFBA1A1A)),
-                                        child: Text('Sign Out', style: GoogleFonts.inter(color: Colors.white)),
+                                        child: Text(l10n?.signOut ?? 'Sign Out', style: GoogleFonts.inter(color: Colors.white)),
                                       ),
                                     ],
                                   ),
@@ -543,6 +914,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildActionRow(
     IconData icon,
     String title, {
+    String? trailingText,
     bool isLast = false,
     bool isDestructive = false,
     required VoidCallback onTap,
@@ -569,13 +941,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   size: 20,
                 ),
                 const SizedBox(width: 16),
-                Text(
-                  title,
-                  style: GoogleFonts.inter(
-                    color: mainColor,
-                    fontSize: 14,
-                    fontWeight: isDestructive ? FontWeight.bold : FontWeight.w500,
+                Expanded(
+                  child: Text(
+                    title,
+                    style: GoogleFonts.inter(
+                      color: mainColor,
+                      fontSize: 14,
+                      fontWeight: isDestructive ? FontWeight.bold : FontWeight.w500,
+                    ),
                   ),
+                ),
+                if (trailingText != null) ...[
+                  Text(
+                    trailingText,
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF545F72),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                ],
+                Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: isDestructive ? const Color(0xFFBA1A1A) : const Color(0xFF8E9099),
                 ),
               ],
             ),

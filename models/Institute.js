@@ -121,7 +121,8 @@ const InstituteSchema = new Schema({
             bundleHostelInBaseFee: { type: Boolean, default: false },
             bundleTransportInBaseFee: { type: Boolean, default: false },
             combinedCourseFees: { type: Boolean, default: false },
-            rteAndScholarship: { type: Boolean, default: false }
+            rteAndScholarship: { type: Boolean, default: false },
+            studentPhotoUpload: { type: Boolean, default: true }
         },
 
         // Approval Workflow rules (Master Admin gate)

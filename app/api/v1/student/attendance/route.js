@@ -18,6 +18,7 @@ export async function GET(req) {
         await connectDB();
 
         const { searchParams } = new URL(req.url);
+        const querySessionId = searchParams.get("sessionId") || req.headers.get("x-session-id");
         let page = parseInt(searchParams.get("page")) || 1;
         let limit = parseInt(searchParams.get("limit")) || 100;
         if (limit > 200) limit = 200;
@@ -30,16 +31,25 @@ export async function GET(req) {
             return NextResponse.json({ error: "Institute not found" }, { status: 400 });
         }
 
-        // Retrieve enrolled batches for the student in this institute
-        const enrolledBatches = await Batch.find({
+        // Retrieve enrolled batches for the student in this institute (scoped to session if provided)
+        const batchQuery = {
             institute: instituteId,
             enrolledStudents: {
                 $elemMatch: {
                     student: studentObjId,
                     status: { $in: ["active", "completed"] }
                 }
-            }
-        }).select("_id name course").populate("course", "name code").lean();
+            },
+            deletedAt: null
+        };
+        if (querySessionId && mongoose.Types.ObjectId.isValid(querySessionId)) {
+            batchQuery.session = new mongoose.Types.ObjectId(querySessionId);
+        }
+
+        const enrolledBatches = await Batch.find(batchQuery)
+            .select("_id name course session")
+            .populate("course", "name code")
+            .lean();
 
         const query = {
             institute: instituteId,
@@ -57,6 +67,8 @@ export async function GET(req) {
             } catch {
                 // Ignore invalid ObjectId format
             }
+        } else if (querySessionId && mongoose.Types.ObjectId.isValid(querySessionId)) {
+            query.batch = { $in: enrolledBatches.map(b => b._id) };
         }
 
         const monthParam = searchParams.get("month");

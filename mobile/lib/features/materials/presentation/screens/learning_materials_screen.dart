@@ -63,7 +63,7 @@ class _LearningMaterialsScreenState extends State<LearningMaterialsScreen> {
       builder: (context, materialsProvider, _) {
         final filteredList = materialsProvider.filteredMaterials;
         final availableSubjects = materialsProvider.availableSubjects;
-        final isCollege = Provider.of<AuthProvider>(context).isCollege;
+        final auth = Provider.of<AuthProvider>(context);
 
         return Scaffold(
           backgroundColor: const Color(0xFFF8F9FF),
@@ -75,7 +75,7 @@ class _LearningMaterialsScreenState extends State<LearningMaterialsScreen> {
               onPressed: () => Navigator.of(context).pop(),
             ),
             title: Text(
-              isCollege ? 'Module Resources' : 'Learning Materials',
+              auth.getLocalizedMaterialsTitle(context),
               style: GoogleFonts.hankenGrotesk(
                 color: const Color(0xFF002045),
                 fontSize: 20,
@@ -101,9 +101,7 @@ class _LearningMaterialsScreenState extends State<LearningMaterialsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 20.0),
                 children: [
                   Text(
-                    isCollege
-                        ? 'Access semester lecture notes, lab manuals, and course reference materials.'
-                        : 'Access notes, assignments, and reference videos for your courses.',
+                    auth.materialsSubtitle,
                     style: GoogleFonts.inter(
                       color: const Color(0xFF545F72),
                       fontSize: 14,

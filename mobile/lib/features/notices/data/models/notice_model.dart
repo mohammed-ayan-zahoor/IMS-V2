@@ -14,6 +14,20 @@ class NoticeAttachment {
   }
 }
 
+class NoticeTranslation {
+  final String title;
+  final String content;
+
+  NoticeTranslation({required this.title, required this.content});
+
+  factory NoticeTranslation.fromJson(Map<String, dynamic> json) {
+    return NoticeTranslation(
+      title: json['title']?.toString() ?? '',
+      content: json['content']?.toString() ?? '',
+    );
+  }
+}
+
 class NoticeModel {
   final String id;
   final String title;
@@ -22,6 +36,7 @@ class NoticeModel {
   final bool isPinned;
   final DateTime createdAt;
   final List<NoticeAttachment> attachments;
+  final Map<String, NoticeTranslation> translations;
 
   NoticeModel({
     required this.id,
@@ -31,7 +46,55 @@ class NoticeModel {
     required this.isPinned,
     required this.createdAt,
     required this.attachments,
-  });
+    Map<String, NoticeTranslation>? translations,
+  }) : translations = translations != null
+            ? Map<String, NoticeTranslation>.from(translations)
+            : <String, NoticeTranslation>{};
+
+  /// Returns whether a translation is available for the given language code
+  bool hasTranslationFor(String langCode) {
+    if (langCode == 'en') return false;
+    final t = translations[langCode];
+    return t != null && (t.title.trim().isNotEmpty || t.content.trim().isNotEmpty);
+  }
+
+  /// Appends or updates a localized translation for this notice
+  void addTranslation(String langCode, {required String title, required String content}) {
+    translations[langCode] = NoticeTranslation(
+      title: title.trim().isNotEmpty ? title.trim() : this.title,
+      content: content.trim().isNotEmpty ? content.trim() : this.content,
+    );
+  }
+
+  /// Returns the translated title for the active locale or the original title
+  String getTitle(BuildContext context, {bool forceOriginal = false, String? lang}) {
+    if (forceOriginal) return title;
+    final langCode = lang ?? Localizations.localeOf(context).languageCode;
+    if (langCode == 'en') return title;
+    final t = translations[langCode];
+    if (t != null && t.title.trim().isNotEmpty) {
+      return t.title.trim();
+    }
+    return title;
+  }
+
+  /// Returns the translated content for the active locale or the original content
+  String getContent(BuildContext context, {bool forceOriginal = false, String? lang}) {
+    if (forceOriginal) return content;
+    final langCode = lang ?? Localizations.localeOf(context).languageCode;
+    if (langCode == 'en') return content;
+    final t = translations[langCode];
+    if (t != null && t.content.trim().isNotEmpty) {
+      return t.content.trim();
+    }
+    return content;
+  }
+
+  /// Checks whether a translation exists for the current locale
+  bool hasTranslation(BuildContext context, {String? lang}) {
+    final langCode = lang ?? Localizations.localeOf(context).languageCode;
+    return hasTranslationFor(langCode);
+  }
 
   String get categoryDisplay {
     switch (type.toLowerCase()) {
@@ -93,6 +156,16 @@ class NoticeModel {
             .toList() ??
         [];
 
+    final rawTranslations = json['translations'];
+    final Map<String, NoticeTranslation> transMap = {};
+    if (rawTranslations is Map) {
+      rawTranslations.forEach((key, val) {
+        if (val is Map) {
+          transMap[key.toString()] = NoticeTranslation.fromJson(Map<String, dynamic>.from(val));
+        }
+      });
+    }
+
     return NoticeModel(
       id: json['_id'] ?? '',
       title: json['title'] ?? 'Notice',
@@ -103,6 +176,7 @@ class NoticeModel {
           ? DateTime.parse(json['createdAt'])
           : DateTime.now(),
       attachments: atts,
+      translations: transMap,
     );
   }
 }

@@ -195,8 +195,22 @@ export async function POST(req) {
 
         const instId = session.user.institute.id;
 
+        let translations = body.translations || {};
+        if (Object.keys(translations).length === 0 && (body.title || body.content)) {
+            try {
+                const { translateNotice } = await import("@/services/translationService");
+                translations = await translateNotice({
+                    title: body.title,
+                    content: body.content
+                });
+            } catch (err) {
+                console.error("Auto-translation error:", err);
+            }
+        }
+
         const notice = await Notice.create({
             ...body,
+            translations,
             institute: instId,
             createdBy: session.user.id
         });

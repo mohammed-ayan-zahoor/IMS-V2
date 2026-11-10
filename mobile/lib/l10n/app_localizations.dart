@@ -519,6 +519,426 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Network error. Please try again.'**
   String get networkError;
+
+  /// No description provided for @studentPortal.
+  ///
+  /// In en, this message translates to:
+  /// **'Student Portal'**
+  String get studentPortal;
+
+  /// No description provided for @timetable.
+  ///
+  /// In en, this message translates to:
+  /// **'Timetable'**
+  String get timetable;
+
+  /// No description provided for @fees.
+  ///
+  /// In en, this message translates to:
+  /// **'Fees & Payments'**
+  String get fees;
+
+  /// No description provided for @feesRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'Fee Records'**
+  String get feesRecords;
+
+  /// No description provided for @materials.
+  ///
+  /// In en, this message translates to:
+  /// **'Learning Materials'**
+  String get materials;
+
+  /// No description provided for @syllabus.
+  ///
+  /// In en, this message translates to:
+  /// **'Syllabus'**
+  String get syllabus;
+
+  /// No description provided for @practiceTests.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice Tests'**
+  String get practiceTests;
+
+  /// No description provided for @campusMessages.
+  ///
+  /// In en, this message translates to:
+  /// **'Campus Messages'**
+  String get campusMessages;
+
+  /// No description provided for @documentVault.
+  ///
+  /// In en, this message translates to:
+  /// **'Document Vault'**
+  String get documentVault;
+
+  /// No description provided for @academicSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Academic Sessions'**
+  String get academicSessions;
+
+  /// No description provided for @notifications.
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get notifications;
+
+  /// No description provided for @digitalId.
+  ///
+  /// In en, this message translates to:
+  /// **'Digital ID'**
+  String get digitalId;
+
+  /// No description provided for @helpAndSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Help & Support'**
+  String get helpAndSupport;
+
+  /// No description provided for @personalDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Personal Details'**
+  String get personalDetails;
+
+  /// No description provided for @settingsAndPreferences.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings & Preferences'**
+  String get settingsAndPreferences;
+
+  /// No description provided for @currentSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Session'**
+  String get currentSession;
+
+  /// No description provided for @archived.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived'**
+  String get archived;
+
+  /// No description provided for @allClear.
+  ///
+  /// In en, this message translates to:
+  /// **'All Clear'**
+  String get allClear;
+
+  /// No description provided for @noDues.
+  ///
+  /// In en, this message translates to:
+  /// **'No Dues'**
+  String get noDues;
+
+  /// No description provided for @due.
+  ///
+  /// In en, this message translates to:
+  /// **'Due'**
+  String get due;
+
+  /// No description provided for @totalDue.
+  ///
+  /// In en, this message translates to:
+  /// **'Total Due'**
+  String get totalDue;
+
+  /// No description provided for @paid.
+  ///
+  /// In en, this message translates to:
+  /// **'Paid'**
+  String get paid;
+
+  /// No description provided for @pending.
+  ///
+  /// In en, this message translates to:
+  /// **'Pending'**
+  String get pending;
+
+  /// No description provided for @general.
+  ///
+  /// In en, this message translates to:
+  /// **'General'**
+  String get general;
+
+  /// No description provided for @profileSection.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile'**
+  String get profileSection;
+
+  /// No description provided for @feesAndPayments.
+  ///
+  /// In en, this message translates to:
+  /// **'Fees & Payments'**
+  String get feesAndPayments;
+
+  /// No description provided for @assessmentsAndExams.
+  ///
+  /// In en, this message translates to:
+  /// **'Assessments & Sem Exams'**
+  String get assessmentsAndExams;
+
+  /// No description provided for @semesterResources.
+  ///
+  /// In en, this message translates to:
+  /// **'Semester Resources'**
+  String get semesterResources;
+
+  /// No description provided for @studyMaterialsAndNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Study Materials & Notes'**
+  String get studyMaterialsAndNotes;
+
+  /// No description provided for @testsAndPreparatory.
+  ///
+  /// In en, this message translates to:
+  /// **'Tests & Preparatory Exams'**
+  String get testsAndPreparatory;
+
+  /// No description provided for @digitalLibraryCard.
+  ///
+  /// In en, this message translates to:
+  /// **'Digital Library Card'**
+  String get digitalLibraryCard;
+
+  /// No description provided for @practiceAndQuizzes.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice & Quizzes'**
+  String get practiceAndQuizzes;
+
+  /// No description provided for @noticesAndCirculars.
+  ///
+  /// In en, this message translates to:
+  /// **'Notices & Circulars'**
+  String get noticesAndCirculars;
+
+  /// No description provided for @academicTimeline.
+  ///
+  /// In en, this message translates to:
+  /// **'Academic Timeline'**
+  String get academicTimeline;
+
+  /// No description provided for @studentProfileDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Student Profile & Details'**
+  String get studentProfileDetails;
+
+  /// No description provided for @signOutConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign Out'**
+  String get signOutConfirmTitle;
+
+  /// No description provided for @signOutConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to sign out of your student account?'**
+  String get signOutConfirmMessage;
+
+  /// No description provided for @studentSupport.
+  ///
+  /// In en, this message translates to:
+  /// **'Student Support'**
+  String get studentSupport;
+
+  /// No description provided for @campusCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Campus Code'**
+  String get campusCode;
+
+  /// No description provided for @supportContactPrompt.
+  ///
+  /// In en, this message translates to:
+  /// **'Need assistance with courses, exams, or fee receipts? Please reach out to your institute administration or advisor.'**
+  String get supportContactPrompt;
+
+  /// No description provided for @close.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get close;
+
+  /// No description provided for @degreeScholarSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Degree Scholar • Higher Education'**
+  String get degreeScholarSubtitle;
+
+  /// No description provided for @puScholarSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'PU Scholar • Pre-University'**
+  String get puScholarSubtitle;
+
+  /// No description provided for @schoolScholarSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Active Student • Learning & Growing'**
+  String get schoolScholarSubtitle;
+
+  /// No description provided for @semester.
+  ///
+  /// In en, this message translates to:
+  /// **'Semester'**
+  String get semester;
+
+  /// No description provided for @sem.
+  ///
+  /// In en, this message translates to:
+  /// **'Sem'**
+  String get sem;
+
+  /// No description provided for @oddSemester.
+  ///
+  /// In en, this message translates to:
+  /// **'Odd Semester'**
+  String get oddSemester;
+
+  /// No description provided for @evenSemester.
+  ///
+  /// In en, this message translates to:
+  /// **'Even Semester'**
+  String get evenSemester;
+
+  /// No description provided for @switchSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Switch'**
+  String get switchSession;
+
+  /// No description provided for @selectSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Select Academic Session'**
+  String get selectSession;
+
+  /// No description provided for @archivedCompleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Archived / Completed'**
+  String get archivedCompleted;
+
+  /// No description provided for @currentEnrolledSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Enrolled Session'**
+  String get currentEnrolledSession;
+
+  /// No description provided for @previousSessions.
+  ///
+  /// In en, this message translates to:
+  /// **'Previous Sessions'**
+  String get previousSessions;
+
+  /// No description provided for @readOnly.
+  ///
+  /// In en, this message translates to:
+  /// **'Read-only'**
+  String get readOnly;
+
+  /// No description provided for @showingArchivedRecords.
+  ///
+  /// In en, this message translates to:
+  /// **'Showing archived records (Read-only)'**
+  String get showingArchivedRecords;
+
+  /// No description provided for @pucYear1.
+  ///
+  /// In en, this message translates to:
+  /// **'1st Year PUC'**
+  String get pucYear1;
+
+  /// No description provided for @pucYear2.
+  ///
+  /// In en, this message translates to:
+  /// **'2nd Year PUC'**
+  String get pucYear2;
+
+  /// No description provided for @viewOriginal.
+  ///
+  /// In en, this message translates to:
+  /// **'View Original (English)'**
+  String get viewOriginal;
+
+  /// No description provided for @viewTranslated.
+  ///
+  /// In en, this message translates to:
+  /// **'Translate Notice'**
+  String get viewTranslated;
+
+  /// No description provided for @translatedNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Translated Notice'**
+  String get translatedNotice;
+
+  /// No description provided for @originalLanguageNotice.
+  ///
+  /// In en, this message translates to:
+  /// **'Original English'**
+  String get originalLanguageNotice;
+
+  /// No description provided for @changePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Profile Photo'**
+  String get changePhoto;
+
+  /// No description provided for @uploadNewPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Upload New Photo'**
+  String get uploadNewPhoto;
+
+  /// No description provided for @viewFullPhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'View Photo'**
+  String get viewFullPhoto;
+
+  /// No description provided for @photoUpdateSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile photo updated successfully!'**
+  String get photoUpdateSuccess;
+
+  /// No description provided for @photoUpdateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to upload photo. Please try again.'**
+  String get photoUpdateFailed;
+
+  /// No description provided for @removePhoto.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Photo'**
+  String get removePhoto;
+
+  /// No description provided for @removePhotoConfirmTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove Profile Photo?'**
+  String get removePhotoConfirmTitle;
+
+  /// No description provided for @removePhotoConfirmMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Are you sure you want to remove your profile photo?'**
+  String get removePhotoConfirmMessage;
+
+  /// No description provided for @photoRemovedSuccess.
+  ///
+  /// In en, this message translates to:
+  /// **'Profile photo removed successfully.'**
+  String get photoRemovedSuccess;
 }
 
 class _AppLocalizationsDelegate

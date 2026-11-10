@@ -1,3 +1,4 @@
+import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -41,6 +42,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
     }
 
     final batchesProv = Provider.of<BatchesProvider>(context);
+    final auth = Provider.of<AuthProvider>(context);
 
     return Consumer<TimetableProvider>(
       builder: (context, ttProvider, _) {
@@ -52,7 +54,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
         final rawSlots = ttProvider.weeklySchedule[currentDayKey] ?? [];
 
         // Build a mapping of batchId -> Name
-        final Map<String, String> batchMap = {'All': 'All Batches'};
+        final Map<String, String> batchMap = {'All': auth.isDegreeCollege ? 'All Sections' : (auth.isPuCollege ? 'All Classes' : 'All Batches')};
         for (final b in batchesProv.batches) {
           batchMap[b.id] = '${b.courseName} - ${b.name}';
         }

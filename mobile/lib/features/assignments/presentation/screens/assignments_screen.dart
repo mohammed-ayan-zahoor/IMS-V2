@@ -7,6 +7,7 @@ import 'package:student_app/features/assignments/data/models/assignment_model.da
 import 'package:student_app/features/assignments/presentation/providers/assignments_provider.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:student_app/core/network/api_client.dart';
+import 'package:student_app/core/auth/auth_provider.dart';
 
 class AssignmentsScreen extends StatefulWidget {
   const AssignmentsScreen({super.key});
@@ -35,6 +36,9 @@ class AssignmentsScreen extends StatefulWidget {
     );
     bool isSubmitting = false;
 
+    PlatformFile? pickedFile;
+    String submitStatus = '';
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -45,8 +49,6 @@ class AssignmentsScreen extends StatefulWidget {
       builder: (modalContext) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            PlatformFile? pickedFile;
-            String submitStatus = '';
             final submission = initialSubmission ?? Provider.of<AssignmentsProvider>(context).submissions[assignment.id];
             return Padding(
               padding: EdgeInsets.only(
@@ -420,11 +422,13 @@ class AssignmentsScreen extends StatefulWidget {
                                   setModalState(() => isSubmitting = false);
 
                                   if (context.mounted) {
-                                    Navigator.pop(context);
+                                    if (success) {
+                                      Navigator.pop(context);
+                                    }
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                          success ? 'Assignment submitted successfully!' : (provider.lastSubmitError ?? 'Failed to submit assignment'),
+                                          success ? 'Assignment submitted successfully!' : (provider.lastSubmitError ?? 'Failed to submit assignment. Please try again.'),
                                         ),
                                         backgroundColor: success ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
                                       ),
@@ -443,7 +447,7 @@ class AssignmentsScreen extends StatefulWidget {
                                 )
                               : const Icon(Icons.cloud_upload_outlined, color: Colors.white, size: 20),
                           label: Text(
-                            isSubmitting ? (submitStatus.isNotEmpty ? submitStatus : 'Uploading...') : 'Submit Homework',
+                            isSubmitting ? (submitStatus.isNotEmpty ? submitStatus : 'Uploading...') : Provider.of<AuthProvider>(context, listen: false).submitButtonLabel,
                             style: GoogleFonts.inter(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                           ),
                         ),
@@ -496,7 +500,7 @@ class _AssignmentsScreenState extends State<AssignmentsScreen> with SingleTicker
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Assignments & Homework',
+          Provider.of<AuthProvider>(context, listen: false).assignmentsTitle,
           style: GoogleFonts.hankenGrotesk(
             color: const Color(0xFF0D1C2E),
             fontWeight: FontWeight.bold,

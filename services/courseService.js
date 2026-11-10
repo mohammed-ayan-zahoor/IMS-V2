@@ -490,7 +490,10 @@ export class BatchService {
         }
 
         if (safeFilters.session && safeFilters.session !== 'all' && safeFilters.session !== '') {
-            andClauses.push({ session: safeFilters.session });
+            const sessionObjId = mongoose.Types.ObjectId.isValid(safeFilters.session)
+                ? new mongoose.Types.ObjectId(safeFilters.session)
+                : safeFilters.session;
+            andClauses.push({ session: { $in: [safeFilters.session, sessionObjId] } });
         }
 
         if (safeFilters.courseBundle) {
@@ -504,15 +507,24 @@ export class BatchService {
         // RBAC: Restricted view for instructors
         if (filters.instructorRoleContext) {
             const instructorId = filters.instructorRoleContext;
+            const instructorObjId = mongoose.Types.ObjectId.isValid(instructorId)
+                ? new mongoose.Types.ObjectId(instructorId)
+                : instructorId;
+
             const User = mongoose.models.User || mongoose.model('User');
             const instructor = await User.findById(instructorId).select('assignments');
             const assignedBatches = (instructor?.assignments?.batches || []).map(b => b.toString());
+            const assignedBatchObjIds = assignedBatches
+                .filter(b => mongoose.Types.ObjectId.isValid(b))
+                .map(b => new mongoose.Types.ObjectId(b));
+            const allAssignedBatchIds = [...assignedBatches, ...assignedBatchObjIds];
+
             const assignedCourses = (instructor?.assignments?.courses || []).map(c => c.toString());
 
             // If instructor has specific batches assigned, check which courses those batches belong to
             let coursesWithExplicitBatches = new Set();
-            if (assignedBatches.length > 0) {
-                const explicitBatches = await Batch.find({ _id: { $in: assignedBatches } }).select('course courseBundle').lean();
+            if (allAssignedBatchIds.length > 0) {
+                const explicitBatches = await Batch.find({ _id: { $in: allAssignedBatchIds } }).select('course courseBundle').lean();
                 explicitBatches.forEach(b => {
                     if (b.course) coursesWithExplicitBatches.add(b.course.toString());
                     if (b.courseBundle) coursesWithExplicitBatches.add(b.courseBundle.toString());
@@ -521,18 +533,22 @@ export class BatchService {
 
             // Only treat assigned courses as granting access to all batches if no specific batches were chosen for that course
             const fullAccessCourses = assignedCourses.filter(c => !coursesWithExplicitBatches.has(c));
+            const fullAccessCourseObjIds = fullAccessCourses
+                .filter(c => mongoose.Types.ObjectId.isValid(c))
+                .map(c => new mongoose.Types.ObjectId(c));
+            const allFullAccessCourseIds = [...fullAccessCourses, ...fullAccessCourseObjIds];
 
             const instructorConditions = [
-                { instructor: instructorId }
+                { instructor: { $in: [instructorId, instructorObjId] } }
             ];
 
-            if (assignedBatches.length > 0) {
-                instructorConditions.push({ _id: { $in: assignedBatches } });
+            if (allAssignedBatchIds.length > 0) {
+                instructorConditions.push({ _id: { $in: allAssignedBatchIds } });
             }
 
-            if (fullAccessCourses.length > 0) {
-                instructorConditions.push({ course: { $in: fullAccessCourses } });
-                instructorConditions.push({ courseBundle: { $in: fullAccessCourses } });
+            if (allFullAccessCourseIds.length > 0) {
+                instructorConditions.push({ course: { $in: allFullAccessCourseIds } });
+                instructorConditions.push({ courseBundle: { $in: allFullAccessCourseIds } });
             }
 
             andClauses.push({ $or: instructorConditions });

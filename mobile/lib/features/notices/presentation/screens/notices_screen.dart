@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+import 'package:student_app/core/services/translation_service.dart';
 import 'package:student_app/features/notices/presentation/providers/notices_provider.dart';
 import 'package:student_app/features/notices/data/models/notice_model.dart';
+import 'package:student_app/l10n/app_localizations.dart';
 
 class NoticesScreen extends StatefulWidget {
   const NoticesScreen({super.key});
@@ -15,6 +17,7 @@ class NoticesScreen extends StatefulWidget {
 class _NoticesScreenState extends State<NoticesScreen> {
   final TextEditingController _searchController = TextEditingController();
   final List<String> _categories = ['All', 'Urgent', 'Event', 'General', 'Warning'];
+  final Set<String> _showOriginalNoticeIds = {};
 
   @override
   void dispose() {
@@ -24,9 +27,24 @@ class _NoticesScreenState extends State<NoticesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final currentLang = Localizations.localeOf(context).languageCode;
+
     return Consumer<NoticesProvider>(
       builder: (context, noticesProvider, _) {
         final filteredList = noticesProvider.filteredNotices;
+
+        // Auto-translate notices if user has chosen a regional language (like Kannada 'kn')
+        if (currentLang != 'en' && !noticesProvider.isLoading && !noticesProvider.isTranslating) {
+          final hasUntranslated = noticesProvider.notices.any((n) => !n.hasTranslationFor(currentLang));
+          if (hasUntranslated) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                noticesProvider.ensureTranslations(currentLang);
+              }
+            });
+          }
+        }
 
         return Scaffold(
           backgroundColor: const Color(0xFFF8F9FF),
@@ -39,7 +57,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
             ),
             titleSpacing: 0,
             title: Text(
-              'Notices & Announcements',
+              l10n?.noticesTitle ?? 'Notices & Announcements',
               style: GoogleFonts.hankenGrotesk(
                 color: const Color(0xFF002045),
                 fontSize: 18,
@@ -49,7 +67,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
           ),
           body: SafeArea(
             child: RefreshIndicator(
-              onRefresh: () => noticesProvider.loadNotices(refresh: true),
+              onRefresh: () => noticesProvider.loadNotices(refresh: true, targetLang: currentLang),
               child: Column(
                 children: [
                   // Search & Category Filter Section
@@ -71,7 +89,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
                             onChanged: (val) => noticesProvider.setSearchQuery(val),
                             style: GoogleFonts.inter(fontSize: 14, color: const Color(0xFF0D1C2E)),
                             decoration: InputDecoration(
-                              hintText: 'Search notices & circulars...',
+                              hintText: l10n?.noticesAndCirculars ?? 'Search notices & circulars...',
                               hintStyle: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF545F72)),
                               prefixIcon: const Icon(Icons.search, size: 20, color: Color(0xFF545F72)),
                               suffixIcon: _searchController.text.isNotEmpty
@@ -129,6 +147,34 @@ class _NoticesScreenState extends State<NoticesScreen> {
                     ),
                   ),
 
+                  // Progress Bar if Auto-translating
+                  if (noticesProvider.isTranslating)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      color: const Color(0xFFEFF6FF),
+                      child: Row(
+                        children: [
+                          const SizedBox(
+                            width: 12,
+                            height: 12,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1D4ED8)),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Translating notices to your language...',
+                              style: GoogleFonts.inter(
+                                color: const Color(0xFF1D4ED8),
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+
                   // Notice List Content
                   Expanded(
                     child: noticesProvider.isLoading
@@ -142,7 +188,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
                                 separatorBuilder: (_, __) => const SizedBox(height: 12),
                                 itemBuilder: (context, index) {
                                   final notice = filteredList[index];
-                                  return _buildNoticeCard(context, noticesProvider, notice);
+                                  return _buildNoticeCard(context, noticesProvider, notice, currentLang);
                                 },
                               ),
                   ),
@@ -199,9 +245,14 @@ class _NoticesScreenState extends State<NoticesScreen> {
     );
   }
 
-  Widget _buildNoticeCard(BuildContext context, NoticesProvider provider, NoticeModel notice) {
+  Widget _buildNoticeCard(BuildContext context, NoticesProvider provider, NoticeModel notice, String currentLang) {
+    final l10n = AppLocalizations.of(context);
     final bool isRead = provider.isRead(notice.id);
     final String formattedDate = DateFormat('MMM d, yyyy').format(notice.createdAt);
+    final bool isOriginal = _showOriginalNoticeIds.contains(notice.id);
+    final String displayTitle = notice.getTitle(context, forceOriginal: isOriginal, lang: currentLang);
+    final String displayContent = notice.getContent(context, forceOriginal: isOriginal, lang: currentLang);
+    final bool hasTrans = notice.hasTranslation(context, lang: currentLang);
 
     return Container(
       decoration: BoxDecoration(
@@ -223,14 +274,14 @@ class _NoticesScreenState extends State<NoticesScreen> {
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(14),
         child: InkWell(
-          onTap: () => _showNoticeDetails(context, provider, notice),
+          onTap: () => _showNoticeDetails(context, provider, notice, currentLang),
           borderRadius: BorderRadius.circular(14),
           child: Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Row: Category Pill + Pinned Indicator + Date
+                // Top Row: Category Pill + Translated / Pinned Indicators + Date
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -252,7 +303,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
                           ),
                         ),
                         if (notice.isPinned) ...[
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
@@ -267,6 +318,30 @@ class _NoticesScreenState extends State<NoticesScreen> {
                                   'PINNED',
                                   style: GoogleFonts.inter(
                                     color: const Color(0xFF1565C0),
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        if (hasTrans && !isOriginal) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F5E9),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.translate, size: 10, color: Color(0xFF2E7D32)),
+                                const SizedBox(width: 3),
+                                Text(
+                                  l10n?.translatedNotice ?? 'Translated',
+                                  style: GoogleFonts.inter(
+                                    color: const Color(0xFF2E7D32),
                                     fontSize: 9,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -323,7 +398,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            notice.title,
+                            displayTitle,
                             style: GoogleFonts.hankenGrotesk(
                               color: const Color(0xFF0D1C2E),
                               fontSize: 15,
@@ -333,7 +408,7 @@ class _NoticesScreenState extends State<NoticesScreen> {
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            notice.content,
+                            displayContent,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: GoogleFonts.inter(
@@ -342,6 +417,82 @@ class _NoticesScreenState extends State<NoticesScreen> {
                               height: 1.35,
                             ),
                           ),
+                          // Translation Toggle Button
+                          if (hasTrans) ...[
+                            const SizedBox(height: 8),
+                            InkWell(
+                              onTap: () {
+                                setState(() {
+                                  if (isOriginal) {
+                                    _showOriginalNoticeIds.remove(notice.id);
+                                  } else {
+                                    _showOriginalNoticeIds.add(notice.id);
+                                  }
+                                });
+                              },
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFFBFDBFE), width: 0.8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.g_translate_rounded, size: 13, color: Color(0xFF1D4ED8)),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      isOriginal
+                                          ? (l10n?.viewTranslated ?? 'Translate Notice')
+                                          : (l10n?.viewOriginal ?? 'View Original (English)'),
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF1D4ED8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ] else if (currentLang != 'en') ...[
+                            // Allow immediate on-demand translation tap
+                            const SizedBox(height: 8),
+                            InkWell(
+                              onTap: () async {
+                                final transTitle = await TranslationService.translate(notice.title, currentLang);
+                                final transContent = await TranslationService.translate(notice.content, currentLang);
+                                notice.addTranslation(currentLang, title: transTitle, content: transContent);
+                                if (mounted) setState(() {});
+                              },
+                              borderRadius: BorderRadius.circular(6),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFEFF6FF),
+                                  borderRadius: BorderRadius.circular(6),
+                                  border: Border.all(color: const Color(0xFFBFDBFE), width: 0.8),
+                                ),
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.g_translate_rounded, size: 13, color: Color(0xFF1D4ED8)),
+                                    const SizedBox(width: 5),
+                                    Text(
+                                      l10n?.viewTranslated ?? 'Translate Notice',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.w600,
+                                        color: const Color(0xFF1D4ED8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
                         ],
                       ),
                     ),
@@ -355,9 +506,10 @@ class _NoticesScreenState extends State<NoticesScreen> {
     );
   }
 
-  void _showNoticeDetails(BuildContext context, NoticesProvider provider, NoticeModel notice) {
+  void _showNoticeDetails(BuildContext context, NoticesProvider provider, NoticeModel notice, String currentLang) {
     provider.markAsRead(notice.id);
 
+    final l10n = AppLocalizations.of(context);
     final String formattedDate = DateFormat('EEEE, MMMM d, yyyy • h:mm a').format(notice.createdAt);
 
     showModalBottomSheet(
@@ -367,131 +519,219 @@ class _NoticesScreenState extends State<NoticesScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) {
-        return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFC4C6CF),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
+      builder: (modalCtx) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final bool isOriginal = _showOriginalNoticeIds.contains(notice.id);
+            final String modalTitle = notice.getTitle(context, forceOriginal: isOriginal, lang: currentLang);
+            final String modalContent = notice.getContent(context, forceOriginal: isOriginal, lang: currentLang);
+            final bool hasTrans = notice.hasTranslation(context, lang: currentLang);
 
-                // Category & Pinned Tag
-                Row(
+            return SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 16, 24, 24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: notice.categoryBgColor,
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        notice.categoryDisplay,
-                        style: GoogleFonts.inter(
-                          color: notice.categoryTextColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                    Center(
+                      child: Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFC4C6CF),
+                          borderRadius: BorderRadius.circular(2),
                         ),
                       ),
                     ),
-                    if (notice.isPinned) ...[
-                      const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE3F2FD),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Row(
+                    const SizedBox(height: 16),
+
+                    // Category & Pinned Tag & Translation Toggle
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
                           children: [
-                            const Icon(Icons.push_pin, size: 12, color: Color(0xFF1565C0)),
-                            const SizedBox(width: 4),
-                            Text(
-                              'PINNED ANNOUNCEMENT',
-                              style: GoogleFonts.inter(
-                                color: const Color(0xFF1565C0),
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: notice.categoryBgColor,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                notice.categoryDisplay,
+                                style: GoogleFonts.inter(
+                                  color: notice.categoryTextColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
+                            if (notice.isPinned) ...[
+                              const SizedBox(width: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE3F2FD),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.push_pin, size: 12, color: Color(0xFF1565C0)),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      'PINNED ANNOUNCEMENT',
+                                      style: GoogleFonts.inter(
+                                        color: const Color(0xFF1565C0),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ],
                         ),
+                        if (hasTrans) ...[
+                          InkWell(
+                            onTap: () {
+                              setModalState(() {
+                                if (isOriginal) {
+                                  _showOriginalNoticeIds.remove(notice.id);
+                                } else {
+                                  _showOriginalNoticeIds.add(notice.id);
+                                }
+                              });
+                              setState(() {});
+                            },
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFBFDBFE), width: 0.8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.g_translate_rounded, size: 13, color: Color(0xFF1D4ED8)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isOriginal
+                                        ? (l10n?.viewTranslated ?? 'Translate')
+                                        : (l10n?.viewOriginal ?? 'View Original'),
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF1D4ED8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ] else if (currentLang != 'en') ...[
+                          InkWell(
+                            onTap: () async {
+                              final transTitle = await TranslationService.translate(notice.title, currentLang);
+                              final transContent = await TranslationService.translate(notice.content, currentLang);
+                              notice.addTranslation(currentLang, title: transTitle, content: transContent);
+                              setModalState(() {});
+                              setState(() {});
+                            },
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFEFF6FF),
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(color: const Color(0xFFBFDBFE), width: 0.8),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.g_translate_rounded, size: 13, color: Color(0xFF1D4ED8)),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    l10n?.viewTranslated ?? 'Translate',
+                                    style: GoogleFonts.inter(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: const Color(0xFF1D4ED8),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Title
+                    Text(
+                      modalTitle,
+                      style: GoogleFonts.hankenGrotesk(
+                        color: const Color(0xFF0D1C2E),
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        height: 1.25,
                       ),
-                    ],
+                    ),
+                    const SizedBox(height: 6),
+
+                    // Date
+                    Text(
+                      formattedDate,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF545F72),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    const Divider(color: Color(0xFFC4C6CF), thickness: 0.5),
+                    const SizedBox(height: 16),
+
+                    // Full Content Text
+                    Text(
+                      modalContent,
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF0D1C2E),
+                        fontSize: 14,
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Dismiss Button
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF002045),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: Text(
+                          'Dismiss Notice',
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
-
-                // Title
-                Text(
-                  notice.title,
-                  style: GoogleFonts.hankenGrotesk(
-                    color: const Color(0xFF0D1C2E),
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    height: 1.25,
-                  ),
-                ),
-                const SizedBox(height: 6),
-
-                // Date
-                Text(
-                  formattedDate,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF545F72),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const Divider(color: Color(0xFFC4C6CF), thickness: 0.5),
-                const SizedBox(height: 16),
-
-                // Full Content Text
-                Text(
-                  notice.content,
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF0D1C2E),
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Close Button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF002045),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: Text(
-                      'Dismiss Notice',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );

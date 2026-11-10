@@ -6,37 +6,199 @@ import 'package:student_app/features/attendance/presentation/providers/attendanc
 import 'package:student_app/features/attendance/data/models/attendance_model.dart';
 
 import 'package:student_app/core/providers/academic_session_provider.dart';
+import 'package:student_app/l10n/app_localizations.dart';
 import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:student_app/features/batches/presentation/providers/batches_provider.dart';
 
 class AttendanceScreen extends StatefulWidget {
-  const AttendanceScreen({super.key});
+  final String? initialSessionId;
+  final String? initialSessionName;
+
+  const AttendanceScreen({
+    super.key,
+    this.initialSessionId,
+    this.initialSessionName,
+  });
 
   @override
   State<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
 class _AttendanceScreenState extends State<AttendanceScreen> {
-  String? _lastSessionId;
+  String? _selectedSessionId;
+  String? _selectedSessionName;
+  bool _isInit = false;
   String _selectedBatchId = 'All';
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedSessionId = widget.initialSessionId;
+    _selectedSessionName = widget.initialSessionName;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initSessionAndLoad();
+    });
+  }
+
+  void _initSessionAndLoad() {
+    final sessionProv = Provider.of<AcademicSessionProvider>(context, listen: false);
+    if (_selectedSessionId == null) {
+      _selectedSessionId = sessionProv.selectedSessionId;
+      _selectedSessionName = sessionProv.selectedSession?.sessionName;
+    } else if (_selectedSessionName == null && sessionProv.sessions.isNotEmpty) {
+      try {
+        final match = sessionProv.sessions.firstWhere((s) => s.id == _selectedSessionId);
+        _selectedSessionName = match.sessionName;
+      } catch (_) {}
+    }
+    _isInit = true;
+    Provider.of<AttendanceProvider>(context, listen: false).loadAttendance(
+      refresh: true,
+      sessionId: _selectedSessionId,
+    );
+    if (mounted) setState(() {});
+  }
+
+  void _showSessionPicker(BuildContext context, AcademicSessionProvider sessionProv) {
+    if (sessionProv.sessions.isEmpty) return;
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      backgroundColor: Colors.white,
+      builder: (_) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 36,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFC4C6CF),
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                  child: Text(
+                    'Select Academic Session',
+                    style: GoogleFonts.hankenGrotesk(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF0D1C2E),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+                  child: Text(
+                    'Choose a session to view its attendance records.',
+                    style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF545F72)),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Divider(color: Color(0xFFEDEEF2)),
+                ...sessionProv.sessions.map((s) {
+                  final isSelected = s.id == _selectedSessionId;
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+                    leading: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? const Color(0xFF002045)
+                            : (s.isActive ? const Color(0xFFE6F4EA) : const Color(0xFFF1F3F9)),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        Icons.calendar_today_outlined,
+                        size: 18,
+                        color: isSelected
+                            ? Colors.white
+                            : (s.isActive ? const Color(0xFF137333) : const Color(0xFF545F72)),
+                      ),
+                    ),
+                    title: Text(
+                      'Session ${s.sessionName}',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                        color: isSelected ? const Color(0xFF002045) : const Color(0xFF0D1C2E),
+                        fontSize: 15,
+                      ),
+                    ),
+                    subtitle: Text(
+                      s.isActive ? 'Active Session' : 'Archived / Completed',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: s.isActive ? const Color(0xFF137333) : const Color(0xFF545F72),
+                      ),
+                    ),
+                    trailing: isSelected
+                        ? const Icon(Icons.check_circle, color: Color(0xFF002045))
+                        : null,
+                    onTap: () {
+                      setState(() {
+                        _selectedSessionId = s.id;
+                        _selectedSessionName = s.sessionName;
+                        _selectedBatchId = 'All';
+                      });
+                      Provider.of<AttendanceProvider>(context, listen: false).loadAttendance(
+                        refresh: true,
+                        sessionId: s.id,
+                      );
+                      Navigator.pop(context);
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final sessionProv = Provider.of<AcademicSessionProvider>(context);
     final attProvider = Provider.of<AttendanceProvider>(context, listen: false);
 
-    if (sessionProv.selectedSessionId != null && sessionProv.selectedSessionId != _lastSessionId) {
-      _lastSessionId = sessionProv.selectedSessionId;
+    if (!_isInit && sessionProv.selectedSessionId != null && _selectedSessionId == null) {
+      _selectedSessionId = sessionProv.selectedSessionId;
+      _selectedSessionName = sessionProv.selectedSession?.sessionName;
+      _isInit = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        attProvider.loadAttendance(refresh: true, sessionId: _lastSessionId);
+        attProvider.loadAttendance(refresh: true, sessionId: _selectedSessionId);
       });
     }
 
+    AcademicSessionModel? currentModel;
+    if (_selectedSessionId != null && sessionProv.sessions.isNotEmpty) {
+      try {
+        currentModel = sessionProv.sessions.firstWhere((s) => s.id == _selectedSessionId);
+      } catch (_) {}
+    }
     final batchesProv = Provider.of<BatchesProvider>(context);
     final authProv = Provider.of<AuthProvider>(context);
     final bool isCollege = authProv.isCollege;
 
     return Consumer<AttendanceProvider>(
       builder: (context, att, _) {
+        final l10n = AppLocalizations.of(context);
+        final bool isArchived = currentModel != null ? !currentModel.isActive : false;
+        final String displaySessionName = currentModel != null
+            ? currentModel.getLocalizedTitle(context)
+            : (_selectedSessionName ?? (l10n?.currentSession ?? 'Current Session'));
         final selectedDate = att.selectedDate;
         final monthStr = DateFormat('MMMM yyyy').format(selectedDate);
 
@@ -85,9 +247,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           backgroundColor: const Color(0xFFF8F9FF),
           appBar: AppBar(
             automaticallyImplyLeading: false,
+            leading: Navigator.canPop(context)
+                ? IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Color(0xFF002045)),
+                    onPressed: () => Navigator.of(context).pop(),
+                  )
+                : null,
             backgroundColor: Colors.white,
             elevation: 0,
-            titleSpacing: 16,
+            titleSpacing: Navigator.canPop(context) ? 0 : 16,
             title: Row(
               children: [
                 Container(
@@ -116,8 +284,134 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             ),
           ),
           body: SafeArea(
-            child: RefreshIndicator(
-              onRefresh: () => att.loadAttendance(refresh: true),
+            child: Column(
+              children: [
+                // Academic Session Switcher Banner
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    border: Border(
+                      bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFEFF4FF),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: const Icon(
+                          Icons.calendar_month_outlined,
+                          size: 16,
+                          color: Color(0xFF002045),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'ACADEMIC SESSION',
+                              style: GoogleFonts.inter(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.8,
+                                color: const Color(0xFF545F72),
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: Text(
+                                    displaySessionName,
+                                    style: GoogleFonts.hankenGrotesk(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.bold,
+                                      color: const Color(0xFF002045),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                if (isArchived) ...[
+                                  const SizedBox(width: 6),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F3F9),
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(color: const Color(0xFFC4C6CF), width: 0.5),
+                                    ),
+                                    child: Text(
+                                      'ARCHIVED',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 9,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 0.5,
+                                        color: const Color(0xFF545F72),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (sessionProv.sessions.length > 1)
+                        OutlinedButton.icon(
+                          icon: const Icon(Icons.swap_horiz, size: 14, color: Color(0xFF002045)),
+                          label: Text(
+                            'Switch',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF002045),
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFC4C6CF)),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                          ),
+                          onPressed: () => _showSessionPicker(context, sessionProv),
+                        ),
+                    ],
+                  ),
+                ),
+                if (isArchived)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    color: const Color(0xFFFFF8E1),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.info_outline, size: 16, color: Color(0xFFB78103)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '${l10n?.showingArchivedRecords ?? "Showing archived attendance"} - $displaySessionName (${l10n?.readOnly ?? "Read-only"}).',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF5D4037),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: RefreshIndicator(
+                    onRefresh: () => att.loadAttendance(refresh: true, sessionId: _selectedSessionId),
               child: ListView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -171,7 +465,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         children: [
                           IconButton(
                             icon: const Icon(Icons.chevron_left, size: 20, color: Color(0xFF0D1C2E)),
-                            onPressed: () => att.changeMonth(-1),
+                            onPressed: () => att.changeMonth(-1, sessionId: _selectedSessionId),
                             constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                             padding: EdgeInsets.zero,
                           ),
@@ -189,7 +483,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           ),
                           IconButton(
                             icon: const Icon(Icons.chevron_right, size: 20, color: Color(0xFF0D1C2E)),
-                            onPressed: () => att.changeMonth(1),
+                            onPressed: () => att.changeMonth(1, sessionId: _selectedSessionId),
                             constraints: const BoxConstraints(minWidth: 36, minHeight: 36),
                             padding: EdgeInsets.zero,
                           ),
@@ -432,7 +726,10 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
               ),
             ),
           ),
-        );
+        ],
+      ),
+    ),
+  );
       },
     );
   }
@@ -792,6 +1089,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Widget _buildCollegeEligibilityBanner(int rate, int presentWithLate, int totalMarked) {
+    final authProv = context.read<AuthProvider>();
     final bool isEligible = rate >= 75;
     int classesNeeded = 0;
     if (!isEligible && totalMarked > 0) {
@@ -863,11 +1161,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  isEligible
-                      ? 'Your attendance meets the university requirement to appear for semester-end examinations.'
-                      : totalMarked > 0
-                          ? 'University regulations mandate at least 75% attendance. Attend the next $classesNeeded consecutive classes to clear the shortage.'
-                          : 'No sessions recorded yet for this academic period.',
+                  authProv.getAttendanceEligibilityMessage(
+                    isEligible: isEligible,
+                    classesNeeded: classesNeeded,
+                    totalMarked: totalMarked,
+                  ),
                   style: GoogleFonts.inter(
                     fontSize: 12,
                     color: isEligible ? const Color(0xFF166534) : const Color(0xFF991B1B),

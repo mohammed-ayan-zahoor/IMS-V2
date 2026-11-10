@@ -214,4 +214,219 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get networkError => 'नेटवर्क त्रुटि। कृपया पुनः प्रयास करें।';
+
+  @override
+  String get studentPortal => 'छात्र पोर्टल';
+
+  @override
+  String get timetable => 'समय सारणी';
+
+  @override
+  String get fees => 'शुल्क और भुगतान';
+
+  @override
+  String get feesRecords => 'शुल्क विवरण';
+
+  @override
+  String get materials => 'अध्ययन सामग्री';
+
+  @override
+  String get syllabus => 'पाठ्यक्रम';
+
+  @override
+  String get practiceTests => 'अभ्यास परीक्षा';
+
+  @override
+  String get campusMessages => 'परिसर संदेश';
+
+  @override
+  String get documentVault => 'दस्तावेज़ वॉल्ट';
+
+  @override
+  String get academicSessions => 'शैक्षणिक सत्र';
+
+  @override
+  String get notifications => 'सूचनाएं';
+
+  @override
+  String get digitalId => 'डिजिटल आईडी';
+
+  @override
+  String get helpAndSupport => 'सहायता और समर्थन';
+
+  @override
+  String get personalDetails => 'व्यक्तिगत विवरण';
+
+  @override
+  String get settingsAndPreferences => 'सेटिंग्स और प्राथमिकताएं';
+
+  @override
+  String get currentSession => 'वर्तमान सत्र';
+
+  @override
+  String get archived => 'संग्रहीत';
+
+  @override
+  String get allClear => 'सब चुकता';
+
+  @override
+  String get noDues => 'कोई बकाया नहीं';
+
+  @override
+  String get due => 'बकाया';
+
+  @override
+  String get totalDue => 'कुल बकाया';
+
+  @override
+  String get paid => 'भुगतान किया';
+
+  @override
+  String get pending => 'लंबित';
+
+  @override
+  String get general => 'सामान्य';
+
+  @override
+  String get profileSection => 'प्रोफ़ाइल';
+
+  @override
+  String get feesAndPayments => 'शुल्क और भुगतान';
+
+  @override
+  String get assessmentsAndExams => 'मूल्यांकन और सेमेस्टर परीक्षाएं';
+
+  @override
+  String get semesterResources => 'सेमेस्टर संसाधन';
+
+  @override
+  String get studyMaterialsAndNotes => 'अध्ययन सामग्री और नोट्स';
+
+  @override
+  String get testsAndPreparatory => 'टेस्ट और तैयारी परीक्षाएं';
+
+  @override
+  String get digitalLibraryCard => 'डिजिटल लाइब्रेरी कार्ड';
+
+  @override
+  String get practiceAndQuizzes => 'अभ्यास और प्रश्नोत्तरी';
+
+  @override
+  String get noticesAndCirculars => 'सूचनाएं और परिपत्र';
+
+  @override
+  String get academicTimeline => 'शैक्षणिक समयरेखा';
+
+  @override
+  String get studentProfileDetails => 'छात्र प्रोफ़ाइल और विवरण';
+
+  @override
+  String get signOutConfirmTitle => 'साइन आउट';
+
+  @override
+  String get signOutConfirmMessage =>
+      'क्या आप वाकई अपने छात्र खाते से साइन आउट करना चाहते हैं?';
+
+  @override
+  String get studentSupport => 'छात्र सहायता';
+
+  @override
+  String get campusCode => 'परिसर कोड';
+
+  @override
+  String get supportContactPrompt =>
+      'पाठ्यक्रम, परीक्षा या शुल्क रसीदों में सहायता चाहिए? कृपया अपने संस्थान प्रशासन से संपर्क करें।';
+
+  @override
+  String get close => 'बंद करें';
+
+  @override
+  String get degreeScholarSubtitle => 'डिग्री छात्र • उच्च शिक्षा';
+
+  @override
+  String get puScholarSubtitle => 'पीयू छात्र • प्री-यूनिवर्सिटी';
+
+  @override
+  String get schoolScholarSubtitle => 'सक्रिय छात्र • सीखना और बढ़ना';
+
+  @override
+  String get semester => 'सेमेस्टर';
+
+  @override
+  String get sem => 'सेम';
+
+  @override
+  String get oddSemester => 'विषम सेमेस्टर';
+
+  @override
+  String get evenSemester => 'सम सेमेस्टर';
+
+  @override
+  String get switchSession => 'बदलें';
+
+  @override
+  String get selectSession => 'शैक्षणिक सत्र चुनें';
+
+  @override
+  String get archivedCompleted => 'संग्रहीत / पूर्ण';
+
+  @override
+  String get currentEnrolledSession => 'वर्तमान नामांकित सत्र';
+
+  @override
+  String get previousSessions => 'पिछले सत्र';
+
+  @override
+  String get readOnly => 'केवल पढ़ने के लिए';
+
+  @override
+  String get showingArchivedRecords =>
+      'संग्रहीत रिकॉर्ड दिखाए जा रहे हैं (केवल पढ़ने के लिए)';
+
+  @override
+  String get pucYear1 => 'प्रथम वर्ष पीयूसी';
+
+  @override
+  String get pucYear2 => 'द्वितीय वर्ष पीयूसी';
+
+  @override
+  String get viewOriginal => 'मूल भाषा में देखें (अंग्रेज़ी)';
+
+  @override
+  String get viewTranslated => 'हिंदी में अनुवाद करें';
+
+  @override
+  String get translatedNotice => 'अनुवादित सूचना';
+
+  @override
+  String get originalLanguageNotice => 'मूल अंग्रेज़ी';
+
+  @override
+  String get changePhoto => 'प्रोफ़ाइल फ़ोटो बदलें';
+
+  @override
+  String get uploadNewPhoto => 'नई फ़ोटो अपलोड करें';
+
+  @override
+  String get viewFullPhoto => 'फ़ोटो देखें';
+
+  @override
+  String get photoUpdateSuccess => 'प्रोफ़ाइल फ़ोटो सफलतापूर्वक अपडेट हो गई!';
+
+  @override
+  String get photoUpdateFailed =>
+      'फ़ोटो अपलोड करने में विफल. कृपया पुनः प्रयास करें.';
+
+  @override
+  String get removePhoto => 'फ़ोटो हटाएं';
+
+  @override
+  String get removePhotoConfirmTitle => 'प्रोफ़ाइल फ़ोटो हटाएं?';
+
+  @override
+  String get removePhotoConfirmMessage =>
+      'क्या आप वाकई अपनी प्रोफ़ाइल फ़ोटो हटाना चाहते हैं?';
+
+  @override
+  String get photoRemovedSuccess => 'प्रोफ़ाइल फ़ोटो सफलतापूर्वक हटा दी गई।';
 }

@@ -1,3 +1,4 @@
+import 'package:student_app/l10n/app_localizations.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -104,7 +105,7 @@ class _PracticeScreenState extends State<PracticeScreen> {
               onPressed: () => Navigator.pop(context),
             ),
             title: Text(
-              'Practice Arena',
+              AppLocalizations.of(context)?.practiceAndQuizzes ?? 'Practice Arena',
               style: GoogleFonts.hankenGrotesk(
                 color: const Color(0xFF0D1C2E),
                 fontWeight: FontWeight.bold,

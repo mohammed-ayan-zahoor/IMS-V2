@@ -1,3 +1,4 @@
+import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -55,6 +56,7 @@ class _BatchesScreenState extends State<BatchesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = Provider.of<AuthProvider>(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FF),
       appBar: AppBar(
@@ -65,7 +67,7 @@ class _BatchesScreenState extends State<BatchesScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          'My Batches',
+          auth.isDegreeCollege ? 'Enrolled Sections' : (auth.isPuCollege ? 'My Classes & Sections' : (auth.isSchool ? 'My Classes' : 'My Batches')),
           style: GoogleFonts.hankenGrotesk(
             color: const Color(0xFF002045),
             fontSize: 20,
@@ -93,7 +95,7 @@ class _BatchesScreenState extends State<BatchesScreen> {
                     const Icon(Icons.class_outlined, size: 64, color: Color(0xFF545F72)),
                     const SizedBox(height: 16),
                     Text(
-                      'No batches enrolled',
+                      'No ' + (auth.isDegreeCollege ? 'degree sections' : (auth.isPuCollege ? 'classes' : 'batches')) + ' enrolled',
                       style: GoogleFonts.hankenGrotesk(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,

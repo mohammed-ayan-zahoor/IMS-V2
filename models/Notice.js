@@ -57,7 +57,15 @@ const NoticeSchema = new Schema({
         name: String,
         url: String,
         publicId: String
-    }]
+    }],
+    translations: {
+        type: Map,
+        of: {
+            title: { type: String, trim: true },
+            content: { type: String }
+        },
+        default: {}
+    }
 }, { 
     timestamps: true 
 });

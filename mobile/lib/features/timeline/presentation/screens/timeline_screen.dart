@@ -1,3 +1,4 @@
+import 'package:student_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -73,7 +74,7 @@ class _TimelineScreenState extends State<TimelineScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Student Timeline',
+          AppLocalizations.of(context)?.academicTimeline ?? 'Academic Timeline',
           style: GoogleFonts.hankenGrotesk(
             color: const Color(0xFF0D1C2E),
             fontWeight: FontWeight.bold,

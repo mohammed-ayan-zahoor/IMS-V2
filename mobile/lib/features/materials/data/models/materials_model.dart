@@ -66,7 +66,10 @@ class MaterialModel {
   }
 
   String get formattedSize {
-    if (sizeBytes <= 0) return 'Video Stream';
+    if (sizeBytes <= 0) {
+      if (isVideo) return 'Video Stream';
+      return isAssignment ? 'Assignment' : 'Document';
+    }
     if (sizeBytes < 1024 * 1024) {
       return '${(sizeBytes / 1024).toStringAsFixed(1)} KB';
     }

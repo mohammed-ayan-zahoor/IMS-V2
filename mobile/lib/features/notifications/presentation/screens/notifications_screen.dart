@@ -1,3 +1,4 @@
+import 'package:student_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -132,7 +133,7 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'Notifications',
+          AppLocalizations.of(context)?.notifications ?? 'Notifications',
           style: GoogleFonts.hankenGrotesk(
             color: const Color(0xFF0D1C2E),
             fontWeight: FontWeight.bold,

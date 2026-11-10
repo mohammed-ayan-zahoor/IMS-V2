@@ -1,3 +1,4 @@
+import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -226,7 +227,7 @@ class _ExamsScreenState extends State<ExamsScreen> with SingleTickerProviderStat
               onPressed: () => Navigator.pop(context),
             ),
             title: Text(
-              'Online Exams & Tests',
+              Provider.of<AuthProvider>(context, listen: false).getLocalizedExamsTitle(context),
               style: GoogleFonts.hankenGrotesk(
                 color: const Color(0xFF0D1C2E),
                 fontWeight: FontWeight.bold,

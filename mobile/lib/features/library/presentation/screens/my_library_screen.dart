@@ -1,3 +1,4 @@
+import 'package:student_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -51,7 +52,7 @@ class _MyLibraryScreenState extends State<MyLibraryScreen> with SingleTickerProv
               onPressed: () => Navigator.pop(context),
             ),
             title: Text(
-              'Digital Library Card',
+              AppLocalizations.of(context)?.digitalLibraryCard ?? 'Digital Library Card',
               style: GoogleFonts.hankenGrotesk(
                 color: const Color(0xFF002045),
                 fontSize: 18,

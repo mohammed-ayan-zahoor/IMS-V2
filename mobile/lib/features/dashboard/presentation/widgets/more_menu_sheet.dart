@@ -13,6 +13,9 @@ import 'package:student_app/features/library/presentation/screens/my_library_scr
 import 'package:student_app/features/chat/presentation/screens/chat_screen.dart';
 import 'package:student_app/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:student_app/features/profile/presentation/screens/profile_screen.dart';
+import 'package:student_app/core/localization/language_picker_sheet.dart';
+import 'package:student_app/core/localization/locale_provider.dart';
+import 'package:student_app/l10n/app_localizations.dart';
 
 class HeaderCurveClipper extends CustomClipper<Path> {
   @override
@@ -53,22 +56,23 @@ class MoreMenuSheet extends StatelessWidget {
   }
 
   Future<void> _handleSignOut(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
-          'Sign Out',
+          l10n?.signOutConfirmTitle ?? 'Sign Out',
           style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.bold, color: const Color(0xFF0D1C2E)),
         ),
         content: Text(
-          'Are you sure you want to sign out of your student account?',
+          l10n?.signOutConfirmMessage ?? 'Are you sure you want to sign out of your student account?',
           style: GoogleFonts.inter(color: const Color(0xFF545F72)),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: GoogleFonts.inter(color: const Color(0xFF545F72))),
+            child: Text(l10n?.cancel ?? 'Cancel', style: GoogleFonts.inter(color: const Color(0xFF545F72))),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -77,7 +81,7 @@ class MoreMenuSheet extends StatelessWidget {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             child: Text(
-              'Sign Out',
+              l10n?.signOut ?? 'Sign Out',
               style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.bold),
             ),
           ),
@@ -92,6 +96,7 @@ class MoreMenuSheet extends StatelessWidget {
   }
 
   void _showHelpDialog(BuildContext context, String instituteName, String instituteCode) {
+    final l10n = AppLocalizations.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -108,7 +113,7 @@ class MoreMenuSheet extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Text(
-              'Student Support',
+              l10n?.studentSupport ?? 'Student Support',
               style: GoogleFonts.hankenGrotesk(fontWeight: FontWeight.bold, fontSize: 18),
             ),
           ],
@@ -123,12 +128,12 @@ class MoreMenuSheet extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Campus Code: $instituteCode',
+              '${l10n?.campusCode ?? "Campus Code"}: $instituteCode',
               style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF545F72)),
             ),
             const SizedBox(height: 12),
             Text(
-              'Need assistance with courses, exams, or fee receipts? Please reach out to your institute administration or advisor.',
+              l10n?.supportContactPrompt ?? 'Need assistance with courses, exams, or fee receipts? Please reach out to your institute administration or advisor.',
               style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF545F72), height: 1.4),
             ),
           ],
@@ -140,7 +145,7 @@ class MoreMenuSheet extends StatelessWidget {
               backgroundColor: const Color(0xFF002045),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Close', style: TextStyle(color: Colors.white)),
+            child: Text(l10n?.close ?? 'Close', style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -157,15 +162,18 @@ class MoreMenuSheet extends StatelessWidget {
     final String avatarUrl = auth.userAvatar;
     final String instituteName = user?['institute']?['name'] ?? 'Quantech';
     final String instituteCode = user?['institute']?['code'] ?? 'IMS';
-    final bool isCollege = auth.isCollege;
 
     final String initials = studentName.trim().isNotEmpty
         ? studentName.trim().split(' ').where((e) => e.isNotEmpty).map((e) => e[0]).take(2).join('').toUpperCase()
         : 'ST';
 
-    final String subtitle = isCollege
-        ? 'Enrolled Scholar • Higher Education'
-        : 'Active Student • Learning & Growing';
+    final String subtitle = auth.getLocalizedUserSubtitle(context);
+    final l10n = AppLocalizations.of(context);
+    final localeProvider = context.watch<LocaleProvider>();
+    final currentLang = LocaleProvider.supportedLanguages.firstWhere(
+      (l) => l.code == localeProvider.currentLocale.languageCode,
+      orElse: () => LocaleProvider.supportedLanguages.first,
+    );
 
     return Container(
       height: mediaQuery.size.height * 0.90,
@@ -231,49 +239,79 @@ class MoreMenuSheet extends StatelessWidget {
                   ),
                   const SizedBox(height: 16),
 
-                  // Enhanced Profile Avatar with Glow & Gradient Ring
-                  Container(
-                    width: 84,
-                    height: 84,
-                    padding: const EdgeInsets.all(3.5), // Double-ring effect
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        colors: [
-                          Colors.white,
-                          Colors.white.withValues(alpha: 0.6),
-                          const Color(0xFF60A5FA).withValues(alpha: 0.8), // Soft electric blue rim
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.35),
-                          blurRadius: 12,
-                          offset: const Offset(0, 5),
+                  // Enhanced Profile Avatar with Glow & Gradient Ring and Camera Badge
+                  GestureDetector(
+                    onTap: () => _navigateTo(context, const ProfileScreen()),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 84,
+                          height: 84,
+                          padding: const EdgeInsets.all(3.5), // Double-ring effect
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: LinearGradient(
+                              colors: [
+                                Colors.white,
+                                Colors.white.withValues(alpha: 0.6),
+                                const Color(0xFF60A5FA).withValues(alpha: 0.8), // Soft electric blue rim
+                              ],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.35),
+                                blurRadius: 12,
+                                offset: const Offset(0, 5),
+                              ),
+                              BoxShadow(
+                                color: const Color(0xFF2563EB).withValues(alpha: 0.25),
+                                blurRadius: 16,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: Container(
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFF0F172A),
+                            ),
+                            child: ClipOval(
+                              child: avatarUrl.isNotEmpty
+                                  ? Image.network(
+                                      avatarUrl,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => _buildInitials(initials),
+                                    )
+                                  : _buildInitials(initials),
+                            ),
+                          ),
                         ),
-                        BoxShadow(
-                          color: const Color(0xFF2563EB).withValues(alpha: 0.25),
-                          blurRadius: 16,
-                          spreadRadius: 2,
-                        ),
+                        if (auth.allowStudentPhotoUpload)
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              width: 28,
+                              height: 28,
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF2563EB),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 2),
+                                boxShadow: const [
+                                  BoxShadow(
+                                    color: Colors.black38,
+                                    blurRadius: 4,
+                                    offset: Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: const Icon(Icons.camera_alt_rounded, size: 14, color: Colors.white),
+                            ),
+                          ),
                       ],
-                    ),
-                    child: Container(
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Color(0xFF0F172A),
-                      ),
-                      child: ClipOval(
-                        child: avatarUrl.isNotEmpty
-                            ? Image.network(
-                                avatarUrl,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, __, ___) => _buildInitials(initials),
-                              )
-                            : _buildInitials(initials),
-                      ),
                     ),
                   ),
                   const SizedBox(height: 14),
@@ -311,48 +349,48 @@ class MoreMenuSheet extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
               children: [
                 // General Section
-                _buildSectionHeader('General'),
+                _buildSectionHeader(l10n?.general ?? 'General'),
                 const SizedBox(height: 8),
 
                 _buildMenuItem(
                   icon: Icons.receipt_long_outlined,
-                  title: 'Fees & Payments',
+                  title: l10n?.feesAndPayments ?? 'Fees & Payments',
                   onTap: () => _navigateTo(context, const FeesScreen()),
                 ),
                 _buildMenuItem(
                   icon: Icons.assignment_outlined,
-                  title: isCollege ? 'Exams & Assessments' : 'Exams & Tests',
+                  title: auth.getLocalizedExamsTitle(context),
                   onTap: () => _navigateTo(context, const ExamsScreen()),
                 ),
                 _buildMenuItem(
                   icon: Icons.menu_book_outlined,
-                  title: isCollege ? 'Module Resources' : 'Learning Materials',
+                  title: auth.getLocalizedMaterialsTitle(context),
                   isHighlighted: true, // Freud-style subtle pill highlight
                   onTap: () => _navigateTo(context, const LearningMaterialsScreen()),
                 ),
                 _buildMenuItem(
                   icon: Icons.local_library_outlined,
-                  title: 'Digital Library Card',
+                  title: l10n?.digitalLibraryCard ?? 'Digital Library Card',
                   onTap: () => _navigateTo(context, const MyLibraryScreen()),
                 ),
                 _buildMenuItem(
                   icon: Icons.quiz_outlined,
-                  title: 'Practice & Quizzes',
+                  title: l10n?.practiceAndQuizzes ?? 'Practice & Quizzes',
                   onTap: () => _navigateTo(context, const PracticeScreen()),
                 ),
                 _buildMenuItem(
                   icon: Icons.campaign_outlined,
-                  title: 'Notices & Circulars',
+                  title: l10n?.noticesAndCirculars ?? 'Notices & Circulars',
                   onTap: () => _navigateTo(context, const NoticesScreen()),
                 ),
                 _buildMenuItem(
                   icon: Icons.auto_awesome_outlined,
-                  title: 'Academic Timeline',
+                  title: l10n?.academicTimeline ?? 'Academic Timeline',
                   onTap: () => _navigateTo(context, const TimelineScreen()),
                 ),
                 _buildMenuItem(
                   icon: Icons.chat_bubble_outline,
-                  title: 'Campus Messages',
+                  title: l10n?.campusMessages ?? 'Campus Messages',
                   onTap: () => _navigateTo(context, const ChatScreen()),
                 ),
 
@@ -361,23 +399,47 @@ class MoreMenuSheet extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // Profile Section
-                _buildSectionHeader('Profile'),
+                _buildSectionHeader(l10n?.profileSection ?? 'Profile'),
                 const SizedBox(height: 8),
 
                 _buildMenuItem(
                   icon: Icons.folder_shared_outlined,
-                  title: 'Document Vault',
+                  title: l10n?.documentVault ?? 'Document Vault',
                   onTap: () => _navigateTo(context, const VaultScreen()),
                 ),
                 _buildMenuItem(
                   icon: Icons.notifications_none_rounded,
-                  title: 'Notifications',
+                  title: l10n?.notifications ?? 'Notifications',
                   onTap: () => _navigateTo(context, const NotificationsScreen()),
                 ),
                 _buildMenuItem(
                   icon: Icons.person_outline_rounded,
-                  title: 'Student Profile & Details',
+                  title: l10n?.studentProfileDetails ?? 'Student Profile & Details',
                   onTap: () => _navigateTo(context, const ProfileScreen()),
+                ),
+                _buildMenuItem(
+                  icon: Icons.language_rounded,
+                  title: l10n?.changeLanguage ?? 'Change Language',
+                  trailing: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFBFDBFE)),
+                    ),
+                    child: Text(
+                      currentLang.nativeName,
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1D4ED8),
+                      ),
+                    ),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    LanguagePickerSheet.show(context);
+                  },
                 ),
 
                 const SizedBox(height: 12),
@@ -387,7 +449,7 @@ class MoreMenuSheet extends StatelessWidget {
                 // Sign Out
                 _buildMenuItem(
                   icon: Icons.logout_rounded,
-                  title: 'Sign Out',
+                  title: l10n?.signOut ?? 'Sign Out',
                   iconColor: const Color(0xFFF43F5E),
                   textColor: const Color(0xFFF43F5E),
                   onTap: () => _handleSignOut(context),
@@ -412,7 +474,7 @@ class MoreMenuSheet extends StatelessWidget {
                     onPressed: () => _navigateTo(context, const ProfileScreen()),
                     icon: const Icon(Icons.auto_awesome, size: 16, color: Colors.white),
                     label: Text(
-                      'Digital ID ✨',
+                      '${l10n?.digitalId ?? "Digital ID"} ✨',
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
@@ -444,7 +506,7 @@ class MoreMenuSheet extends StatelessWidget {
                       ),
                     ),
                     child: Text(
-                      'Help & Support',
+                      l10n?.helpAndSupport ?? 'Help & Support',
                       style: GoogleFonts.inter(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -504,6 +566,7 @@ class MoreMenuSheet extends StatelessWidget {
     bool isHighlighted = false,
     Color? iconColor,
     Color? textColor,
+    Widget? trailing,
   }) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 6.0),
@@ -533,6 +596,10 @@ class MoreMenuSheet extends StatelessWidget {
                   ),
                 ),
               ),
+              if (trailing != null) ...[
+                const SizedBox(width: 8),
+                trailing,
+              ],
             ],
           ),
         ),

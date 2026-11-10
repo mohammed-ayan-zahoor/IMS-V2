@@ -68,13 +68,12 @@ export async function POST(req, { params }) {
         const batchConditions = [];
         if (assignmentBatchIds.length > 0) {
             batchConditions.push({ _id: { $in: allBatchIds } });
-        } else {
-            if (assignmentCourseIds.length > 0) {
-                batchConditions.push({ course: { $in: allCourseIds } });
-            }
-            if (assignmentBundleIds.length > 0) {
-                batchConditions.push({ courseBundle: { $in: allBundleIds } });
-            }
+        }
+        if (assignmentCourseIds.length > 0) {
+            batchConditions.push({ course: { $in: allCourseIds } });
+        }
+        if (assignmentBundleIds.length > 0) {
+            batchConditions.push({ courseBundle: { $in: allBundleIds } });
         }
 
         const enrollmentQuery = {
@@ -82,7 +81,7 @@ export async function POST(req, { params }) {
             "enrolledStudents": {
                 $elemMatch: {
                     student: { $in: [studentObjId, session.user.id] },
-                    status: { $in: ["active", "completed"] }
+                    status: { $in: ["active", "completed", "Active", "Completed"] }
                 }
             }
         };

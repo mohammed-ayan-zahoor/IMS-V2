@@ -11,8 +11,24 @@ const allowedMimeTypes = {
         "application/pdf",
         "application/msword",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-powerpoint",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "text/plain",
+        "text/csv",
+        "application/zip",
+        "application/x-zip-compressed",
         "image/jpeg",
-        "image/png"
+        "image/png",
+        "image/webp"
+    ],
+    'video': [
+        "video/mp4",
+        "video/webm",
+        "video/quicktime",
+        "video/x-matroska",
+        "video/mpeg"
     ]
 };
 
@@ -70,7 +86,7 @@ export async function POST(req) {
         }
 
         // Determine destination folder
-        const subFolder = fileType === 'document' ? 'materials' : 'uploads';
+        const subFolder = (fileType === 'document' || fileType === 'video') ? 'materials' : 'uploads';
         const uploadFolder = getUploadFolder(instituteId, subFolder);
 
         // Configure transformation and resource_type

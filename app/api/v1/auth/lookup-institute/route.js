@@ -22,7 +22,7 @@ export async function GET(request) {
                 code, 
                 isActive: true, 
                 status: 'active' 
-            }).select('name code branding.logo branding.primaryColor type');
+            }).select('name code branding.logo branding.primaryColor type settings.structure');
 
             if (institute) {
                 return NextResponse.json({
@@ -32,7 +32,8 @@ export async function GET(request) {
                         code: institute.code,
                         logo: institute.branding?.logo || null,
                         primaryColor: institute.branding?.primaryColor || '#2563eb',
-                        type: institute.type
+                        type: institute.type,
+                        structure: institute.settings?.structure || 'SEMESTER_BASED'
                     }
                 });
             }
@@ -55,7 +56,7 @@ export async function GET(request) {
                 .sort({ lastAccessed: -1 })
                 .populate({
                     path: 'institute',
-                    select: 'name code branding.logo branding.primaryColor type isActive status'
+                    select: 'name code branding.logo branding.primaryColor type settings.structure isActive status'
                 });
 
                 const activeMemberships = memberships.filter(
@@ -72,6 +73,7 @@ export async function GET(request) {
                             logo: primaryInst.branding?.logo || null,
                             primaryColor: primaryInst.branding?.primaryColor || '#2563eb',
                             type: primaryInst.type,
+                            structure: primaryInst.settings?.structure || 'SEMESTER_BASED',
                             totalInstitutes: activeMemberships.length
                         }
                     });
@@ -79,7 +81,7 @@ export async function GET(request) {
 
                 // Fallback to legacy primary institute on user model if memberships empty
                 if (user.institute) {
-                    const legacyInst = await Institute.findById(user.institute).select('name code branding.logo branding.primaryColor type isActive status');
+                    const legacyInst = await Institute.findById(user.institute).select('name code branding.logo branding.primaryColor type settings.structure isActive status');
                     if (legacyInst && legacyInst.isActive && legacyInst.status === 'active') {
                         return NextResponse.json({
                             success: true,
@@ -89,6 +91,7 @@ export async function GET(request) {
                                 logo: legacyInst.branding?.logo || null,
                                 primaryColor: legacyInst.branding?.primaryColor || '#2563eb',
                                 type: legacyInst.type,
+                                structure: legacyInst.settings?.structure || 'SEMESTER_BASED',
                                 totalInstitutes: 1
                             }
                         });
@@ -103,4 +106,3 @@ export async function GET(request) {
         return NextResponse.json({ success: true, institute: null });
     }
 }
-

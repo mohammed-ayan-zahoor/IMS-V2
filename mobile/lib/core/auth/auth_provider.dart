@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:student_app/core/network/api_client.dart';
 import 'package:student_app/core/notifications/notification_service.dart';
+import 'package:student_app/l10n/app_localizations.dart';
 
 class AuthProvider extends ChangeNotifier {
   final ApiClient _apiClient = ApiClient();
@@ -98,9 +100,174 @@ class AuthProvider extends ChangeNotifier {
   }
 
   String get instituteType => institute?['type']?.toString().toUpperCase() ?? 'SCHOOL';
+
+  String get instituteStructure {
+    final s = institute?['structure'] ?? institute?['settings']?['structure'];
+    return s?.toString().toUpperCase() ?? 'SEMESTER_BASED';
+  }
+
+  /// True for Higher Education institutions (Degree or PU College)
   bool get isCollege => instituteType == 'COLLEGE';
+
+  /// True specifically for Degree Colleges (Semester-based college structure)
+  bool get isDegreeCollege =>
+      (isCollege && instituteStructure != 'CLASS_BASED') ||
+      instituteType == 'DEGREE_COLLEGE' ||
+      instituteType == 'COLLEGE_DEGREE';
+
+  /// True specifically for PU Colleges (Pre-University 10+2 / Class-based college structure)
+  bool get isPuCollege =>
+      (isCollege && instituteStructure == 'CLASS_BASED') ||
+      instituteType == 'PU_COLLEGE' ||
+      instituteType == 'COLLEGE_PU';
+
+  /// True for standard K-12 Schools
   bool get isSchool => instituteType == 'SCHOOL';
+
+  /// True for Vocational & Training Institutes
   bool get isVocational => instituteType == 'VOCATIONAL';
+
+  /// Whether the institute admin allows students to upload/change their own profile photo
+  bool get allowStudentPhotoUpload {
+    final s = institute?['settings'];
+    if (s is Map) {
+      final features = s['features'];
+      if (features is Map && features['studentPhotoUpload'] == false) {
+        return false;
+      }
+      if (s['studentPhotoUpload'] == false) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+
+  /// Dynamic Portal Title (Header in Dashboard, Login, etc.)
+  String get portalBadgeText {
+    if (isDegreeCollege) return 'DEGREE PORTAL';
+    if (isPuCollege) return 'PU COLLEGE PORTAL';
+    if (isVocational) return 'VOCATIONAL PORTAL';
+    return 'STUDENT PORTAL';
+  }
+
+  /// Level / Program label (e.g. Degree Program vs PU Class vs School Class)
+  String get academicLevelLabel {
+    if (isDegreeCollege) return 'Degree / Program';
+    if (isPuCollege) return 'PU Class / Stream';
+    if (isSchool) return 'Class / Standard';
+    return 'Course';
+  }
+
+  /// Division / Semester label
+  String get academicDivisionLabel {
+    if (isDegreeCollege) return 'Semester / Section';
+    if (isPuCollege) return 'Year / Section';
+    if (isSchool) return 'Section';
+    return 'Batch';
+  }
+
+  /// Label for primary ID (University Roll / USN vs PU Reg / SATS vs Enrollment No)
+  String get primaryIdLabel {
+    if (isDegreeCollege) return 'University Reg. / USN';
+    if (isPuCollege) return 'PU Board / SATS No.';
+    if (isSchool) return 'Enrollment Number';
+    return 'Student ID';
+  }
+
+  /// Label for secondary ID (College Roll vs Admission No vs GR No)
+  String get secondaryIdLabel {
+    if (isDegreeCollege) return 'College Roll No.';
+    if (isPuCollege) return 'Admission / Reg. No.';
+    if (isSchool) return 'General Register (GR) No.';
+    return 'Roll Number';
+  }
+
+  /// Label for Materials Screen / Tile
+  String get materialsTitle {
+    if (isDegreeCollege) return 'Semester Resources';
+    if (isPuCollege) return 'Study Materials & Notes';
+    return 'Learning Materials';
+  }
+
+  /// Subtitle description under Materials
+  String get materialsSubtitle {
+    if (isDegreeCollege) return 'Access semester lecture notes, lab manuals, and syllabus modules.';
+    if (isPuCollege) return 'Access PU subject notes, model question papers, and study guides.';
+    return 'Access notes, assignments, and reference videos for your courses.';
+  }
+
+  /// Label for Exams Screen / Tile
+  String get examsTitle {
+    if (isDegreeCollege) return 'Assessments & Sem Exams';
+    if (isPuCollege) return 'Tests & Preparatory Exams';
+    return 'Exams & Tests';
+  }
+
+  /// Label for Assignments Screen
+  String get assignmentsTitle {
+    if (isDegreeCollege) return 'Assignments & Submissions';
+    if (isPuCollege) return 'Assignments & Worksheets';
+    return 'Assignments & Homework';
+  }
+
+  /// Button label when uploading completed assignment
+  String get submitButtonLabel {
+    if (isDegreeCollege) return 'Submit Assignment';
+    if (isPuCollege) return 'Submit Work';
+    return 'Submit Homework';
+  }
+
+  /// Subtitle under Student Profile & Drawer
+  String get userSubtitle {
+    if (isDegreeCollege) return 'Degree Scholar • Higher Education';
+    if (isPuCollege) return 'PU Scholar • Pre-University';
+    return 'Active Student • Learning & Growing';
+  }
+
+  String getLocalizedMaterialsTitle(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    if (isDegreeCollege) return l10n?.semesterResources ?? materialsTitle;
+    if (isPuCollege) return l10n?.studyMaterialsAndNotes ?? materialsTitle;
+    return l10n?.studyMaterials ?? materialsTitle;
+  }
+
+  String getLocalizedExamsTitle(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    if (isDegreeCollege) return l10n?.assessmentsAndExams ?? examsTitle;
+    if (isPuCollege) return l10n?.testsAndPreparatory ?? examsTitle;
+    return l10n?.examsTitle ?? examsTitle;
+  }
+
+  String getLocalizedUserSubtitle(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    if (isDegreeCollege) return l10n?.degreeScholarSubtitle ?? userSubtitle;
+    if (isPuCollege) return l10n?.puScholarSubtitle ?? userSubtitle;
+    return l10n?.schoolScholarSubtitle ?? userSubtitle;
+  }
+
+  /// Attendance regulations / eligibility message
+  String getAttendanceEligibilityMessage({required bool isEligible, required int classesNeeded, required int totalMarked}) {
+    if (isDegreeCollege) {
+      return isEligible
+          ? 'Your attendance meets the university requirement to appear for semester-end examinations.'
+          : totalMarked > 0
+              ? 'University regulations mandate at least 75% attendance. Attend the next $classesNeeded consecutive classes to clear the shortage.'
+              : 'No sessions recorded yet for this semester.';
+    }
+    if (isPuCollege) {
+      return isEligible
+          ? 'Your attendance meets the Pre-University Board requirement to appear for annual examinations.'
+          : totalMarked > 0
+              ? 'PU Board regulations mandate at least 75% attendance. Attend the next $classesNeeded consecutive classes to clear the shortage.'
+              : 'No sessions recorded yet for this academic year.';
+    }
+    return isEligible
+        ? 'Your attendance is in good standing.'
+        : totalMarked > 0
+            ? 'Attendance is below 75%. Please attend upcoming classes regularly.'
+            : 'No attendance records found.';
+  }
 
   AuthProvider() {
     _loadCachedInstitute();
@@ -256,5 +423,29 @@ class AuthProvider extends ChangeNotifier {
     _isAuthenticated = false;
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<bool> updateAvatar(String newAvatarUrl) async {
+    try {
+      final res = await _apiClient.post('/student/profile', data: {'avatarUrl': newAvatarUrl});
+      if (res.statusCode == 200) {
+        if (_user != null) {
+          final updatedUser = Map<String, dynamic>.from(_user!);
+          final profile = updatedUser['profile'] is Map 
+              ? Map<String, dynamic>.from(updatedUser['profile']) 
+              : <String, dynamic>{};
+          profile['avatar'] = newAvatarUrl;
+          updatedUser['profile'] = profile;
+          updatedUser['avatar'] = newAvatarUrl;
+          updatedUser['image'] = newAvatarUrl;
+          _user = updatedUser;
+          notifyListeners();
+        }
+        return true;
+      }
+    } catch (e) {
+      if (kDebugMode) print('Update avatar error: $e');
+    }
+    return false;
   }
 }

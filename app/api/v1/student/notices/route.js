@@ -57,7 +57,25 @@ export async function GET(req) {
             .limit(50)
             .lean();
 
-        return NextResponse.json({ notices });
+        // Ensure notices have translations populated
+        const enrichedNotices = await Promise.all(notices.map(async (n) => {
+            const hasTrans = n.translations && (typeof n.translations === 'object') && Object.keys(n.translations).length > 0;
+            if (!hasTrans && (n.title || n.content)) {
+                try {
+                    const { translateNotice } = await import("@/services/translationService");
+                    const translations = await translateNotice({ title: n.title, content: n.content });
+                    if (translations && Object.keys(translations).length > 0) {
+                        n.translations = translations;
+                        Notice.updateOne({ _id: n._id }, { $set: { translations } }).exec().catch(() => {});
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            }
+            return n;
+        }));
+
+        return NextResponse.json({ notices: enrichedNotices });
 
     } catch (error) {
         console.error("Student Notice API Error:", error);

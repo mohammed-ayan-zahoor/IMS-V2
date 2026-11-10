@@ -5,6 +5,7 @@ import 'package:student_app/features/attendance/presentation/screens/attendance_
 import 'package:student_app/features/timetable/presentation/screens/timetable_screen.dart';
 import 'package:student_app/features/profile/presentation/screens/profile_screen.dart';
 import 'package:student_app/features/dashboard/presentation/widgets/more_menu_sheet.dart';
+import 'package:student_app/l10n/app_localizations.dart';
 
 import 'package:provider/provider.dart';
 import 'package:student_app/core/providers/academic_session_provider.dart';
@@ -67,6 +68,8 @@ class _AppShellState extends State<AppShell> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+
     return Scaffold(
       body: PageView(
         controller: _pageController,
@@ -82,12 +85,12 @@ class _AppShellState extends State<AppShell> {
         unselectedItemColor: const Color(0xFF545F72),
         selectedLabelStyle: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.bold),
         unselectedLabelStyle: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w500),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.grid_view_rounded), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.calendar_today_rounded), label: 'Attendance'),
-          BottomNavigationBarItem(icon: Icon(Icons.schedule_rounded), label: 'Schedule'),
-          BottomNavigationBarItem(icon: Icon(Icons.person_outline_rounded), label: 'Profile'),
-          BottomNavigationBarItem(icon: Icon(Icons.more_horiz_rounded), label: 'More'),
+        items: [
+          BottomNavigationBarItem(icon: const Icon(Icons.grid_view_rounded), label: l10n?.homeTab ?? 'Home'),
+          BottomNavigationBarItem(icon: const Icon(Icons.calendar_today_rounded), label: l10n?.attendanceTab ?? 'Attendance'),
+          BottomNavigationBarItem(icon: const Icon(Icons.schedule_rounded), label: l10n?.timetable ?? 'Schedule'),
+          BottomNavigationBarItem(icon: const Icon(Icons.person_outline_rounded), label: l10n?.profileTab ?? 'Profile'),
+          BottomNavigationBarItem(icon: const Icon(Icons.more_horiz_rounded), label: l10n?.moreTab ?? 'More'),
         ],
       ),
     );

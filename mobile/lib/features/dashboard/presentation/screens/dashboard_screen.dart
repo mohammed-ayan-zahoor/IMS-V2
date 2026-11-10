@@ -4,11 +4,13 @@ import 'package:provider/provider.dart';
 import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:student_app/features/dashboard/presentation/providers/dashboard_provider.dart';
 import 'package:student_app/features/timetable/presentation/screens/timetable_screen.dart';
-import 'package:student_app/features/attendance/presentation/screens/attendance_screen.dart';
 import 'package:student_app/features/batches/presentation/screens/batches_screen.dart';
 import 'package:student_app/features/fees/presentation/screens/fees_screen.dart';
 import 'package:student_app/features/materials/presentation/screens/learning_materials_screen.dart';
 import 'package:student_app/features/profile/presentation/screens/profile_screen.dart';
+import 'package:student_app/core/localization/language_picker_sheet.dart';
+import 'package:student_app/core/localization/locale_provider.dart';
+import 'package:student_app/l10n/app_localizations.dart';
 import 'package:student_app/features/vault/presentation/screens/vault_screen.dart';
 import 'package:student_app/features/notices/presentation/screens/notices_screen.dart';
 import 'package:student_app/features/practice/presentation/screens/practice_screen.dart';
@@ -43,6 +45,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final mediaQuery = MediaQuery.of(context);
+    final l10n = AppLocalizations.of(context);
+    final localeProvider = context.watch<LocaleProvider>();
+    final currentLang = LocaleProvider.supportedLanguages.firstWhere(
+      (l) => l.code == localeProvider.currentLocale.languageCode,
+      orElse: () => LocaleProvider.supportedLanguages.first,
+    );
     final sessionProv = Provider.of<AcademicSessionProvider>(context);
     final dashProvider = Provider.of<DashboardProvider>(context, listen: false);
 
@@ -83,7 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  auth.isCollege ? 'COLLEGE PORTAL' : 'STUDENT PORTAL',
+                  auth.portalBadgeText,
                   style: GoogleFonts.hankenGrotesk(
                     color: const Color(0xFF0D1C2E),
                     fontSize: 16,
@@ -94,6 +102,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
             actions: [
+              // Language Selector Pill
+              Center(
+                child: InkWell(
+                  onTap: () => LanguagePickerSheet.show(context),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEFF6FF),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFD5E0F7)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.language_rounded, size: 14, color: Color(0xFF002045)),
+                        const SizedBox(width: 4),
+                        Text(
+                          currentLang.code.toUpperCase(),
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF002045),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
               Consumer<NotificationsProvider>(
                 builder: (context, notifProv, _) {
                   final unread = notifProv.unreadCount;
@@ -175,7 +214,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             children: [
                               Text(
                                 auth.isCollege
-                                    ? '${user?['institute']?['name'] ?? 'Higher Education'} • ${_getFormattedDate()}'
+                                    ? '${user?['institute']?['name'] ?? (auth.isDegreeCollege ? 'Degree College' : 'PU College')} • ${_getFormattedDate()}'
                                     : _getFormattedDate(),
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFF545F72).withValues(alpha: 0.7),
@@ -212,22 +251,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             _buildStatCard(
                               title: 'ATTENDANCE',
                               value: '$attVal%',
-                              suffix: auth.isCollege ? (isEligible ? ' (≥75% OK)' : ' (<75% Risk)') : null,
+                              suffix: auth.isCollege ? (isEligible ? (auth.isPuCollege ? ' (PU Board OK)' : ' (≥75% OK)') : ' (<75% Shortage)') : null,
                               icon: Icons.event_available,
                               progress: attVal / 100.0,
                               progressColor: auth.isCollege && !isEligible ? const Color(0xFFDC2626) : null,
                               width: mediaQuery.size.width > 600 ? cardWidth : double.infinity,
                             ),
                             _buildStatCard(
-                              title: auth.isCollege ? 'ASSESSMENTS' : 'EXAMS COMPLETED',
+                              title: auth.isDegreeCollege ? 'ASSESSMENTS' : (auth.isPuCollege ? 'TESTS & EXAMS' : 'EXAMS COMPLETED'),
                               value: '${data?.examsTaken ?? 0}',
-                              suffix: auth.isCollege ? ' Evaluated' : ' Tests',
+                              suffix: auth.isDegreeCollege ? ' Evaluated' : (auth.isPuCollege ? ' Appraised' : ' Tests'),
                               icon: Icons.assignment_turned_in,
                               progress: 1.0,
                               width: mediaQuery.size.width > 600 ? cardWidth : double.infinity,
                             ),
                             _buildStatCard(
-                              title: auth.isCollege ? 'MODULE RESOURCES' : 'STUDY MATERIALS',
+                              title: auth.getLocalizedMaterialsTitle(context).toUpperCase(),
                               value: '${data?.materialsCount ?? 0}',
                               suffix: ' Files',
                               icon: Icons.menu_book,
@@ -353,7 +392,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Text(
-                                auth.isCollege ? 'COURSE / MODULE' : 'SUBJECT',
+                                auth.isDegreeCollege ? 'DEGREE COURSE / MODULE' : (auth.isPuCollege ? 'PU SUBJECT' : 'SUBJECT'),
                                 style: GoogleFonts.inter(
                                   color: const Color(0xFF545F72),
                                   fontSize: 12,
@@ -403,7 +442,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        auth.isCollege ? 'Upcoming Assessments & Exams' : 'Upcoming Exams',
+                        auth.getLocalizedExamsTitle(context),
                         style: GoogleFonts.hankenGrotesk(
                           color: const Color(0xFF0D1C2E),
                           fontSize: 22,

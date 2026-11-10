@@ -19,7 +19,7 @@ export async function GET(req) {
         await connectDB();
 
         const { searchParams } = new URL(req.url);
-        const querySessionId = searchParams.get("sessionId");
+        const querySessionId = searchParams.get("sessionId") || req.headers.get("x-session-id");
         const queryBatchId = searchParams.get("batchId");
 
         const studentObjId = new mongoose.Types.ObjectId(session.user.id);
@@ -51,7 +51,17 @@ export async function GET(req) {
             feeQuery.batch = new mongoose.Types.ObjectId(queryBatchId);
         }
         if (querySessionId && mongoose.Types.ObjectId.isValid(querySessionId)) {
-            feeQuery.session = new mongoose.Types.ObjectId(querySessionId);
+            const sessionObjId = new mongoose.Types.ObjectId(querySessionId);
+            const sessionBatches = await Batch.find({
+                session: sessionObjId,
+                deletedAt: null
+            }).select('_id').lean();
+            const sessionBatchIds = sessionBatches.map(b => b._id);
+
+            feeQuery.$or = [
+                { session: sessionObjId },
+                { session: { $in: [null, undefined] }, batch: { $in: sessionBatchIds } }
+            ];
         }
 
         const transportQuery = { student: studentObjId, deletedAt: null };
@@ -59,6 +69,10 @@ export async function GET(req) {
         if (instituteId) {
             transportQuery.institute = instituteId;
             hostelQuery.institute = instituteId;
+        }
+        if (querySessionId && mongoose.Types.ObjectId.isValid(querySessionId)) {
+            transportQuery.session = new mongoose.Types.ObjectId(querySessionId);
+            hostelQuery.session = new mongoose.Types.ObjectId(querySessionId);
         }
 
         const fees = await Fee.find(feeQuery)

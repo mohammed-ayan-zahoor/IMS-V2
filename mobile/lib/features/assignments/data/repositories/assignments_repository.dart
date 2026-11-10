@@ -67,7 +67,11 @@ class AssignmentsRepository {
         },
       );
       if ((response.statusCode == 200 || response.statusCode == 201) && response.data != null) {
-        return response.data['success'] == true || response.data['submission'] != null;
+        if (response.data is Map && (response.data['success'] == true || response.data['submission'] != null)) {
+          return true;
+        } else {
+          _lastError = response.data is Map ? (response.data['error'] ?? response.data['message'])?.toString() : 'Failed to submit assignment';
+        }
       } else {
         _lastError = response.data is Map ? response.data['error']?.toString() : 'Server error ${response.statusCode}';
       }
