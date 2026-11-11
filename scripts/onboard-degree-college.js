@@ -497,15 +497,22 @@ async function run() {
             // 5. Fee Ledger Reconciliation
             const r2 = semMap.get(studentId) || [];
 
-            const admFixation = normalizeNumber(r1[13]);
-            const admPaid = normalizeNumber(r1[14]);
-            const admBal = normalizeNumber(r1[15]);
+            // Gross amounts from Excel (before MSCP concession)
+            const admGross = normalizeNumber(r1[11]); // Col L: total admission fee (gross)
+            const admMscp  = normalizeNumber(r1[12]); // Col M: admission concession
+            const admPaid  = normalizeNumber(r1[14]); // Col O: total paid (admission)
+            const admBal   = normalizeNumber(r1[15]); // Col P: balance (admission)
 
-            const semFixation = normalizeNumber(r2[11]);
-            const semPaid = normalizeNumber(r2[13]);
-            const semBal = normalizeNumber(r2[14]);
+            const semGross = normalizeNumber(r2[11]); // Col L: sem 1 fee (gross)
+            const semMscp  = normalizeNumber(r2[12]); // Col M: sem 1 concession
+            const semPaid  = normalizeNumber(r2[13]); // Col N: total paid (sem 1)
+            const semBal   = normalizeNumber(r2[14]); // Col O: sem 1 due (net pending)
 
-            const totalAmount = admFixation + semFixation;
+            // totalAmount = gross from both sheets (MSCP applied separately as discount)
+            // This prevents the double-count bug where admFixation(net) + semGross(gross)
+            // was used, causing semMscp to be counted inside totalAmount AND as a discount.
+            const totalAmount = admGross + semGross;
+            const totalMscp   = admMscp + semMscp;
             const paidAmount = admPaid + semPaid;
             const balanceAmount = Math.max(0, admBal + semBal);
 
@@ -566,10 +573,13 @@ async function run() {
                     });
                 }
 
-                // Auto-balance rounding check for pre-save hook
-                const instTotal = installments.reduce((s, x) => s + x.amount, 0);
-                if (Math.abs(instTotal - totalAmount) > 0.01 && installments.length > 0) {
-                    installments[installments.length - 1].amount += (totalAmount - instTotal);
+                // Auto-balance rounding check:
+                // The pre-save hook expects: installmentsTotal === totalAmount - discount + extraCharges
+                // So the installments should sum to (totalAmount - totalMscp), i.e. the net payable.
+                const netPayable = totalAmount - totalMscp;
+                const instTotal  = installments.reduce((s, x) => s + x.amount, 0);
+                if (Math.abs(instTotal - netPayable) > 0.01 && installments.length > 0) {
+                    installments[installments.length - 1].amount += (netPayable - instTotal);
                 }
 
                 if (!isDryRun) {
@@ -586,13 +596,22 @@ async function run() {
                             student: student._id,
                             batch: batch._id,
                             session: session._id,
-                            totalAmount,
+                            totalAmount, // gross (admGross + semGross)
                             paidAmount,
                             balanceAmount,
                             status: balanceAmount <= 0 ? 'paid' : (paidAmount > 0 ? 'partial' : 'not_started'),
+                            // Store discount upfront so reconcile script finds it already set and skips
+                            ...(totalMscp > 0 && {
+                                discount: {
+                                    amount: totalMscp,
+                                    reason: 'Management Concession (MSCP)',
+                                    status: 'applied',
+                                    appliedAt: new Date()
+                                }
+                            }),
                             components: [
-                                { name: "Admission Fee", amount: admFixation },
-                                { name: "Semester 1 Tuition Fee", amount: semFixation }
+                                { name: 'Admission Fee',          amount: admGross },
+                                { name: 'Semester 1 Tuition Fee', amount: semGross }
                             ],
                             installments
                         });

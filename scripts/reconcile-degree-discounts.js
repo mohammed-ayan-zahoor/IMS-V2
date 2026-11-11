@@ -113,7 +113,8 @@ async function run() {
                 const row = semData[r];
                 if (!row) continue;
                 const sid = String(row[7] || '').trim();
-                if (sid) semMap.set(sid, normalizeNumber(row[12])); // Col 12 is Sem 1 MSCP
+                // Store the full row so we can read both semGross (col 11) and semMscp (col 12)
+                if (sid) semMap.set(sid, row);
             }
         }
 
@@ -129,7 +130,8 @@ async function run() {
             if (!studentId && !studentName) continue;
 
             const admMscp = normalizeNumber(row[12]);
-            const semMscp = semMap.get(studentId) || 0;
+            const semRow  = semMap.get(studentId);
+            const semMscp = semRow ? normalizeNumber(semRow[12]) : 0;
             const totalMscp = admMscp + semMscp;
 
             if (totalMscp > 0) {
@@ -157,17 +159,21 @@ async function run() {
                 if (fee) {
                     const currentDiscount = fee.discount?.amount || 0;
                     if (currentDiscount !== totalMscp) {
-                        const newTotal = fee.totalAmount + totalMscp - currentDiscount;
-                        
+                        // Derive the correct gross from Excel (admGross col 11 + semGross col 11)
+                        // so we never add totalMscp onto a totalAmount that already bakes semMscp in.
+                        const admGross = normalizeNumber(row[11]);
+                        const semGross = semRow ? normalizeNumber(semRow[11]) : 0;
+                        const correctGross = admGross + semGross;
+
                         if (!isDryRun) {
-                            fee.totalAmount = newTotal;
+                            fee.totalAmount = correctGross; // set to true gross from Excel
                             fee.discount = {
                                 amount: totalMscp,
                                 reason: 'Management Concession (MSCP)',
                                 status: 'applied',
                                 appliedAt: new Date()
                             };
-                            fee.balanceAmount = Math.max(0, (fee.totalAmount - totalMscp) - fee.paidAmount);
+                            fee.balanceAmount = Math.max(0, correctGross - totalMscp - fee.paidAmount);
                             await fee.save();
                         }
 
