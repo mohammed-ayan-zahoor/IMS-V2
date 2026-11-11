@@ -32,6 +32,9 @@
 
 'use strict';
 
+// Suppress Node 22+ typeless package.json ESM warning when dynamically importing models
+process.removeAllListeners('warning');
+
 const mongoose = require('mongoose');
 const XLSX = require('xlsx');
 const path = require('path');
@@ -277,73 +280,128 @@ async function run() {
             continue;
         }
 
-        // ---- GUARD: Pending installments can absorb the reduction ----
+        // ---- DETERMINE FIX STRATEGY ----
         const pendingInsts = fee.installments.filter(i => i.status === 'pending');
         const pendingSum   = pendingInsts.reduce((s, i) => s + i.amount, 0);
 
-        if (pendingSum < semMscp - 0.01) {
-            // Not enough pending balance to absorb the reduction (student nearly/fully paid)
+        const isFullyPaid = (pendingSum === 0 && Math.abs(fee.balanceAmount) < 0.01);
+        const hasPendingBalance = (pendingSum >= semMscp - 0.01);
+
+        if (!hasPendingBalance && !isFullyPaid) {
+            // Partial pending balance but less than semMscp (rare edge case)
             results.push({
                 studentId, studentName, semMscp,
-                action: 'SKIP:OVERPAID_PENDING',
-                note: `pendingSum=${fmt(pendingSum)} < semMscp=${fmt(semMscp)} — cannot reduce; needs manual review`
+                action: 'SKIP:PARTIAL_OVERPAID',
+                note: `pendingSum=${fmt(pendingSum)} < semMscp=${fmt(semMscp)} — manual review needed`
             });
             cntSkipOverpaid++;
             continue;
         }
 
         // ---- WHAT WILL CHANGE ----
-        // fee.totalAmount: expectedBuggedTotal -> excelGross  (reduction = semMscp)
-        // fee.discount.amount: unchanged (stays excelDiscount)
-        // pending installment(s): pre-save hook auto-reduces by semMscp
-
         const oldTotal    = fee.totalAmount;
         const newTotal    = excelGross;
         const oldNet      = oldTotal - currentDiscount;
         const newNet      = newTotal - excelDiscount;
-        const oldPending  = pendingSum;
-        const newPending  = pendingSum - semMscp;
 
-        if (isDryRun) {
-            results.push({
-                studentId, studentName, semMscp,
-                action: 'DRY-RUN:WOULD_FIX',
-                note: `totalAmount ${fmt(oldTotal)} → ${fmt(newTotal)} | net ${fmt(oldNet)} → ${fmt(newNet)} | pending ${fmt(oldPending)} → ${fmt(newPending)}`
-            });
-            cntFixed++;
-            totalReduced += semMscp;
-        } else {
-            try {
-                // Apply fix
-                fee.totalAmount = newTotal;
-                fee.components  = [
-                    { name: 'Admission Fee',           amount: admGross },
-                    { name: 'Semester 1 Tuition Fee',  amount: semGross }
-                ];
-                // discount stays as-is (pre-save hook will rebalance pending installments)
-                await fee.save();
+        if (hasPendingBalance) {
+            // Case 1: Student has pending installment(s) -> pre-save hook auto-reduces pending
+            const oldPending = pendingSum;
+            const newPending = pendingSum - semMscp;
 
-                // Re-read to get post-hook values
-                const saved = await Fee.findById(fee._id).lean();
-                const savedPending = (saved.installments || [])
-                    .filter(i => i.status === 'pending')
-                    .reduce((s, i) => s + i.amount, 0);
-
+            if (isDryRun) {
                 results.push({
                     studentId, studentName, semMscp,
-                    action: 'FIXED',
-                    note: `totalAmount ${fmt(oldTotal)} → ${fmt(saved.totalAmount)} | net ${fmt(oldNet)} → ${fmt(saved.totalAmount - saved.discount?.amount)} | pending ${fmt(oldPending)} → ${fmt(savedPending)}`
+                    action: 'DRY-RUN:WOULD_FIX (PENDING)',
+                    note: `totalAmount ${fmt(oldTotal)} → ${fmt(newTotal)} | net ${fmt(oldNet)} → ${fmt(newNet)} | pending ${fmt(oldPending)} → ${fmt(newPending)}`
                 });
                 cntFixed++;
                 totalReduced += semMscp;
-            } catch (err) {
+            } else {
+                try {
+                    fee.totalAmount = newTotal;
+                    fee.components  = [
+                        { name: 'Admission Fee',          amount: admGross },
+                        { name: 'Semester 1 Tuition Fee', amount: semGross }
+                    ];
+                    await fee.save();
+
+                    const saved = await Fee.findById(fee._id).lean();
+                    const savedPending = (saved.installments || [])
+                        .filter(i => i.status === 'pending')
+                        .reduce((s, i) => s + i.amount, 0);
+
+                    results.push({
+                        studentId, studentName, semMscp,
+                        action: 'FIXED (PENDING)',
+                        note: `totalAmount ${fmt(oldTotal)} → ${fmt(saved.totalAmount)} | net ${fmt(oldNet)} → ${fmt(saved.totalAmount - saved.discount?.amount)} | pending ${fmt(oldPending)} → ${fmt(savedPending)}`
+                    });
+                    cntFixed++;
+                    totalReduced += semMscp;
+                } catch (err) {
+                    results.push({
+                        studentId, studentName, semMscp,
+                        action: 'ERROR:SAVE_FAILED',
+                        note: err.message
+                    });
+                    cntErrors++;
+                    console.error(`  ❌ ${studentId} ${studentName}: ${err.message}`);
+                }
+            }
+        } else if (isFullyPaid) {
+            // Case 2: Fully paid student in Excel (balance === 0).
+            // During onboarding, the auto-balance line absorbed semMscp into the last paid installment.
+            // We reduce the last paid installment by semMscp so paidAmount matches true receipts.
+            const lastInst = fee.installments[fee.installments.length - 1];
+            if (!lastInst || lastInst.amount < semMscp - 0.01) {
                 results.push({
                     studentId, studentName, semMscp,
-                    action: 'ERROR:SAVE_FAILED',
-                    note: err.message
+                    action: 'SKIP:FULLY_PAID_UNEXPECTED',
+                    note: `Last installment amount ${fmt(lastInst?.amount || 0)} < semMscp ${fmt(semMscp)}`
                 });
-                cntErrors++;
-                console.error(`  ❌ ${studentId} ${studentName}: ${err.message}`);
+                cntSkipOverpaid++;
+                continue;
+            }
+
+            const oldPaid = fee.paidAmount;
+            const newPaid = oldPaid - semMscp;
+
+            if (isDryRun) {
+                results.push({
+                    studentId, studentName, semMscp,
+                    action: 'DRY-RUN:WOULD_FIX (FULLY_PAID)',
+                    note: `totalAmount ${fmt(oldTotal)} → ${fmt(newTotal)} | paid ${fmt(oldPaid)} → ${fmt(newPaid)} | balance ₹0 (unchanged)`
+                });
+                cntFixed++;
+                totalReduced += semMscp;
+            } else {
+                try {
+                    // Reduce last installment by semMscp so installments sum === newTotal - discount
+                    lastInst.amount = Math.round((lastInst.amount - semMscp) * 100) / 100;
+                    fee.totalAmount = newTotal;
+                    fee.components  = [
+                        { name: 'Admission Fee',          amount: admGross },
+                        { name: 'Semester 1 Tuition Fee', amount: semGross }
+                    ];
+                    await fee.save();
+
+                    const saved = await Fee.findById(fee._id).lean();
+                    results.push({
+                        studentId, studentName, semMscp,
+                        action: 'FIXED (FULLY_PAID)',
+                        note: `totalAmount ${fmt(oldTotal)} → ${fmt(saved.totalAmount)} | paid ${fmt(oldPaid)} → ${fmt(saved.paidAmount)} | balance ₹0`
+                    });
+                    cntFixed++;
+                    totalReduced += semMscp;
+                } catch (err) {
+                    results.push({
+                        studentId, studentName, semMscp,
+                        action: 'ERROR:SAVE_FAILED',
+                        note: err.message
+                    });
+                    cntErrors++;
+                    console.error(`  ❌ ${studentId} ${studentName}: ${err.message}`);
+                }
             }
         }
     }
