@@ -56,10 +56,13 @@ export default function StudentFeesPage() {
         let totalPayable = 0;
         let totalPaid = 0;
         let totalBalance = 0;
+        let totalConcession = 0;
         let hasOverdue = false;
 
         fees.forEach(f => {
-            const finalAmt = (f.totalAmount || 0) - (f.discount?.amount || 0) + (f.extraCharges?.amount || 0);
+            const disc = f.discount?.amount || f.concession?.amount || 0;
+            totalConcession += disc;
+            const finalAmt = (f.totalAmount || 0) - disc + (f.extraCharges?.amount || 0);
             totalPayable += finalAmt;
             totalPaid += (f.paidAmount || 0);
             totalBalance += (f.balanceAmount || 0);
@@ -86,6 +89,7 @@ export default function StudentFeesPage() {
             totalPayable,
             totalPaid,
             totalBalance,
+            totalConcession,
             percentCleared,
             hasOverdue
         };
@@ -216,7 +220,13 @@ export default function StudentFeesPage() {
                         ₹{summaryMetrics.totalPayable.toLocaleString()}
                     </div>
                     <p className="text-[11px] text-[#8D8A9B] mt-0.5">
-                        Net approved schedule
+                        {summaryMetrics.totalConcession > 0 ? (
+                            <span className="text-emerald-600 font-semibold">
+                                Less: ₹{summaryMetrics.totalConcession.toLocaleString()} Concession
+                            </span>
+                        ) : (
+                            "Net approved schedule"
+                        )}
                     </p>
                 </div>
 
@@ -369,6 +379,30 @@ export default function StudentFeesPage() {
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Concession / Scholarship Received Banner */}
+                            {(fee.discount?.amount > 0 || fee.concession?.amount > 0) && (
+                                <div className="px-5 sm:px-6 py-3 bg-emerald-50/70 border-b border-emerald-100 flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-700 font-bold text-xs">
+                                            ✓
+                                        </div>
+                                        <div>
+                                            <span className="text-xs font-bold text-emerald-800">
+                                                Concession Received: ₹{((fee.discount?.amount || fee.concession?.amount) || 0).toLocaleString()}
+                                            </span>
+                                            {(fee.discount?.reason || fee.concession?.reason) && (
+                                                <span className="ml-2 text-[11px] text-emerald-600 font-medium">
+                                                    • {fee.discount?.reason || fee.concession?.reason}
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800">
+                                        -₹{((fee.discount?.amount || fee.concession?.amount) || 0).toLocaleString()}
+                                    </span>
+                                </div>
+                            )}
 
                             {/* Itemized Fee Components (if present) */}
                             {fee.components && fee.components.length > 0 && (
