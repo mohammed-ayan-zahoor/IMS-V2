@@ -13,20 +13,17 @@ export async function GET(req) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        const isAdminOrSuperAdmin = scope.isSuperAdmin || ['admin', 'super_admin'].includes(scope.user?.role);
+        if (!isAdminOrSuperAdmin) {
+            return NextResponse.json({ activityFeed: [] });
+        }
+
         const { searchParams } = new URL(req.url);
         const targetInstParam = searchParams.get("instituteId");
 
         const isGlobalView = scope.isSuperAdmin && (targetInstParam === "all" || !targetInstParam);
 
-        const query = isGlobalView ? {} : { institute: scope.instituteId };
-        query.$nor = [
-            {
-                action: 'user.login',
-                'details.actorSnapshot.role': { $nin: ['admin', 'super_admin'] }
-            }
-        ];
-
-        const logs = await AuditLog.find(query)
+        const logs = await AuditLog.find(isGlobalView ? {} : { institute: scope.instituteId })
             .sort({ createdAt: -1 })
             .limit(20)
             .populate('actor', 'profile.firstName profile.lastName');

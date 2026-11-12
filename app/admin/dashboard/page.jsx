@@ -329,6 +329,7 @@ export default function AdminDashboard() {
     ];
 
     const isInstructorOrStaff = ['instructor', 'staff'].includes(session?.user?.role);
+    const isAdmin = ['admin', 'super_admin'].includes(session?.user?.role);
 
     return (
         <>
@@ -547,10 +548,10 @@ export default function AdminDashboard() {
                     ))}
                 </div>
 
-                {/* Main Dashboard Layout: Analytics (8-cols) + Live Audit Trail & Shortcuts (4-cols) */}
+                {/* Main Dashboard Layout: Analytics (8-cols or full 12-cols for non-admin) + Live Audit Trail & Shortcuts (4-cols for admin) */}
                 <div className="grid grid-cols-1 xl:grid-cols-12 gap-6 items-start">
                     {/* Left Analytics & Operations Area */}
-                    <div className="xl:col-span-8 space-y-6">
+                    <div className={cn("space-y-6", isAdmin ? "xl:col-span-8" : "xl:col-span-12")}>
                         {/* Gender Demographics Banner */}
                         {dashboardData?.counts && (
                             <div className="bg-white rounded-lg border border-slate-100 p-5">
@@ -772,10 +773,12 @@ export default function AdminDashboard() {
                         )}
                     </div>
 
-                    {/* Right 4-Columns: Live Audit Activity & Quick Executive Shortcuts */}
-                    <div className="xl:col-span-4">
-                        <ActivityFeed />
-                    </div>
+                    {/* Right 4-Columns: Live Audit Activity & Quick Executive Shortcuts (Admin only) */}
+                    {isAdmin && (
+                        <div className="xl:col-span-4">
+                            <ActivityFeed />
+                        </div>
+                    )}
                 </div>
             </div>
         </>

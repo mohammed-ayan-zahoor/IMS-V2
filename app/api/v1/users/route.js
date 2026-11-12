@@ -30,6 +30,9 @@ export async function GET(req) {
         const { searchParams } = new URL(req.url);
         const role = searchParams.get("role");
         const targetInstParam = searchParams.get("instituteId");
+        const search = searchParams.get("search")?.trim() || "";
+        const pageParam = searchParams.get("page");
+        const limitParam = searchParams.get("limit");
 
         const rolesList = role ? role.split(',').map(r => r.trim()).filter(Boolean) : null;
 
@@ -37,9 +40,9 @@ export async function GET(req) {
         let memberships = [];
 
         // Hybrid Scoping Logic:
-        // 1. Super Admin Global View: ?instituteId=all or missing param
-        // 2. Focused/Admin View: Specific instituteId or forced from scope
-        const isGlobalView = scope.isSuperAdmin && (!targetInstParam || targetInstParam === "all");
+        // 1. Super Admin Global View: ONLY when ?instituteId=all OR super_admin has no active institute context
+        // 2. Focused/Admin View: Specific ?instituteId param or active scope.instituteId
+        const isGlobalView = scope.isSuperAdmin && (targetInstParam === "all" || (!targetInstParam && !scope.instituteId));
 
         if (!isGlobalView) {
             // Use active institute from scope (or param override)
@@ -57,7 +60,7 @@ export async function GET(req) {
                 membershipFilter.role = { $in: rolesList };
             }
 
-            memberships = await Membership.find(membershipFilter).select('user role');
+            memberships = await Membership.find(membershipFilter).select('user role isMasterAdmin').lean();
 
             const userIdsFromMemberships = memberships.map(m => m.user);
 
@@ -78,32 +81,96 @@ export async function GET(req) {
             query.role = { $in: rolesList };
         }
 
-        const users = await User.find(query)
+        let finalQuery = query;
+        if (search) {
+            const safeSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const searchRegex = new RegExp(safeSearch, 'i');
+            finalQuery = {
+                $and: [
+                    query,
+                    {
+                        $or: [
+                            { 'profile.firstName': searchRegex },
+                            { 'profile.lastName': searchRegex },
+                            { email: searchRegex },
+                            { enrollmentNumber: searchRegex },
+                            { 'profile.phone': searchRegex }
+                        ]
+                    }
+                ]
+            };
+        }
+
+        const isPaginated = Boolean(pageParam || limitParam);
+        const page = Math.max(1, parseInt(pageParam, 10) || 1);
+        const limit = Math.min(200, Math.max(1, parseInt(limitParam, 10) || 50));
+
+        // Lean projection avoids loading massive arrays (documents, promotionHistory, hrDetails ledger)
+        const userProjection = 'institute email role allowLogin faceEnrolledAt department assignments permissions profile.firstName profile.lastName profile.phone profile.avatar enrollmentNumber activeSession hrDetails.designation hrDetails.basicSalary status createdAt deletedAt';
+
+        let userQuery = User.find(finalQuery)
+            .select(userProjection)
             .populate('department', 'name code shiftTimings')
             .populate('hrDetails.designation', 'name')
-            .select("-passwordHash")
             .sort({ createdAt: -1 });
 
-        // Determine multi-institute and super-admin permissions for these users
+        if (isPaginated) {
+            userQuery = userQuery.skip((page - 1) * limit).limit(limit);
+        } else if (isGlobalView && !rolesList) {
+            // Safeguard against unbounded global dumps crashing the Node.js event loop / RAM
+            userQuery = userQuery.limit(500);
+        }
+
+        const [users, total] = await Promise.all([
+            userQuery.lean(),
+            isPaginated ? User.countDocuments(finalQuery) : Promise.resolve(null)
+        ]);
+
+        // Determine multi-institute and super-admin permissions in O(N) using Maps (prevents O(N^2) event-loop freeze)
         const userIds = users.map(u => u._id);
-        const allActiveMemberships = await Membership.find({
-            user: { $in: userIds },
-            isActive: true
-        }).select('user institute isMasterAdmin role').lean();
+        const allActiveMemberships = userIds.length > 0
+            ? await Membership.find({
+                user: { $in: userIds },
+                isActive: true
+            }).select('user isMasterAdmin').lean()
+            : [];
+
+        const scopedMembershipMap = new Map();
+        for (const m of memberships) {
+            if (m.user) {
+                scopedMembershipMap.set(m.user.toString(), m);
+            }
+        }
+
+        const activeMembershipStatsMap = new Map();
+        for (const m of allActiveMemberships) {
+            if (!m.user) continue;
+            const uid = m.user.toString();
+            let stats = activeMembershipStatsMap.get(uid);
+            if (!stats) {
+                stats = { count: 0, hasMasterAdmin: false };
+                activeMembershipStatsMap.set(uid, stats);
+            }
+            stats.count += 1;
+            if (m.isMasterAdmin) {
+                stats.hasMasterAdmin = true;
+            }
+        }
 
         // Map users and attach roles from membership records
         let usersWithRoles = users.map(u => {
-            const userObj = u.toObject();
-            const memberRecord = memberships.find(m => m.user && m.user.toString() === u._id.toString());
-            const userMemberships = allActiveMemberships.filter(m => m.user && m.user.toString() === u._id.toString());
+            const uid = u._id.toString();
+            const memberRecord = scopedMembershipMap.get(uid);
+            const mStats = activeMembershipStatsMap.get(uid);
             const isSuperAdminAssigned = Boolean(
                 u.role === 'super_admin' ||
                 memberRecord?.isMasterAdmin ||
-                userMemberships.some(m => m.isMasterAdmin) ||
-                userMemberships.length > 1
+                mStats?.hasMasterAdmin ||
+                (mStats?.count || 0) > 1
             );
             return {
-                ...userObj,
+                ...u,
+                isActive: !u.deletedAt,
                 instituteRole: memberRecord?.role || u.role,
                 isSuperAdminAssigned,
                 canDelete: scope.isSuperAdmin || (!isSuperAdminAssigned && u.role !== 'super_admin')
@@ -114,6 +181,16 @@ export async function GET(req) {
             usersWithRoles = usersWithRoles.filter(u =>
                 rolesList.includes(u.instituteRole) || rolesList.includes(u.role)
             );
+        }
+
+        if (isPaginated) {
+            return NextResponse.json({
+                users: usersWithRoles,
+                total: total ?? usersWithRoles.length,
+                page,
+                limit,
+                totalPages: Math.max(1, Math.ceil((total ?? usersWithRoles.length) / limit))
+            });
         }
 
         return NextResponse.json({ users: usersWithRoles });

@@ -13,15 +13,8 @@ export async function GET(req) {
 
         await connectDB();
 
-        // Multi-tenancy Scope & filter out non-admin logins
-        const query = {
-            $nor: [
-                {
-                    action: 'user.login',
-                    'details.actorSnapshot.role': { $nin: ['admin', 'super_admin'] }
-                }
-            ]
-        };
+        // Multi-tenancy Scope
+        const query = {};
         if (session.user.role !== 'super_admin') {
             if (!session.user.institute?.id) {
                 return NextResponse.json({ error: "Institute context missing" }, { status: 403 });

@@ -108,11 +108,10 @@ export default function ComplaintsPage() {
                 setStudents(studentData.users || []);
             }
 
-            const staffRes = await fetch("/api/v1/users");
+            const staffRes = await fetch("/api/v1/users?role=admin,super_admin,instructor");
             if (staffRes.ok) {
                 const staffData = await staffRes.json();
-                const filteredStaff = (staffData.users || []).filter(u => ['admin', 'super_admin', 'instructor'].includes(u.role));
-                setStaff(filteredStaff);
+                setStaff(staffData.users || []);
             }
         } catch (e) {
             console.error("Error loading users helper lists", e);

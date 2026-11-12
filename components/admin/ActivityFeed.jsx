@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
 import { 
     UserPlus, 
     MessageSquare, 
@@ -163,9 +164,12 @@ function finalizeGroup(group) {
 }
 
 export default function ActivityFeed({ className }) {
+    const { data: session, status } = useSession();
     const [activities, setActivities] = useState([]);
     const [loading, setLoading] = useState(true);
     const router = useRouter();
+
+    const isAdmin = status === "authenticated" && ["admin", "super_admin"].includes(session?.user?.role);
 
     const handleShortcut = (label) => {
         switch (label) {
@@ -192,6 +196,11 @@ export default function ActivityFeed({ className }) {
     ];
 
     useEffect(() => {
+        if (status === "loading" || !isAdmin) {
+            setLoading(false);
+            return;
+        }
+
         const fetchActivity = async () => {
             try {
                 const res = await fetch('/api/v1/dashboard/activity');
@@ -210,7 +219,11 @@ export default function ActivityFeed({ className }) {
         };
 
         fetchActivity();
-    }, []);
+    }, [status, isAdmin]);
+
+    if (!isAdmin) {
+        return null;
+    }
 
     return (
         <div className={cn("flex flex-col bg-white rounded-lg border border-slate-100 min-w-0 overflow-hidden", className)}>

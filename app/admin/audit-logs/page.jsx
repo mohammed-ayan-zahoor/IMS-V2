@@ -1,17 +1,28 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import LoadingSpinner from "@/components/shared/LoadingSpinner";
 import { History, User, Activity, Clock } from "lucide-react";
 import { format } from "date-fns";
 
 export default function AuditLogsPage() {
+    const { data: session, status } = useSession();
+    const router = useRouter();
     const [logs, setLogs] = useState([]);
     const [loading, setLoading] = useState(true);
 
+    const isAdmin = status === "authenticated" && ["admin", "super_admin"].includes(session?.user?.role);
+
     useEffect(() => {
+        if (status === "loading") return;
+        if (status === "unauthenticated" || (status === "authenticated" && !["admin", "super_admin"].includes(session?.user?.role))) {
+            router.replace("/admin/dashboard");
+            return;
+        }
         fetchLogs();
-    }, []);
+    }, [status, session?.user?.role, router]);
 
     const fetchLogs = async () => {
         try {
@@ -28,7 +39,9 @@ export default function AuditLogsPage() {
             setLoading(false);
         }
     };
-    if (loading) return <LoadingSpinner fullPage />;
+
+    if (status === "loading" || loading) return <LoadingSpinner fullPage />;
+    if (!isAdmin) return null;
 
     return (
         <div className="space-y-6">

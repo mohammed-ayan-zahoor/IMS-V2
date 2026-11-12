@@ -381,16 +381,17 @@ export default function AdminLayout({ children }) {
 
     const isStaff = session?.user?.role === 'staff';
     const isAdmin = ['admin', 'super_admin'].includes(session?.user?.role);
+    const userRole = session?.user?.role;
     
     // Find matching route definition for current pathname
-    const matchedRoute = (!isAdmin && isStaff && pathname) ? allProtectedRoutes
+    const matchedRoute = (!isAdmin && pathname) ? allProtectedRoutes
         .filter(r => pathname === r.href || pathname.startsWith(r.href + "/"))
         .sort((a, b) => b.href.length - a.href.length)[0] : null;
 
     const isRouteDenied = Boolean(
-        isStaff && matchedRoute && (
-            (matchedRoute.role && !matchedRoute.role.includes('staff')) ||
-            (matchedRoute.permission && !hasUserPermission(session?.user?.permissions, matchedRoute.permission))
+        !isAdmin && matchedRoute && (
+            (matchedRoute.role && !matchedRoute.role.includes(userRole)) ||
+            (isStaff && matchedRoute.permission && !hasUserPermission(session?.user?.permissions, matchedRoute.permission))
         )
     );
 

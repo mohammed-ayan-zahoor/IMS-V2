@@ -18,13 +18,18 @@ import EnrollFaceModal from "@/components/users/EnrollFaceModal";
 
 // Verified: Usage of Select component is compatible with onChange(value) signature.
 export default function UserManagementPage() {
-    const { data: session } = useSession();
+    const { data: session, status } = useSession();
     const isSchool = session?.user?.institute?.type === 'SCHOOL' || session?.user?.institute?.code === 'QUANTECH';
     const toast = useToast();
     const confirm = useConfirm();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
+    const [page, setPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalUsers, setTotalUsers] = useState(0);
+    const limit = 50;
     const [activeTab, setActiveTab] = useState("students"); // 'students' or 'admins'
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
@@ -109,16 +114,37 @@ export default function UserManagementPage() {
         }
     };
 
+    // Debounce search input and reset to page 1
     useEffect(() => {
-        fetchUsers();
+        const timer = setTimeout(() => {
+            setDebouncedSearch(search.trim());
+            setPage(1);
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [search]);
+
+    useEffect(() => {
+        if (status === "loading") return;
         fetchDesignations();
         fetchDepartments();
-    }, []);
+    }, [status, session?.user?.institute?.id]);
+
+    useEffect(() => {
+        if (status === "loading") return;
+        fetchUsers();
+    }, [status, session?.user?.institute?.id, activeTab, page, debouncedSearch]);
 
     const fetchUsers = async () => {
         try {
             setLoading(true);
-            const res = await fetch("/api/v1/users");
+            const params = new URLSearchParams({
+                page: String(page),
+                limit: String(limit),
+                role: activeTab === "students" ? "student" : "admin,instructor,staff,super_admin"
+            });
+            if (debouncedSearch) params.set("search", debouncedSearch);
+
+            const res = await fetch(`/api/v1/users?${params.toString()}`);
 
             if (!res.ok) {
                 const contentType = res.headers.get("content-type");
@@ -135,13 +161,12 @@ export default function UserManagementPage() {
             const data = await res.json();
             const fetchedUsers = data.users || [];
             setUsers(fetchedUsers);
+            setTotalUsers(data.total ?? fetchedUsers.length);
+            setTotalPages(data.totalPages ?? 1);
 
-            // UX Improvement: If no students but we have admins, switch to Admins tab automatically
-            // Only on initial fetch and if no user preference is saved
-            const studentCount = fetchedUsers.filter(u => u.role === 'student').length;
+            // UX Improvement: If no students on initial fetch, switch to Admins tab automatically
             const savedTab = localStorage.getItem("userActiveTab");
-
-            if (isInitialFetch.current && !savedTab && studentCount === 0 && fetchedUsers.length > 0) {
+            if (isInitialFetch.current && !savedTab && activeTab === "students" && (data.total ?? fetchedUsers.length) === 0 && !debouncedSearch) {
                 setActiveTab("admins");
             }
 
@@ -382,17 +407,23 @@ export default function UserManagementPage() {
         }
     };
 
-    const filteredUsers = useMemo(() => users.filter(u => {
-        const matchesSearch = u.profile?.firstName?.toLowerCase().includes(search.toLowerCase()) ||
-            u.profile?.lastName?.toLowerCase().includes(search.toLowerCase()) ||
-            u.email?.toLowerCase().includes(search.toLowerCase()) ||
-            u.role?.toLowerCase().includes(search.toLowerCase());
+    const filteredUsers = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return users.filter(u => {
+            const effectiveRole = u.instituteRole || u.role;
+            const isStudent = effectiveRole === 'student';
+            const matchesTab = activeTab === 'students' ? isStudent : !isStudent;
+            if (!matchesTab) return false;
+            if (!q) return true;
 
-        const isStudent = u.role === 'student';
-        const matchesTab = activeTab === 'students' ? isStudent : !isStudent;
-
-        return matchesSearch && matchesTab;
-    }), [users, search, activeTab]);
+            const fullName = `${u.profile?.firstName || ''} ${u.profile?.lastName || ''}`.toLowerCase();
+            return fullName.includes(q) ||
+                u.email?.toLowerCase().includes(q) ||
+                u.enrollmentNumber?.toLowerCase().includes(q) ||
+                u.profile?.phone?.toLowerCase().includes(q) ||
+                effectiveRole?.toLowerCase().includes(q);
+        });
+    }, [users, search, activeTab]);
 
     return (
         <div className="space-y-6">
@@ -417,7 +448,7 @@ export default function UserManagementPage() {
             {/* Tabs */}
             <div className="flex gap-4 border-b border-slate-200">
                 <button
-                    onClick={() => setActiveTab("students")}
+                    onClick={() => { setActiveTab("students"); setPage(1); }}
                     className={`pb-3 px-1 text-sm font-bold transition-all relative ${activeTab === "students"
                         ? "text-premium-blue"
                         : "text-slate-500 hover:text-slate-700"}`}
@@ -428,7 +459,7 @@ export default function UserManagementPage() {
                     )}
                 </button>
                 <button
-                    onClick={() => setActiveTab("admins")}
+                    onClick={() => { setActiveTab("admins"); setPage(1); }}
                     className={`pb-3 px-1 text-sm font-bold transition-all relative ${activeTab === "admins"
                         ? "text-premium-blue"
                         : "text-slate-500 hover:text-slate-700"}`}
@@ -441,19 +472,22 @@ export default function UserManagementPage() {
             </div>
 
             <Card className="border-transparent shadow-sm">
-                <div className="p-4 border-b border-slate-50 flex items-center justify-between">
+                <div className="p-4 border-b border-slate-50 flex items-center justify-between gap-4">
                     <div className="relative group max-w-sm w-full">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-premium-blue transition-colors" size={18} />
                         <label htmlFor="user-search" className="sr-only">Search users</label>
                         <input
                             id="user-search"
                             type="text"
-                            placeholder="Search users..."
+                            placeholder="Search name, email, phone, enrollment..."
                             value={search}
                             onChange={(e) => setSearch(e.target.value)}
                             className="w-full bg-slate-50 border border-slate-100 rounded-xl pl-10 pr-4 py-2 outline-none focus:border-premium-blue/30 focus:ring-4 focus:ring-premium-blue/5 transition-all text-sm font-medium"
                         />
                     </div>
+                    <span className="text-xs font-semibold text-slate-400 shrink-0">
+                        {totalUsers} {totalUsers === 1 ? 'record' : 'records'}
+                    </span>
                 </div>
 
                 {loading ? <LoadingSpinner /> : (
@@ -468,7 +502,14 @@ export default function UserManagementPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-50">
-                                {filteredUsers.map(user => (
+                                {filteredUsers.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-12 text-center text-sm text-slate-400">
+                                            No users found.
+                                        </td>
+                                    </tr>
+                                ) : (
+                                    filteredUsers.map(user => (
                                     <tr key={user._id} className="hover:bg-slate-50/30 transition-colors group">
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
@@ -577,9 +618,40 @@ export default function UserManagementPage() {
                                             </div>
                                         </td>
                                     </tr>
-                                ))}
+                                    ))
+                                )}
                             </tbody>
                         </table>
+                        {totalPages > 1 && (
+                            <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                                <span>
+                                    Showing {(page - 1) * limit + 1}–{Math.min(page * limit, totalUsers)} of {totalUsers}
+                                </span>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        disabled={page <= 1}
+                                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                                        className="px-3 py-1"
+                                    >
+                                        Previous
+                                    </Button>
+                                    <span className="font-semibold text-slate-700 px-2">
+                                        Page {page} of {totalPages}
+                                    </span>
+                                    <Button
+                                        size="sm"
+                                        variant="secondary"
+                                        disabled={page >= totalPages}
+                                        onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                                        className="px-3 py-1"
+                                    >
+                                        Next
+                                    </Button>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </Card>

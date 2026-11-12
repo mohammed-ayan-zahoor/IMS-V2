@@ -345,24 +345,19 @@ export async function GET(req) {
             ]);
 
         // 7. Activity Feed (Audit Log)
+        const isAdminOrSuperAdmin = scope.isSuperAdmin || ['admin', 'super_admin'].includes(scope.user?.role);
         const AuditLog = (await import("@/models/AuditLog")).default;
         const activityFeedQuery = isGlobalView 
             ? {} 
             : (isInstructor 
                 ? { institute: new mongoose.Types.ObjectId(targetInstituteId), actor: new mongoose.Types.ObjectId(scope.user.id) } 
                 : { institute: new mongoose.Types.ObjectId(targetInstituteId) });
-
-        activityFeedQuery.$nor = [
-            {
-                action: 'user.login',
-                'details.actorSnapshot.role': { $nin: ['admin', 'super_admin'] }
-            }
-        ];
-
-        const activityFeedPromise = AuditLog.find(activityFeedQuery)
-            .sort({ createdAt: -1 })
-            .limit(20)
-            .populate('actor', 'profile.firstName profile.lastName');
+        const activityFeedPromise = isAdminOrSuperAdmin
+            ? AuditLog.find(activityFeedQuery)
+                .sort({ createdAt: -1 })
+                .limit(20)
+                .populate('actor', 'profile.firstName profile.lastName')
+            : Promise.resolve([]);
 
         // 8. Growth Calculations (30d over 60d)
         const now = new Date();

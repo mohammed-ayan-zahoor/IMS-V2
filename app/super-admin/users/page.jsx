@@ -55,7 +55,7 @@ export default function AdminManagementPage() {
         setLoading(true);
         try {
             const [uRes, iRes] = await Promise.all([
-                fetch("/api/v1/users?role=admin"),
+                fetch("/api/v1/users?role=admin&instituteId=all"),
                 fetch("/api/v1/institutes")
             ]);
 
