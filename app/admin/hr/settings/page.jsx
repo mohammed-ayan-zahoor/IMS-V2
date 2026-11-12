@@ -40,6 +40,7 @@ export default function HRSettingsPage() {
         checkInGraceMins: 15,
         checkOutGraceMins: 10,
         deductionRatePerHour: 100,
+        attendanceDeductionEnabled: true,
         midDayOutEnabled: true,
         overtimeEnabled: true,
         overtimeBufferMins: 30,
@@ -74,6 +75,7 @@ export default function HRSettingsPage() {
                     checkInGraceMins: data.settings.checkInGraceMins ?? 15,
                     checkOutGraceMins: data.settings.checkOutGraceMins ?? 10,
                     deductionRatePerHour: data.settings.deductionRatePerHour ?? 100,
+                    attendanceDeductionEnabled: data.settings.attendanceDeductionEnabled ?? true,
                     midDayOutEnabled: data.settings.midDayOutEnabled ?? true,
                     overtimeEnabled: data.settings.overtimeEnabled ?? true,
                     overtimeBufferMins: data.settings.overtimeBufferMins ?? 30,
@@ -339,6 +341,38 @@ export default function HRSettingsPage() {
                                 className="w-full h-8 pl-7 pr-3 text-[13px] bg-[#F2F3F5] hover:bg-[#EBECEF] focus:bg-white text-[#14161A] rounded-lg border border-transparent focus:border-[#E6E8EC] focus:outline-none transition-all tabular-nums font-medium"
                             />
                         </div>
+                    </div>
+
+                    {/* Toggle: Attendance Salary Deduction */}
+                    <div className="pt-2 flex items-center justify-between gap-4 border-b border-[#E6E8EC] pb-3">
+                        <div className="space-y-0.5">
+                            <span className="text-[13px] font-medium text-[#14161A] block">
+                                Attendance Salary Deduction (Default)
+                            </span>
+                            <p className="text-[12px] text-[#5F6673]">
+                                Automatically deducts salary for absent and unpaid days when generating monthly payslips. Can still be toggled per payslip.
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            role="switch"
+                            aria-checked={formData.attendanceDeductionEnabled}
+                            onClick={() => setFormData(prev => ({ ...prev, attendanceDeductionEnabled: !prev.attendanceDeductionEnabled }))}
+                            className={cn(
+                                "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 focus:outline-none",
+                                formData.attendanceDeductionEnabled ? "bg-[#14161A]" : "bg-[#D1D5DB]"
+                            )}
+                        >
+                            <motion.span
+                                layout
+                                transition={SPRING_FAST}
+                                className={cn(
+                                    "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform",
+                                    formData.attendanceDeductionEnabled ? "translate-x-4" : "translate-x-0"
+                                )}
+                            />
+                        </button>
                     </div>
 
                     {/* Toggle: Personal Mid-Day Out-Pass */}

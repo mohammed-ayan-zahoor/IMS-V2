@@ -38,6 +38,11 @@ const HRSettingsSchema = new Schema({
         default: 100,
         min: 0
     },
+    // Master Attendance Salary Deduction Toggle (deduct pay for absent / unpaid days on payslip)
+    attendanceDeductionEnabled: {
+        type: Boolean,
+        default: true
+    },
     // Mid-Day Out-Pass Deduction Toggle
     midDayOutEnabled: {
         type: Boolean,

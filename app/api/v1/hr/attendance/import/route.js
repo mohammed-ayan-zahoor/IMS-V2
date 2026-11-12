@@ -355,6 +355,8 @@ export async function POST(req) {
 
                 const code = (dayEntry.code || "").toUpperCase();
 
+                const isSunday = dateObj.getUTCDay() === 0;
+
                 if (checkInTime || checkOutTime) {
                     status = "present";
 
@@ -381,17 +383,21 @@ export async function POST(req) {
                         remarks = `Biometric In: ${checkInTime} (Missed Punch Out)`;
                     } else if (!checkInTime && checkOutTime) {
                         remarks = `Biometric Out: ${checkOutTime} (Missed Punch In)`;
-                    } else if (code.includes("WO")) {
-                        remarks = `Worked on Week Off (${checkInTime} - ${checkOutTime})`;
+                    } else if (isSunday || code.includes("WO") || code.includes("W/O")) {
+                        remarks = `Worked on Sunday / Week Off (${checkInTime || 'No In'} - ${checkOutTime || 'No Out'})`;
                     } else {
                         remarks = `Biometric In: ${checkInTime} Out: ${checkOutTime}`;
                     }
+                } else if (isSunday) {
+                    // Sundays without punches are paid holidays (Week Off), never absent
+                    status = "holiday";
+                    remarks = "Sunday / Week Off";
+                } else if (code.includes("WO") || code.includes("W/O") || code === "OFF") {
+                    status = "holiday";
+                    remarks = "Week Off";
                 } else if (code === "A") {
                     status = "absent";
                     remarks = "Biometric Absent";
-                } else if (code.includes("WO") || code.includes("W/O")) {
-                    status = "holiday";
-                    remarks = "Week Off";
                 } else if (code === "MIS") {
                     status = "half_day";
                     remarks = "Biometric Missed Punch (MIS)";

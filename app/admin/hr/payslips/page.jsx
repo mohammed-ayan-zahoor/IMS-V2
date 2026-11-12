@@ -117,6 +117,7 @@ function PayslipsContent() {
     const [paymentStatus, setPaymentStatus] = useState("unpaid");
     const [paymentMode, setPaymentMode] = useState("Cash");
     const [monthlyAdjustments, setMonthlyAdjustments] = useState([]);
+    const [includeAttendanceDeduction, setIncludeAttendanceDeduction] = useState(true);
     const [previewLoading, setPreviewLoading] = useState(false);
 
     // ── State: Pay / Ledger Form ───────────────────────────────────────────────
@@ -127,6 +128,7 @@ function PayslipsContent() {
     const [payReference, setPayReference] = useState("");
     const [payNotes, setPayNotes] = useState("");
     const [paying, setPaying] = useState(false);
+    const userOverrodeDeductionRef = useRef(false);
 
     const searchInputRef = useRef(null);
 
@@ -306,13 +308,37 @@ function PayslipsContent() {
                 });
 
                 const summary = { present: 0, absent: 0, halfDay: 0, onLeave: 0, holiday: 0 };
+                const loggedDaysSet = new Set();
                 matchedLogs.forEach(log => {
-                    if (log.status === "present") summary.present++;
-                    else if (log.status === "absent") summary.absent++;
-                    else if (log.status === "half_day") summary.halfDay++;
-                    else if (log.status === "on_leave") summary.onLeave++;
-                    else if (log.status === "holiday") summary.holiday++;
+                    const logDate = new Date(log.date);
+                    const isSunday = logDate.getUTCDay() === 0;
+                    loggedDaysSet.add(logDate.getUTCDate());
+
+                    if (log.status === "present") {
+                        summary.present++;
+                    } else if (log.status === "absent") {
+                        // If Sunday was saved as absent in older imports, treat as paid weekly off
+                        if (isSunday && !log.checkInTime && !log.checkOutTime) {
+                            summary.holiday++;
+                        } else {
+                            summary.absent++;
+                        }
+                    } else if (log.status === "half_day") {
+                        summary.halfDay++;
+                    } else if (log.status === "on_leave") {
+                        summary.onLeave++;
+                    } else if (log.status === "holiday") {
+                        summary.holiday++;
+                    }
                 });
+
+                // Credit any unlogged Sundays as paid weekly off / holidays
+                for (let d = 1; d <= totalDaysInMonth; d++) {
+                    const curDate = new Date(Date.UTC(yearVal, monthIndex, d));
+                    if (curDate.getUTCDay() === 0 && !loggedDaysSet.has(d)) {
+                        summary.holiday++;
+                    }
+                }
 
                 let salaryComponents = [];
                 try {
@@ -338,7 +364,12 @@ function PayslipsContent() {
                     const hrRes = await fetch(`/api/v1/hr/settings`, { signal: controller.signal });
                     if (hrRes.ok) {
                         const hrData = await hrRes.json();
-                        if (hrData.settings) hrSettings = hrData.settings;
+                        if (hrData.settings) {
+                            hrSettings = hrData.settings;
+                            if (!userOverrodeDeductionRef.current && hrData.settings.attendanceDeductionEnabled !== undefined) {
+                                setIncludeAttendanceDeduction(hrData.settings.attendanceDeductionEnabled);
+                            }
+                        }
                     }
                 } catch (e) {}
 
@@ -487,6 +518,8 @@ function PayslipsContent() {
                     role: staffDetail.role,
                     basicSalary,
                     attendanceSummary: summary,
+                    unpaidDays,
+                    dailyRate,
                     absentDeduction,
                     timingDeduction,
                     baseEarnings: earnings,
@@ -513,7 +546,19 @@ function PayslipsContent() {
         if (!baseSalaryData) return null;
 
         const earnings = [...baseSalaryData.baseEarnings];
-        const deductions = [...baseSalaryData.baseDeductions];
+        let deductions = baseSalaryData.baseDeductions.map(d => {
+            if ((d.componentName || "").startsWith("Attendance Deduction")) {
+                if (!includeAttendanceDeduction) {
+                    return {
+                        componentName: baseSalaryData.unpaidDays > 0
+                            ? `Attendance Deduction (${baseSalaryData.unpaidDays}d Unpaid — Waived)`
+                            : "Attendance Deduction (0d — Waived)",
+                        amount: 0
+                    };
+                }
+            }
+            return { ...d };
+        });
 
         monthlyAdjustments.forEach(adj => {
             const amt = parseFloat(adj.amount) || 0;
@@ -544,7 +589,7 @@ function PayslipsContent() {
             totalDeductions,
             netSalary
         };
-    }, [baseSalaryData, monthlyAdjustments]);
+    }, [baseSalaryData, monthlyAdjustments, includeAttendanceDeduction]);
 
     const handleCreatePayslip = async (e) => {
         e.preventDefault();
@@ -571,6 +616,7 @@ function PayslipsContent() {
                     paymentStatus,
                     paymentMode,
                     notes,
+                    includeAttendanceDeduction,
                     customEarnings,
                     customDeductions
                 })
@@ -1010,7 +1056,7 @@ function PayslipsContent() {
             {/* ── MODAL: GENERATE PAYSLIP ─────────────────────────────────────────── */}
             <Modal
                 isOpen={isCreateOpen}
-                onClose={() => { setIsCreateOpen(false); setSelectedStaffId(""); setBaseSalaryData(null); setMonthlyAdjustments([]); }}
+                onClose={() => { setIsCreateOpen(false); setSelectedStaffId(""); setBaseSalaryData(null); setMonthlyAdjustments([]); userOverrodeDeductionRef.current = false; }}
                 title="Generate New Payslip"
                 size="2xl"
                 className="max-w-5xl"
@@ -1062,8 +1108,57 @@ function PayslipsContent() {
                                     <span className="px-2 py-0.5 bg-white border border-[#E6E8EC] rounded-md font-medium text-rose-700">{previewData.attendanceSummary.absent || 0}d Absent</span>
                                     <span className="px-2 py-0.5 bg-white border border-[#E6E8EC] rounded-md font-medium text-amber-700">{previewData.attendanceSummary.halfDay || 0}d Half</span>
                                     <span className="px-2 py-0.5 bg-white border border-[#E6E8EC] rounded-md font-medium text-[#0E8A7D]">{previewData.attendanceSummary.onLeave || 0}d Leave</span>
-                                    <span className="px-2 py-0.5 bg-white border border-[#E6E8EC] rounded-md font-medium text-[#5F6673]">{previewData.attendanceSummary.holiday || 0}d Holiday</span>
+                                    <span className="px-2 py-0.5 bg-white border border-[#E6E8EC] rounded-md font-medium text-[#5F6673]">{previewData.attendanceSummary.holiday || 0}d Holiday (inc. Sundays)</span>
                                 </div>
+                            </div>
+
+                            {/* Attendance Deduction Toggle Switch */}
+                            <div className="bg-white border border-[#E6E8EC] rounded-lg p-2.5 flex items-center justify-between gap-3">
+                                <div className="space-y-0.5 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-[12px] font-semibold text-[#14161A]">
+                                            Apply Attendance Deduction
+                                        </span>
+                                        <span className={cn(
+                                            "text-[10px] font-medium px-1.5 py-0.5 rounded shrink-0",
+                                            includeAttendanceDeduction 
+                                                ? (baseSalaryData?.unpaidDays > 0 ? "bg-rose-50 text-rose-700 border border-rose-200" : "bg-[#F2F3F5] text-[#5F6673]") 
+                                                : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                                        )}>
+                                            {includeAttendanceDeduction 
+                                                ? (baseSalaryData?.unpaidDays > 0 ? `Deducting ${baseSalaryData.unpaidDays}d (₹${formatCurrency(baseSalaryData.absentDeduction)})` : "Active (0d unpaid)") 
+                                                : "Waived (₹0.00)"}
+                                        </span>
+                                    </div>
+                                    <p className="text-[11px] text-[#5F6673] truncate">
+                                        {includeAttendanceDeduction 
+                                            ? "Salary will be deducted proportionally for absent and unpaid days (Sundays are excluded)." 
+                                            : "Attendance deduction is disabled for this payslip. Full salary will be paid."}
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    role="switch"
+                                    aria-checked={includeAttendanceDeduction}
+                                    onClick={() => {
+                                        userOverrodeDeductionRef.current = true;
+                                        setIncludeAttendanceDeduction(!includeAttendanceDeduction);
+                                    }}
+                                    className={cn(
+                                        "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors duration-200 focus:outline-none",
+                                        includeAttendanceDeduction ? "bg-[#14161A]" : "bg-[#D1D5DB]"
+                                    )}
+                                >
+                                    <motion.span
+                                        layout
+                                        transition={SPRING_FAST}
+                                        className={cn(
+                                            "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-sm ring-0 transition-transform",
+                                            includeAttendanceDeduction ? "translate-x-4" : "translate-x-0"
+                                        )}
+                                    />
+                                </button>
                             </div>
 
                             <div className="space-y-3">
@@ -1324,7 +1419,7 @@ function PayslipsContent() {
                     />
 
                     <div className="flex justify-end gap-2 pt-4 border-t border-[#E6E8EC]">
-                        <Button type="button" variant="ghost" onClick={() => { setIsCreateOpen(false); setSelectedStaffId(""); setBaseSalaryData(null); }}>
+                        <Button type="button" variant="ghost" onClick={() => { setIsCreateOpen(false); setSelectedStaffId(""); setBaseSalaryData(null); userOverrodeDeductionRef.current = false; }}>
                             Cancel
                         </Button>
                         <Button type="submit" disabled={!selectedStaffId || previewLoading} className="bg-[#14161A] hover:bg-black text-white font-semibold">

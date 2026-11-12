@@ -60,7 +60,7 @@ export async function POST(req) {
         }
 
         const body = await req.json();
-        const { staffId, month, year, paymentMode, paymentStatus, notes } = body;
+        const { staffId, month, year, paymentMode, paymentStatus, notes, includeAttendanceDeduction } = body;
 
         if (!staffId || !month || !year) {
             return NextResponse.json({ error: "Staff ID, Month, and Year are required" }, { status: 400 });
@@ -106,13 +106,38 @@ export async function POST(req) {
             holiday: 0
         };
 
+        const loggedDaysSet = new Set();
         attendanceLogs.forEach(log => {
-            if (log.status === 'present') attendanceSummary.present++;
-            else if (log.status === 'absent') attendanceSummary.absent++;
-            else if (log.status === 'half_day') attendanceSummary.halfDay++;
-            else if (log.status === 'on_leave') attendanceSummary.onLeave++;
-            else if (log.status === 'holiday') attendanceSummary.holiday++;
+            const logDate = new Date(log.date);
+            const isSunday = logDate.getUTCDay() === 0;
+            const dayNum = logDate.getUTCDate();
+            loggedDaysSet.add(dayNum);
+
+            if (log.status === 'present') {
+                attendanceSummary.present++;
+            } else if (log.status === 'absent') {
+                // If a Sunday was stored as 'absent' in older imports, treat as holiday (paid weekly off)
+                if (isSunday && !log.checkInTime && !log.checkOutTime) {
+                    attendanceSummary.holiday++;
+                } else {
+                    attendanceSummary.absent++;
+                }
+            } else if (log.status === 'half_day') {
+                attendanceSummary.halfDay++;
+            } else if (log.status === 'on_leave') {
+                attendanceSummary.onLeave++;
+            } else if (log.status === 'holiday') {
+                attendanceSummary.holiday++;
+            }
         });
+
+        // Credit any unlogged Sundays in the month as paid weekly offs / holidays
+        for (let d = 1; d <= totalDaysInMonth; d++) {
+            const curDate = new Date(Date.UTC(year, month - 1, d));
+            if (curDate.getUTCDay() === 0 && !loggedDaysSet.has(d)) {
+                attendanceSummary.holiday++;
+            }
+        }
 
         // Fetch HR settings for timing rules & deduction/OT rates
         const hrSettings = await HRSettings.findOne({ institute: instituteId }) || {
@@ -121,11 +146,16 @@ export async function POST(req) {
             checkInGraceMins: 15,
             checkOutGraceMins: 10,
             deductionRatePerHour: 100,
+            attendanceDeductionEnabled: true,
             midDayOutEnabled: true,
             overtimeEnabled: true,
             overtimeBufferMins: 30,
             overtimeRatePerHour: 150
         };
+
+        const shouldDeductAttendance = typeof includeAttendanceDeduction === 'boolean'
+            ? includeAttendanceDeduction
+            : (hrSettings.attendanceDeductionEnabled ?? true);
 
         // Department-level shift timing overrides
         const deptShift = staffMember.department?.shiftTimings;
@@ -310,8 +340,12 @@ export async function POST(req) {
                          (attendanceSummary.onLeave || 0);
         
         const unpaidDays = Math.max(0, Math.round((totalDaysInMonth - paidDays) * 10) / 10);
-        const absentDeductionAmount = Math.round(unpaidDays * dailyRate * 100) / 100;
+        let absentDeductionAmount = Math.round(unpaidDays * dailyRate * 100) / 100;
         
+        if (!shouldDeductAttendance) {
+            absentDeductionAmount = 0;
+        }
+
         const markedTotal = (attendanceSummary.present || 0) + 
                             (attendanceSummary.absent || 0) + 
                             (attendanceSummary.halfDay || 0) + 
@@ -327,8 +361,14 @@ export async function POST(req) {
         if (parts.length > 0) attendanceDesc += `: ${parts.join(', ')}`;
         attendanceDesc += ` @ ₹${dailyRate.toFixed(2)}/d)`;
 
+        if (!shouldDeductAttendance) {
+            attendanceDesc = unpaidDays > 0
+                ? `Attendance Deduction (${unpaidDays}d Unpaid — Waived)`
+                : "Attendance Deduction (0d — Waived)";
+        }
+
         deductions.push({
-            componentName: unpaidDays > 0 ? attendanceDesc : "Attendance Deduction (0d)",
+            componentName: (unpaidDays > 0 || !shouldDeductAttendance) ? attendanceDesc : "Attendance Deduction (0d)",
             amount: absentDeductionAmount
         });
 
@@ -386,6 +426,7 @@ export async function POST(req) {
             month,
             year,
             attendanceSummary,
+            attendanceDeductionEnabled: shouldDeductAttendance,
             basicSalary,
             earnings,
             deductions,

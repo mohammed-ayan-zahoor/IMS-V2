@@ -31,6 +31,10 @@ const PayslipSchema = new Schema({
         onLeave: { type: Number, default: 0 },
         holiday: { type: Number, default: 0 }
     },
+    attendanceDeductionEnabled: {
+        type: Boolean,
+        default: true
+    },
     basicSalary: {
         type: Number,
         required: true,
