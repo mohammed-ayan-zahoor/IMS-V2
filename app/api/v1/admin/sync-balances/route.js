@@ -6,6 +6,8 @@ import Collector from "@/models/Collector";
 import Fee from "@/models/Fee";
 import TransportFee from "@/models/TransportFee";
 import CollectorTransfer from "@/models/CollectorTransfer";
+import Expense from "@/models/Expense";
+import Income from "@/models/Income";
 import mongoose from "mongoose";
 
 export async function POST(req) {
@@ -61,7 +63,25 @@ export async function POST(req) {
             if (toColl) balanceMap[toColl.name] += t.amount;
         }
 
-        // 5. Update DB
+        // 5. Subtract recorded expenses paid by accounts
+        const expenses = await Expense.find({ institute: instituteId, paidByAccount: { $ne: null } });
+        for (const exp of expenses) {
+            const coll = collectors.find(c => c._id.toString() === exp.paidByAccount.toString());
+            if (coll && typeof exp.amount === 'number') {
+                balanceMap[coll.name] = (balanceMap[coll.name] || 0) - exp.amount;
+            }
+        }
+
+        // 6. Add recorded incomes received in accounts
+        const incomes = await Income.find({ institute: instituteId, receivedInAccount: { $ne: null } });
+        for (const inc of incomes) {
+            const coll = collectors.find(c => c._id.toString() === inc.receivedInAccount.toString());
+            if (coll && typeof inc.amount === 'number') {
+                balanceMap[coll.name] = (balanceMap[coll.name] || 0) + inc.amount;
+            }
+        }
+
+        // 7. Update DB
         const updates = [];
         for (const collector of collectors) {
             collector.currentBalance = balanceMap[collector.name] || 0;

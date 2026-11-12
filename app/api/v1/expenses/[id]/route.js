@@ -3,6 +3,8 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Expense from "@/models/Expense";
+import Collector from "@/models/Collector";
+import Payslip from "@/models/Payslip";
 import { createAuditLog } from "@/services/auditService";
 import mongoose from "mongoose";
 
@@ -24,6 +26,15 @@ export async function DELETE(req, { params }) {
         }
 
         await connectDB();
+
+        // Guard: Prevent deleting salary disbursement expenses directly from expenses module
+        const linkedPayslip = await Payslip.findOne({ expense: id, institute: instituteId });
+        if (linkedPayslip) {
+            return NextResponse.json({
+                error: "This expense is linked to a salary payslip. Please cancel or modify the disbursement from HR > Payslips."
+            }, { status: 400 });
+        }
+
         const expense = await Expense.findOne({
             _id: id,
             institute: instituteId
@@ -34,6 +45,14 @@ export async function DELETE(req, { params }) {
         }
 
         await Expense.deleteOne({ _id: id });
+
+        // Refund/restore balance back to the account if this expense was paid from one
+        if (expense.paidByAccount && typeof expense.amount === 'number' && expense.amount > 0) {
+            await Collector.updateOne(
+                { _id: expense.paidByAccount, institute: instituteId },
+                { $inc: { currentBalance: expense.amount } }
+            );
+        }
 
         await createAuditLog({
             actor: session.user.id,
@@ -71,9 +90,34 @@ export async function PUT(req, { params }) {
         const { date, expenseHead, amount, description, paidTo, paymentMode, paidByAccount, attachments } = body;
 
         await connectDB();
+
+        // Guard: Prevent editing salary disbursement expenses directly from expenses module
+        const linkedPayslip = await Payslip.findOne({ expense: id, institute: instituteId });
+        if (linkedPayslip) {
+            return NextResponse.json({
+                error: "This expense is linked to a salary payslip. Please modify the disbursement from HR > Payslips."
+            }, { status: 400 });
+        }
+
         const expense = await Expense.findOne({ _id: id, institute: instituteId });
         if (!expense) {
             return NextResponse.json({ error: "Expense record not found" }, { status: 404 });
+        }
+
+        const oldAmount = typeof expense.amount === 'number' ? expense.amount : 0;
+        const oldAccount = expense.paidByAccount ? expense.paidByAccount.toString() : null;
+
+        const finalAmount = (typeof amount === 'number' && amount > 0) ? amount : oldAmount;
+        const finalAccount = paidByAccount !== undefined 
+            ? (paidByAccount ? paidByAccount.toString() : null) 
+            : oldAccount;
+
+        // If assigning a new account, ensure it exists in this institute
+        if (finalAccount && finalAccount !== oldAccount) {
+            const targetCollector = await Collector.findOne({ _id: finalAccount, institute: instituteId });
+            if (!targetCollector) {
+                return NextResponse.json({ error: "Selected payment account not found" }, { status: 400 });
+            }
         }
 
         if (date) expense.date = new Date(date);
@@ -88,6 +132,32 @@ export async function PUT(req, { params }) {
         await expense.save();
         await expense.populate('expenseHead', 'name');
         await expense.populate('paidByAccount', 'name accountType');
+
+        // Adjust collector balances
+        if (oldAccount === finalAccount) {
+            if (oldAccount && finalAmount !== oldAmount) {
+                const diff = finalAmount - oldAmount; // positive diff means expense increased, deduct more
+                await Collector.updateOne(
+                    { _id: oldAccount, institute: instituteId },
+                    { $inc: { currentBalance: -diff } }
+                );
+            }
+        } else {
+            // Old account is refunded the previous amount
+            if (oldAccount) {
+                await Collector.updateOne(
+                    { _id: oldAccount, institute: instituteId },
+                    { $inc: { currentBalance: oldAmount } }
+                );
+            }
+            // New account is deducted the new amount
+            if (finalAccount) {
+                await Collector.updateOne(
+                    { _id: finalAccount, institute: instituteId },
+                    { $inc: { currentBalance: -finalAmount } }
+                );
+            }
+        }
 
         return NextResponse.json({ success: true, expense });
     } catch (error) {

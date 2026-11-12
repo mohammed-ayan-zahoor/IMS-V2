@@ -36,11 +36,13 @@ import {
     Layers, 
     TrendingUp,
     FileSpreadsheet,
-    Wallet
+    Wallet,
+    Trash2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReceiptViewerModal from "@/components/finance/ReceiptViewerModal";
 import { useToast } from "@/contexts/ToastContext";
+import { useConfirm } from "@/contexts/ConfirmContext";
 import { SPRING } from "@/lib/apple-motion";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +61,7 @@ export default function ExpenseReportPage() {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const toast = useToast();
+    const confirm = useConfirm();
 
     // Default dates: start of current month to today
     const defaultFrom = format(startOfMonth(new Date()), "yyyy-MM-dd");
@@ -237,6 +240,27 @@ export default function ExpenseReportPage() {
             }
         };
     }, [loadExpenses]);
+
+    const handleDelete = async (id, category, amount) => {
+        if (await confirm({
+            title: "Delete Expense Entry?",
+            message: `Are you sure you want to delete this expense of ${formatCurrency(amount)} under "${category}"? If this was paid from an account, the funds will be restored. This action cannot be undone.`,
+            type: "danger"
+        })) {
+            try {
+                const res = await fetch(`/api/v1/expenses/${id}`, { method: "DELETE" });
+                if (res.ok) {
+                    toast.success("Expense record deleted successfully");
+                    loadExpenses(true);
+                } else {
+                    const data = await res.json();
+                    toast.error(data.error || "Failed to delete record");
+                }
+            } catch (error) {
+                toast.error("Error deleting record");
+            }
+        }
+    };
 
     // Formatters
     const formatCurrency = (amount) => {
@@ -824,6 +848,7 @@ export default function ExpenseReportPage() {
                                         )}
                                     </button>
                                 </th>
+                                <th className="w-10 px-2 py-3 text-right"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-xs">
@@ -838,6 +863,7 @@ export default function ExpenseReportPage() {
                                         <td className="px-4 py-3.5"><div className="h-3.5 w-28 bg-slate-100 rounded" /></td>
                                         <td className="px-4 py-3.5 text-center"><div className="h-4 w-12 bg-slate-100 rounded mx-auto" /></td>
                                         <td className="px-4 py-3.5 text-right"><div className="h-3.5 w-16 bg-slate-100 rounded ml-auto" /></td>
+                                        <td className="w-10 px-2 py-3"></td>
                                     </tr>
                                 ))
                             ) : paginatedExpenses.length > 0 ? (
@@ -911,12 +937,23 @@ export default function ExpenseReportPage() {
                                             <td className="px-4 py-3 text-right font-black font-mono tabular-nums text-slate-900 whitespace-nowrap group-hover:text-blue-700 transition-colors">
                                                 {formatCurrency(expense.amount)}
                                             </td>
+
+                                            {/* Quiet Delete Action */}
+                                            <td className="w-10 px-2 py-3 text-right">
+                                                <button
+                                                    onClick={() => handleDelete(expense._id, expense.expenseHead?.name || "Expense", expense.amount)}
+                                                    className="w-6 h-6 inline-flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
+                                                    title="Delete Entry"
+                                                >
+                                                    <Trash2 size={13} />
+                                                </button>
+                                            </td>
                                         </tr>
                                     );
                                 })
                             ) : (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-16 text-center">
+                                    <td colSpan={8} className="px-4 py-16 text-center">
                                         <div className="max-w-sm mx-auto flex flex-col items-center gap-2">
                                             <Search size={28} className="text-slate-300 mb-1" />
                                             <h4 className="text-sm font-bold text-slate-800">No expenses found</h4>
@@ -949,6 +986,7 @@ export default function ExpenseReportPage() {
                                     <td className="px-4 py-3 text-right font-black font-mono tabular-nums text-sm text-slate-900">
                                         {formatCurrency(filteredExpenses.reduce((s, e) => s + (e.amount || 0), 0))}
                                     </td>
+                                    <td className="w-10 px-2 py-3"></td>
                                 </tr>
                             </tfoot>
                         )}

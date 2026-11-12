@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import Expense from "@/models/Expense";
+import Collector from "@/models/Collector";
 import { createAuditLog } from "@/services/auditService";
 
 export async function GET(req) {
@@ -95,6 +96,15 @@ export async function POST(req) {
         }
 
         await connectDB();
+
+        // Validate account if specified
+        if (paidByAccount) {
+            const collector = await Collector.findOne({ _id: paidByAccount, institute: instituteId });
+            if (!collector) {
+                return NextResponse.json({ error: "Selected payment account not found" }, { status: 400 });
+            }
+        }
+
         const expense = await Expense.create({
             institute: instituteId,
             date: new Date(date),
@@ -107,6 +117,14 @@ export async function POST(req) {
             attachments: Array.isArray(attachments) ? attachments : [],
             entryBy: session.user.id
         });
+
+        // Deduct from account balance if paid from an account
+        if (paidByAccount) {
+            await Collector.updateOne(
+                { _id: paidByAccount, institute: instituteId },
+                { $inc: { currentBalance: -amount } }
+            );
+        }
 
         await expense.populate('expenseHead', 'name');
         await expense.populate('paidByAccount', 'name accountType');
