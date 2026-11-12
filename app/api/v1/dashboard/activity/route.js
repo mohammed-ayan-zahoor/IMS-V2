@@ -18,7 +18,15 @@ export async function GET(req) {
 
         const isGlobalView = scope.isSuperAdmin && (targetInstParam === "all" || !targetInstParam);
 
-        const logs = await AuditLog.find(isGlobalView ? {} : { institute: scope.instituteId })
+        const query = isGlobalView ? {} : { institute: scope.instituteId };
+        query.$nor = [
+            {
+                action: 'user.login',
+                'details.actorSnapshot.role': { $nin: ['admin', 'super_admin'] }
+            }
+        ];
+
+        const logs = await AuditLog.find(query)
             .sort({ createdAt: -1 })
             .limit(20)
             .populate('actor', 'profile.firstName profile.lastName');
