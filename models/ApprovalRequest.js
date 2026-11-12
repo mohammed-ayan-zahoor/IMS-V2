@@ -17,7 +17,7 @@ const ApprovalRequestSchema = new Schema({
     action: {
         type: String,
         required: true,
-        enum: ['discount', 'approval_settings']
+        enum: ['discount', 'approval_settings', 'fee_payment_delete']
     },
     resourceType: {
         type: String,

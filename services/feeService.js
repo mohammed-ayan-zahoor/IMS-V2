@@ -7,6 +7,7 @@ import Collector from '@/models/Collector';
 import { createAuditLog } from './auditService';
 import { connectDB } from '@/lib/mongodb';
 import HostelAllotment from '@/models/HostelAllotment';
+import { clearDashboardCache } from '@/lib/dashboardCache';
 
 // Ensure we have the model
 const FeeDb = Fee;
@@ -1039,6 +1040,101 @@ export class FeeService {
 
         return fee;
     }
+
+    /**
+     * Revert / delete an individual paid installment payment entry.
+     * Restores installment status to 'pending' (or 'overdue' if past dueDate),
+     * clears payment fields, adds audit note stamp, decreases Collector.currentBalance,
+     * and triggers pre-save hook to recalculate paidAmount, balanceAmount, & fee.status.
+     */
+    static async revertPayment(feeId, installmentId, reason, actorId) {
+        await connectDB();
+        const fee = await FeeDb.findById(feeId).populate('student').populate('batch');
+        if (!fee) throw new Error("Fee record not found");
+
+        let installment = fee.installments.id(installmentId);
+        if (!installment) {
+            installment = fee.installments.find(i => String(i._id) === String(installmentId));
+        }
+
+        if (!installment) throw new Error("Installment entry not found");
+        if (installment.status !== 'paid') throw new Error("Only paid installments can be deleted/reverted");
+
+        const revertedAmount = installment.amount;
+        const previousPaymentMethod = installment.paymentMethod;
+        const previousTransactionId = installment.transactionId;
+        const collectedBy = installment.collectedBy;
+        const penaltyReverted = installment.penaltyPaid || 0;
+        const previousPaidDate = installment.paidDate;
+
+        // 1. Revert installment state
+        const isPastDue = new Date(installment.dueDate) < new Date();
+        installment.status = isPastDue ? 'overdue' : 'pending';
+        installment.paidDate = undefined;
+        installment.paymentMethod = undefined;
+        installment.transactionId = undefined;
+        installment.collectedBy = undefined;
+
+        // Stamp audit note so history is preserved
+        const revertTimestamp = new Date().toLocaleDateString('en-IN', {
+            day: '2-digit', month: 'short', year: 'numeric'
+        });
+        const revertStamp = `[Payment of ₹${revertedAmount.toLocaleString('en-IN')} reverted on ${revertTimestamp}${reason ? `: ${reason}` : ''}]`;
+        installment.notes = installment.notes ? `${installment.notes} | ${revertStamp}` : revertStamp;
+
+        if (penaltyReverted > 0) {
+            installment.penaltyPaid = 0;
+            installment.penaltyStatus = 'pending';
+        }
+
+        // CRITICAL: Mark installments as modified so pre-save hook recalculates paidAmount, balanceAmount, & fee.status
+        fee.markModified('installments');
+
+        await fee.save();
+
+        // 2. Reverse collector balance if collected by a collector
+        if (collectedBy) {
+            try {
+                const collector = await Collector.findOne({
+                    name: collectedBy,
+                    institute: fee.institute
+                });
+                if (collector) {
+                    collector.currentBalance = Math.max(0, (collector.currentBalance || 0) - revertedAmount);
+                    await collector.save();
+                }
+            } catch (collErr) {
+                console.error("Failed to reverse collector balance on payment revert:", collErr);
+            }
+        }
+
+        // 3. Clear dashboard cache
+        if (fee.institute) {
+            clearDashboardCache(fee.institute.toString());
+        }
+
+        // 4. Record Audit Log
+        await createAuditLog({
+            actor: actorId,
+            action: 'fee.payment.delete',
+            resource: { type: 'Fee', id: fee._id },
+            institute: fee.institute,
+            details: {
+                installmentId: installment._id?.toString() || installmentId,
+                amount: revertedAmount,
+                paymentMethod: previousPaymentMethod,
+                transactionId: previousTransactionId,
+                collectedBy,
+                paidDate: previousPaidDate,
+                reason: reason || 'Manual fee entry deletion',
+                student: fee.student?._id,
+                studentName: getStudentName(fee.student)
+            }
+        });
+
+        return fee;
+    }
+
     static async updateDiscount(feeId, discountData, actorId) {
         await connectDB();
         const fee = await FeeDb.findById(feeId).populate('student').populate('batch');

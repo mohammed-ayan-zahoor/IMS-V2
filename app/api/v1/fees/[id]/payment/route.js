@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import mongoose from "mongoose";
 import { FeeService } from "@/services/feeService";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -186,5 +187,85 @@ export async function POST(req, { params }) {
     } catch (error) {
         console.error("Unexpected Error in Payment Route:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+}
+
+export async function DELETE(req, { params }) {
+    try {
+        const session = await getServerSession(authOptions);
+        const hasAccess = session && (["admin", "super_admin"].includes(session.user.role) ||
+            (session.user.role === "instructor" && session.user.permissions?.includes("manage_fees")));
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { id } = await params; // Fee ID
+        if (!id || !mongoose.Types.ObjectId.isValid(id)) {
+            return NextResponse.json({ error: "Invalid fee ID" }, { status: 400 });
+        }
+
+        const { searchParams } = new URL(req.url);
+        let installmentId = searchParams.get('installmentId');
+        let reason = searchParams.get('reason') || '';
+
+        // Also check if body has installmentId or reason
+        try {
+            const body = await req.json();
+            if (body.installmentId) installmentId = body.installmentId;
+            if (body.reason) reason = body.reason;
+        } catch (e) {
+            // body may be empty if passed via query params
+        }
+
+        if (!installmentId) {
+            return NextResponse.json({ error: "installmentId is required" }, { status: 400 });
+        }
+
+        await connectDB();
+        const scope = await getInstituteScope(req);
+
+        // Fetch fee to verify institute ownership
+        const feeRecord = await Fee.findById(id);
+        if (!feeRecord) {
+            return NextResponse.json({ error: "Fee record not found" }, { status: 404 });
+        }
+
+        const hasInstituteAccess = await validateInstituteAccess(feeRecord, scope);
+        if (!hasInstituteAccess) {
+            return NextResponse.json({ error: "Access denied: This fee record belongs to another institute" }, { status: 403 });
+        }
+
+        // Check approval guard if configured
+        const { checkApproval } = await import("@/lib/approvalGuard");
+        const guard = await checkApproval({
+            session,
+            action: 'fee_payment_delete',
+            resourceType: 'Fee',
+            resourceId: id,
+            payload: { installmentId, reason }
+        });
+
+        if (!guard.proceed) {
+            return NextResponse.json({
+                pending: true,
+                alreadyPending: guard.alreadyPending,
+                requestId: guard.requestId,
+                message: guard.alreadyPending
+                    ? "A request to delete this fee payment entry is already pending approval"
+                    : "Payment deletion request submitted and sent to Master Admin for approval"
+            }, { status: 202 });
+        }
+
+        const updatedFee = await FeeService.revertPayment(id, installmentId, reason, session.user.id);
+
+        return NextResponse.json({
+            success: true,
+            message: "Fee payment entry deleted successfully",
+            fee: updatedFee
+        });
+
+    } catch (error) {
+        console.error("Fee Payment Delete Error:", error);
+        return NextResponse.json({ error: error.message || "Failed to delete fee payment entry" }, { status: 500 });
     }
 }

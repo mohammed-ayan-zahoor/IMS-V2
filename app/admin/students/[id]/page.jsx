@@ -47,7 +47,8 @@ import {
     Layers,
     Building,
     MoreHorizontal,
-    Hash
+    Hash,
+    RotateCcw
 } from "lucide-react";
 import EnrollFaceModal from "@/components/users/EnrollFaceModal";
 import IDCardQR from "@/components/users/IDCardQR";
@@ -1207,6 +1208,65 @@ export default function StudentDetailsPage({ params }) {
     const [isExtraChargesModalOpen, setIsExtraChargesModalOpen] = useState(false);
     const [extraChargesData, setExtraChargesData] = useState({ amount: "", reason: "" });
     const [isApplyingExtraCharges, setIsApplyingExtraCharges] = useState(false);
+
+    // Revert / Delete Fee Payment Modal State
+    const [revertPaymentModal, setRevertPaymentModal] = useState({
+        isOpen: false,
+        fee: null,
+        installment: null,
+        installmentIndex: null,
+        reason: "",
+        isSubmitting: false
+    });
+
+    const openRevertPaymentModal = (fee, installment, index) => {
+        setRevertPaymentModal({
+            isOpen: true,
+            fee,
+            installment,
+            installmentIndex: index,
+            reason: "",
+            isSubmitting: false
+        });
+    };
+
+    const handleConfirmRevertPayment = async () => {
+        if (!revertPaymentModal.fee || !revertPaymentModal.installment) return;
+
+        setRevertPaymentModal(prev => ({ ...prev, isSubmitting: true }));
+        try {
+            const feeId = revertPaymentModal.fee._id;
+            const installmentId = revertPaymentModal.installment._id;
+
+            const res = await fetch(`/api/v1/fees/${feeId}/payment`, {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    installmentId,
+                    reason: revertPaymentModal.reason?.trim() || "Manual payment deletion"
+                })
+            });
+
+            const data = await res.json();
+
+            if (res.ok) {
+                if (data.pending) {
+                    toast.info(data.message || "Payment deletion submitted for Master Admin approval");
+                } else {
+                    toast.success(data.message || "Fee payment entry deleted successfully");
+                }
+                setRevertPaymentModal({ isOpen: false, fee: null, installment: null, installmentIndex: null, reason: "", isSubmitting: false });
+                await fetchStudentDetails();
+            } else {
+                toast.error(data.error || "Failed to delete fee payment entry");
+                setRevertPaymentModal(prev => ({ ...prev, isSubmitting: false }));
+            }
+        } catch (err) {
+            console.error("Error reverting fee payment:", err);
+            toast.error("An error occurred while deleting payment entry");
+            setRevertPaymentModal(prev => ({ ...prev, isSubmitting: false }));
+        }
+    };
 
     const handleApplyDiscount = async (e) => {
         e.preventDefault();
@@ -2702,22 +2762,45 @@ export default function StudentDetailsPage({ params }) {
                                                                         }`}>
                                                                             #{index + 1}
                                                                         </span>
-                                                                        <span className={`w-2 h-2 rounded-full ${
-                                                                            isInstPaid 
-                                                                                ? 'bg-emerald-500 ring-2 ring-emerald-200' 
-                                                                                : isOverdue 
+                                                                        {isInstPaid ? (
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <button
+                                                                                    type="button"
+                                                                                    onClick={(e) => {
+                                                                                        e.stopPropagation();
+                                                                                        openRevertPaymentModal(fee, inst, index + 1);
+                                                                                    }}
+                                                                                    className="w-5 h-5 flex items-center justify-center rounded-md bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-emerald-200/80 hover:border-rose-300 shadow-2xs transition-all cursor-pointer"
+                                                                                    title="Delete this fee payment entry"
+                                                                                >
+                                                                                    <Trash2 size={11} />
+                                                                                </button>
+                                                                                <span className="w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-emerald-200" />
+                                                                            </div>
+                                                                        ) : (
+                                                                            <span className={`w-2 h-2 rounded-full ${
+                                                                                isOverdue 
                                                                                     ? 'bg-rose-500 ring-2 ring-rose-200 animate-pulse' 
                                                                                     : 'bg-slate-400 ring-2 ring-slate-200'
-                                                                        }`} />
+                                                                            }`} />
+                                                                        )}
                                                                     </div>
                                                                     <div className="mt-2.5 flex justify-between items-baseline gap-1">
                                                                         <span className={`text-xs font-black ${isInstPaid ? 'text-emerald-950' : isOverdue ? 'text-rose-950' : 'text-slate-900'}`}>
                                                                             ₹{inst.amount.toLocaleString()}
                                                                         </span>
                                                                         <span className={`text-[10px] font-medium ${isInstPaid ? 'text-emerald-700 font-semibold' : isOverdue ? 'text-rose-700 font-semibold' : 'text-slate-500'}`}>
-                                                                            {format(new Date(inst.dueDate), "MMM d")}
+                                                                            {isInstPaid && inst.paidDate 
+                                                                                ? `Paid ${format(new Date(inst.paidDate), "MMM d")}`
+                                                                                : format(new Date(inst.dueDate), "MMM d")}
                                                                         </span>
                                                                     </div>
+                                                                    {isInstPaid && (inst.paymentMethod || inst.collectedBy) && (
+                                                                        <p className="mt-1 text-[9px] font-semibold text-emerald-800 flex items-center gap-1 truncate" title={`${inst.paymentMethod || 'Paid'}${inst.collectedBy ? ` via ${inst.collectedBy}` : ''}`}>
+                                                                            <span>{inst.paymentMethod || 'Paid'}</span>
+                                                                            {inst.collectedBy && <span>• {inst.collectedBy}</span>}
+                                                                        </p>
+                                                                    )}
                                                                     {inst.notes && (
                                                                         <p className="mt-1.5 text-[10px] font-medium text-slate-600 line-clamp-1 border-t border-slate-200/50 pt-1" title={inst.notes}>
                                                                             {inst.notes}
@@ -4293,6 +4376,105 @@ export default function StudentDetailsPage({ params }) {
                         </Button>
                     </div>
                 </form>
+            </Modal>
+
+            {/* Revert / Delete Payment Entry Modal */}
+            <Modal
+                isOpen={revertPaymentModal.isOpen}
+                onClose={() => !revertPaymentModal.isSubmitting && setRevertPaymentModal(prev => ({ ...prev, isOpen: false }))}
+                title="Delete Fee Payment Entry"
+            >
+                <div className="space-y-4 pt-2">
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-900 space-y-1">
+                        <p className="font-bold flex items-center gap-1.5 text-amber-950">
+                            <AlertCircle size={15} className="text-amber-600 shrink-0" />
+                            <span>Revert Paid Installment to Unpaid</span>
+                        </p>
+                        <p className="text-amber-800 leading-relaxed">
+                            This will revert Installment #{revertPaymentModal.installmentIndex} of ₹{(revertPaymentModal.installment?.amount || 0).toLocaleString()} back to unpaid (pending) without deleting the student's fee profile or touching other installments.
+                        </p>
+                    </div>
+
+                    {/* Payment Summary */}
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3 text-xs space-y-2">
+                        <div className="flex justify-between items-center py-1 border-b border-slate-200/50">
+                            <span className="text-slate-500 font-medium">Installment</span>
+                            <span className="font-bold text-slate-800 font-mono">#{revertPaymentModal.installmentIndex}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-1 border-b border-slate-200/50">
+                            <span className="text-slate-500 font-medium">Amount Collected</span>
+                            <span className="font-black text-rose-700 font-mono text-sm">₹{(revertPaymentModal.installment?.amount || 0).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between items-center py-1 border-b border-slate-200/50">
+                            <span className="text-slate-500 font-medium">Paid Date</span>
+                            <span className="font-semibold text-slate-700">
+                                {revertPaymentModal.installment?.paidDate ? format(new Date(revertPaymentModal.installment.paidDate), "dd MMM yyyy") : "—"}
+                            </span>
+                        </div>
+                        <div className="flex justify-between items-center py-1 border-b border-slate-200/50">
+                            <span className="text-slate-500 font-medium">Payment Mode</span>
+                            <span className="font-semibold text-slate-700 uppercase">{revertPaymentModal.installment?.paymentMethod || "Cash"}</span>
+                        </div>
+                        {revertPaymentModal.installment?.collectedBy && (
+                            <div className="flex justify-between items-center py-1">
+                                <span className="text-slate-500 font-medium">Cashier / Collector</span>
+                                <span className="font-semibold text-slate-800">{revertPaymentModal.installment.collectedBy}</span>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Financial Impact Note */}
+                    <div className="text-[11px] text-slate-500 bg-slate-100/60 p-2.5 rounded-lg border border-slate-200/60 space-y-1">
+                        <p className="font-semibold text-slate-700">Financial Impact:</p>
+                        <ul className="list-disc pl-4 space-y-0.5">
+                            <li>Student's balance will increase by ₹{(revertPaymentModal.installment?.amount || 0).toLocaleString()}.</li>
+                            {revertPaymentModal.installment?.collectedBy && (
+                                <li>₹{(revertPaymentModal.installment?.amount || 0).toLocaleString()} will be refunded from <strong>{revertPaymentModal.installment.collectedBy}</strong>'s cash counter balance.</li>
+                            )}
+                            <li>All other installments and fee structures remain untouched.</li>
+                        </ul>
+                    </div>
+
+                    {/* Reason */}
+                    <div className="space-y-1">
+                        <label className="text-xs font-bold text-slate-700">Reason for Deletion (Optional):</label>
+                        <input
+                            type="text"
+                            placeholder="e.g. Wrong student selected, duplicate transaction, data entry error"
+                            value={revertPaymentModal.reason}
+                            onChange={(e) => setRevertPaymentModal(prev => ({ ...prev, reason: e.target.value }))}
+                            className="w-full text-xs px-3 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+                        />
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => setRevertPaymentModal(prev => ({ ...prev, isOpen: false }))}
+                            disabled={revertPaymentModal.isSubmitting}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="danger"
+                            onClick={handleConfirmRevertPayment}
+                            disabled={revertPaymentModal.isSubmitting}
+                            className="bg-rose-600 hover:bg-rose-700 text-white font-semibold"
+                        >
+                            {revertPaymentModal.isSubmitting ? (
+                                <div className="flex items-center gap-1.5">
+                                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    <span>Deleting...</span>
+                                </div>
+                            ) : (
+                                "Delete Fee Entry"
+                            )}
+                        </Button>
+                    </div>
+                </div>
             </Modal>
 
             {/* Follow-up Modal */}
