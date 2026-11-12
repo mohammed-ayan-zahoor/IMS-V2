@@ -196,7 +196,7 @@ export default function WhatsAppBroadcastPage() {
                             <option value="">— Choose a batch —</option>
                             {batches.map(b => (
                                 <option key={b._id} value={b._id}>
-                                    {b.name}{b.course?.name ? ` — ${b.course.name}` : ""}
+                                    {b.course?.name ? `${b.course.name} · ` : ""}{b.semester ? `Sem ${b.semester} - ` : ""}${b.name}
                                 </option>
                             ))}
                         </select>

@@ -41,6 +41,7 @@ export async function GET(req) {
         const isActive = searchParams.get("isActive");
         const status = searchParams.get("status");
         const templateId = searchParams.get("templateId");
+        const semester = searchParams.get("semester");
 
         let instituteType = null;
         let sessionId = null;
@@ -85,6 +86,7 @@ export async function GET(req) {
             showDeleted,
             batchId,
             courseId,
+            semester,
             isActive,
             status,
             templateId,

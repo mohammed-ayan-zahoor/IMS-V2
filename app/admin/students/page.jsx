@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 import Badge from "@/components/ui/Badge";
@@ -130,9 +130,33 @@ export default function StudentsPage() {
     const [filters, setFilters] = useState({
         batchId: "",
         courseId: "",
+        semester: "",
         instituteId: "", // Add instituteId
         isActive: "true"
     });
+
+    const hasCollegeBatches = useMemo(() => isCollege || batches.some(b => b.semester), [isCollege, batches]);
+    const availableSemesters = useMemo(() => {
+        if (!hasCollegeBatches) return [];
+        let maxSem = 8;
+        if (filters.courseId) {
+            const selectedCourse = courses.find(c => c._id === filters.courseId);
+            if (selectedCourse?.collegeConfig?.totalSemesters) {
+                maxSem = selectedCourse.collegeConfig.totalSemesters;
+            } else {
+                const courseBatches = batches.filter(b => (b.course?._id || b.course) === filters.courseId && b.semester);
+                if (courseBatches.length > 0) {
+                    maxSem = Math.max(...courseBatches.map(b => b.semester));
+                }
+            }
+        } else {
+            const sems = batches.map(b => b.semester).filter(Boolean);
+            if (sems.length > 0) {
+                maxSem = Math.max(...sems, 8);
+            }
+        }
+        return Array.from({ length: Math.max(maxSem, 1) }, (_, i) => i + 1);
+    }, [hasCollegeBatches, batches, courses, filters.courseId]);
 
     const [pagination, setPagination] = useState({
         page: 1,
@@ -317,6 +341,7 @@ const getInitialFormData = (selectedSessionId = "") => ({
                 courseId: filters.courseId,
                 instituteId: filters.instituteId || activeInstId || '', // Include in API call
                 isActive: filters.isActive,
+                ...(filters.semester ? { semester: filters.semester } : {}),
                 page: page.toString(),
                 limit: customLimit.toString()
             });
@@ -360,6 +385,7 @@ const getInitialFormData = (selectedSessionId = "") => ({
                 courseId: filters.courseId,
                 instituteId: filters.instituteId || activeInstId || '',
                 isActive: filters.isActive,
+                ...(filters.semester ? { semester: filters.semester } : {}),
                 page: '1',
                 limit: '1000' // Get all for print
             });
@@ -1310,7 +1336,7 @@ const getInitialFormData = (selectedSessionId = "") => ({
                         <div className="min-w-[150px]">
                             <Select
                                 value={filters.courseId}
-                                onChange={(val) => setFilters({ ...filters, courseId: val, batchId: "" })}
+                                onChange={(val) => setFilters({ ...filters, courseId: val, semester: "", batchId: "" })}
                                 placeholder={isSchool ? "All Classes" : "All Courses"}
                                 className="w-auto"
                                 buttonClassName="w-auto min-w-full bg-white border-slate-200 text-xs py-1.5"
@@ -1326,28 +1352,60 @@ const getInitialFormData = (selectedSessionId = "") => ({
                             />
                         </div>
 
+                        {hasCollegeBatches && (
+                            <div className="min-w-[130px]">
+                                <Select
+                                    value={filters.semester}
+                                    onChange={(val) => setFilters({ ...filters, semester: val, batchId: "" })}
+                                    placeholder="All Semesters"
+                                    className="w-auto"
+                                    buttonClassName="w-auto min-w-full bg-white border-slate-200 text-xs py-1.5"
+                                    options={[
+                                        { label: "All Semesters", value: "" },
+                                        ...availableSemesters.map(sem => ({ label: `Sem ${sem}`, value: String(sem) }))
+                                    ]}
+                                />
+                            </div>
+                        )}
+
                         <div className="min-w-[150px]">
                             <Select
                                 value={filters.batchId}
                                 onChange={(val) => setFilters({ ...filters, batchId: val })}
-                                placeholder={isSchool ? "All Sections" : "All Batches"}
+                                placeholder={isSchool ? "All Sections" : (isCollege ? "All Sections" : "All Batches")}
                                 className="w-auto"
                                 buttonClassName="w-auto min-w-full bg-white border-slate-200 text-xs py-1.5"
                                 options={[
-                                    { label: isSchool ? "All Sections" : "All Batches", value: "" },
+                                    { label: isSchool ? "All Sections" : (isCollege ? "All Sections" : "All Batches"), value: "" },
                                     ...batches
                                         .filter(b => {
                                             const matchesCourse = !filters.courseId ||
                                                 b.course === filters.courseId || b.course?._id === filters.courseId ||
                                                 b.courseBundle === filters.courseId || b.courseBundle?._id === filters.courseId;
                                             const matchesSession = isVocational || !selectedSessionId || (b.session === selectedSessionId || b.session?._id === selectedSessionId || !b.session);
-                                            return matchesCourse && matchesSession;
+                                            const matchesSemester = !filters.semester || String(b.semester) === String(filters.semester);
+                                            return matchesCourse && matchesSession && matchesSemester;
                                         })
-                                        .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+                                        .sort((a, b) => {
+                                            if (a.semester && b.semester && a.semester !== b.semester) {
+                                                return a.semester - b.semester;
+                                            }
+                                            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+                                        })
                                         .map(b => {
-                                              const cName = b.course?.name || courses.find(c => c._id === (b.course?._id || b.course))?.name;
-                                              return { label: cName ? `${cName} - ${b.name}` : b.name, value: b._id };
-                                          })
+                                            const cName = b.course?.name || courses.find(c => c._id === (b.course?._id || b.course))?.name;
+                                            let label = b.name;
+                                            if (b.semester) {
+                                                label = filters.courseId
+                                                    ? `Sem ${b.semester} - Section ${b.name}`
+                                                    : `${cName ? `${cName} · ` : ''}Sem ${b.semester} - Section ${b.name}`;
+                                            } else if (cName && !filters.courseId) {
+                                                label = `${cName} - ${b.name}`;
+                                            } else if (isSchool) {
+                                                label = `Section ${b.name}`;
+                                            }
+                                            return { label, value: b._id };
+                                        })
                                 ]}
                             />
                         </div>
@@ -1382,13 +1440,13 @@ const getInitialFormData = (selectedSessionId = "") => ({
                             </div>
                         )}
 
-                        {(search || filters.courseId || filters.batchId || filters.instituteId || filters.isActive !== "true") && (
+                        {(search || filters.courseId || filters.semester || filters.batchId || filters.instituteId || filters.isActive !== "true") && (
                             <Button
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
                                     setSearch("");
-                                    setFilters({ batchId: "", courseId: "", instituteId: "", isActive: "true" });
+                                    setFilters({ batchId: "", courseId: "", semester: "", instituteId: "", isActive: "true" });
                                 }}
                                 className="text-[10px] uppercase font-bold tracking-wider text-slate-400 hover:text-rose-600 active:scale-95 transition-[color,transform]"
                             >

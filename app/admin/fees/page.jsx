@@ -92,7 +92,31 @@ export default function FeesPage() {
     const [courseBundles, setCourseBundles] = useState([]);
     const [batches, setBatches] = useState([]);
     const [selectedCourse, setSelectedCourse] = useState("");
+    const [selectedSemester, setSelectedSemester] = useState("");
     const [selectedBatch, setSelectedBatch] = useState("");
+        const hasCollegeBatches = useMemo(() => (!isSchool && !isVocational) || batches.some(b => b.semester), [isSchool, isVocational, batches]);
+    const availableSemesters = useMemo(() => {
+        if (!hasCollegeBatches) return [];
+        let maxSem = 8;
+        if (selectedCourse) {
+            const courseDoc = courses.find(c => String(c._id) === String(selectedCourse));
+            if (courseDoc?.collegeConfig?.totalSemesters) {
+                maxSem = courseDoc.collegeConfig.totalSemesters;
+            } else {
+                const courseBatches = batches.filter(b => String(b.course?._id || b.course) === String(selectedCourse) && b.semester);
+                if (courseBatches.length > 0) {
+                    maxSem = Math.max(...courseBatches.map(b => b.semester));
+                }
+            }
+        } else {
+            const sems = batches.map(b => b.semester).filter(Boolean);
+            if (sems.length > 0) {
+                maxSem = Math.max(...sems, 8);
+            }
+        }
+        return Array.from({ length: Math.max(maxSem, 1) }, (_, i) => i + 1);
+    }, [hasCollegeBatches, batches, courses, selectedCourse]);
+
     const [percentageFilter, setPercentageFilter] = useState("");
     const [summary, setSummary] = useState({ totalGross: 0, totalDiscount: 0, extraCharges: 0, totalCollected: 0, totalPending: 0 });
     const [currentPage, setCurrentPage] = useState(1);
@@ -130,7 +154,8 @@ export default function FeesPage() {
         } else {
             setBatches([]);
         }
-        setSelectedBatch(""); // Reset batch when course changes
+        setSelectedSemester("");
+        setSelectedBatch("");
     }, [selectedCourse]);
 
     useEffect(() => {
@@ -139,7 +164,7 @@ export default function FeesPage() {
             fetchStats();
             setCurrentPage(1);
         }
-    }, [selectedCourse, selectedBatch, percentageFilter, showCancelledOnly, showDiscountedOnly]);
+    }, [selectedCourse, selectedSemester, selectedBatch, percentageFilter, showCancelledOnly, showDiscountedOnly]);
 
     const fetchFeeHeadsList = async () => {
         try {
@@ -292,6 +317,7 @@ export default function FeesPage() {
             // Send academic session for schools and colleges (exclude session-less vocational)
             if (selectedSessionId && selectedSessionId !== 'all') url.searchParams.append('session', selectedSessionId);
             if (selectedCourse) url.searchParams.append('course', selectedCourse);
+            if (selectedSemester) url.searchParams.append('semester', selectedSemester);
             if (selectedBatch) url.searchParams.append('batch', selectedBatch);
             if (percentageFilter) url.searchParams.append('percentage', percentageFilter);
             if (showCancelledOnly) url.searchParams.append('includeCancelled', 'true');
@@ -338,6 +364,7 @@ export default function FeesPage() {
             // Send academic session for schools and colleges (exclude session-less vocational)
             if (selectedSessionId && selectedSessionId !== 'all') url.searchParams.append('session', selectedSessionId);
             if (selectedCourse) url.searchParams.append('course', selectedCourse);
+            if (selectedSemester) url.searchParams.append('semester', selectedSemester);
             if (selectedBatch) url.searchParams.append('batch', selectedBatch);
             if (showDiscountedOnly) url.searchParams.append('discountOnly', 'true');
             
@@ -681,7 +708,11 @@ export default function FeesPage() {
                         <Select
                             className="w-full md:w-48"
                             value={selectedCourse}
-                            onChange={(val) => setSelectedCourse(val)}
+                            onChange={(val) => {
+                                setSelectedCourse(val);
+                                setSelectedSemester("");
+                                setSelectedBatch("");
+                            }}
                             options={[
                                 { label: `All ${isSchool ? "Classes" : "Courses"}`, value: "" },
                                 ...(isVocational && courseBundles.filter(b => b.isActive !== false).length > 0 ? [
@@ -693,19 +724,52 @@ export default function FeesPage() {
                             ]}
                             placeholder={isSchool ? "Filter Class" : "Filter Course"}
                         />
+                        {hasCollegeBatches && (
+                            <Select
+                                className="w-full md:w-36"
+                                value={selectedSemester}
+                                onChange={(val) => {
+                                    setSelectedSemester(val);
+                                    setSelectedBatch("");
+                                }}
+                                options={[
+                                    { label: "All Semesters", value: "" },
+                                    ...availableSemesters.map(sem => ({ label: `Sem ${sem}`, value: String(sem) }))
+                                ]}
+                                placeholder="Semester"
+                            />
+                        )}
                         <Select
                             className="w-full md:w-48"
                             value={selectedBatch}
                             onChange={(val) => setSelectedBatch(val)}
                             options={[
-                                { label: `All ${isSchool ? "Sections" : "Batches"}`, value: "" },
-                                ...batches.map(b => {
-                                    const cName = b.course?.name || courses.find(c => String(c._id) === String(b.course?._id || b.course))?.name;
-                                    return { label: cName ? `${cName} - ${b.name}` : b.name, value: b._id };
-                                })
+                                { label: `All ${isSchool || hasCollegeBatches ? "Sections" : "Batches"}`, value: "" },
+                                ...batches
+                                    .filter(b => !selectedSemester || String(b.semester) === String(selectedSemester))
+                                    .sort((a, b) => {
+                                        if (a.semester && b.semester && a.semester !== b.semester) {
+                                            return a.semester - b.semester;
+                                        }
+                                        return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+                                    })
+                                    .map(b => {
+                                        const cName = b.course?.name || courses.find(c => String(c._id) === String(b.course?._id || b.course))?.name;
+                                        let label = b.name;
+                                        if (b.semester) {
+                                            label = selectedCourse
+                                                ? `Sem ${b.semester} - Section ${b.name}`
+                                                : `${cName ? `${cName} · ` : ''}Sem ${b.semester} - Section ${b.name}`;
+                                        } else if (cName && !selectedCourse) {
+                                            label = `${cName} - ${b.name}`;
+                                        } else if (isSchool) {
+                                            label = `Section ${b.name}`;
+                                        }
+                                        return { label, value: b._id };
+                                    })
                             ]}
                             disabled={!selectedCourse}
-                            placeholder={isSchool ? "Filter Section" : "Filter Batch"}
+                            placeholder={isSchool || hasCollegeBatches ? "Filter Section" : "Filter Batch"}
                         />
                         <Select
                             className="w-full md:w-40"
@@ -1073,7 +1137,7 @@ export default function FeesPage() {
                             }}
                             options={[
                                 { label: "-- Select Section / Batch --", value: "" },
-                                ...batches.map(b => ({ label: b.name, value: b._id }))
+                                ...batches.map(b => ({ label: b.semester ? `Sem ${b.semester} - Section ${b.name}` : b.name, value: b._id }))
                             ]}
                         />
                     </div>

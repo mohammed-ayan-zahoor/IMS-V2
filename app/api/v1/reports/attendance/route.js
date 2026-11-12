@@ -27,6 +27,7 @@ export async function GET(req) {
         const startDateString = searchParams.get("startDate");
         const endDateString = searchParams.get("endDate");
         const periodId = searchParams.get("periodId");
+        const semester = searchParams.get("semester");
 
         if (!instituteId) {
             return NextResponse.json({ error: "Institute context missing" }, { status: 400 });
@@ -46,7 +47,7 @@ export async function GET(req) {
                 return NextResponse.json({ error: "Invalid batch ID" }, { status: 400 });
             }
             matchStage.batch = new mongoose.Types.ObjectId(batchId);
-        } else if (courseId || sessionId) {
+        } else if (courseId || sessionId || semester) {
             if (courseId && !mongoose.Types.ObjectId.isValid(courseId)) {
                 return NextResponse.json({ error: "Invalid course ID" }, { status: 400 });
             }
@@ -66,6 +67,10 @@ export async function GET(req) {
                 ];
             }
             if (sessionId) batchQuery.session = sessionId;
+            if (semester) {
+                const semNum = parseInt(semester, 10);
+                if (!isNaN(semNum)) batchQuery.semester = semNum;
+            }
 
             const courseBatchIds = await Batch.find(batchQuery).distinct('_id');
 

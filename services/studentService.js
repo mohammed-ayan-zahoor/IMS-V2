@@ -300,7 +300,7 @@ export class StudentService {
     /**
      * Get all students with pagination and filters
      */
-    static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, isActive = null, status = null, instituteId = null, actorId = null, templateId = null, sessionId = null, instituteType = null, skipSessionValidation = false }) {
+    static async getStudents({ page = 1, limit = 10, search = "", showDeleted = false, batchId = null, courseId = null, semester = null, isActive = null, status = null, instituteId = null, actorId = null, templateId = null, sessionId = null, instituteType = null, skipSessionValidation = false }) {
         // if (!instituteId) throw new Error('Institute context required for fetching students'); // Allow global view
 
         const skip = (page - 1) * limit;
@@ -417,7 +417,7 @@ export class StudentService {
             query.status = status;
         }
 
-        if (batchId || courseId) {
+        if (batchId || courseId || semester) {
             const batchQuery = { deletedAt: null }; // Scope Batch Search
             if (instituteId) {
                 try {
@@ -431,6 +431,12 @@ export class StudentService {
                     batchQuery._id = new mongoose.Types.ObjectId(batchId);
                 } catch (e) {
                     batchQuery._id = batchId;
+                }
+            }
+            if (semester !== null && semester !== undefined && semester !== "") {
+                const semNum = parseInt(semester, 10);
+                if (!isNaN(semNum)) {
+                    batchQuery.semester = semNum;
                 }
             }
 
@@ -514,7 +520,7 @@ export class StudentService {
                 directStudentIds = directStudents.map(s => s._id);
 
                 // Auto-sync: If there are direct students not enrolled in any section for this course, enroll them into the primary section
-                if (batches.length > 0 && directStudentIds.length > 0) {
+                if (!semester && batches.length > 0 && directStudentIds.length > 0) {
                     const defaultBatch = batches[0];
                     const allEnrolledInBatches = new Set(batches.flatMap(b => b.enrolledStudents.map(e => e.student.toString())));
                     const unenrolled = directStudentIds.filter(id => !allEnrolledInBatches.has(id.toString()));
@@ -548,7 +554,7 @@ export class StudentService {
 
             const allMatchedIds = Array.from(new Set([
                 ...studentIds.map(id => id.toString()),
-                ...(!batchId ? directStudentIds.map(id => id.toString()) : [])
+                ...(!batchId && !semester ? directStudentIds.map(id => id.toString()) : [])
             ])).map(id => new mongoose.Types.ObjectId(id));
 
             query._id = { $in: allMatchedIds };

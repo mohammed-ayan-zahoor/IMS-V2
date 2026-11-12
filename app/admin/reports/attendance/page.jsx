@@ -195,7 +195,7 @@ export default function AttendanceReportPage() {
         } finally {
             setLoading(false);
         }
-    }, [startDate, endDate, selectedCourse, selectedBatch, isSchool, selectedSessionId]);
+    }, [startDate, endDate, selectedCourse, selectedSemester, selectedBatch, isSchool, selectedSessionId]);
 
     // Re-query automatically on any filter change
     useEffect(() => {
@@ -330,10 +330,39 @@ export default function AttendanceReportPage() {
         return found ? found.name : isSchool ? "All classes" : "All courses";
     }, [selectedCourse, courses, isSchool]);
 
-    const selectedBatchLabel = useMemo(() => {
+        const hasCollegeBatches = useMemo(() => (!isSchool && !isVocational) || batches.some(b => b.semester), [isSchool, isVocational, batches]);
+    const availableSemesters = useMemo(() => {
+        if (!hasCollegeBatches) return [];
+        let maxSem = 8;
+        if (selectedCourse) {
+            const courseDoc = courses.find(c => String(c._id) === String(selectedCourse));
+            if (courseDoc?.collegeConfig?.totalSemesters) {
+                maxSem = courseDoc.collegeConfig.totalSemesters;
+            } else {
+                const courseBatches = batches.filter(b => String(b.course?._id || b.course) === String(selectedCourse) && b.semester);
+                if (courseBatches.length > 0) {
+                    maxSem = Math.max(...courseBatches.map(b => b.semester));
+                }
+            }
+        } else {
+            const sems = batches.map(b => b.semester).filter(Boolean);
+            if (sems.length > 0) {
+                maxSem = Math.max(...sems, 8);
+            }
+        }
+        return Array.from({ length: Math.max(maxSem, 1) }, (_, i) => i + 1);
+    }, [hasCollegeBatches, batches, courses, selectedCourse]);
+
+    const selectedSemesterLabel = useMemo(() => {
+        if (!selectedSemester) return "All sems";
+        return `Sem ${selectedSemester}`;
+    }, [selectedSemester]);
+
+const selectedBatchLabel = useMemo(() => {
         if (!selectedBatch) return isSchool ? "All sections" : "All batches";
         const found = batches.find((b) => b._id === selectedBatch);
-        return found ? found.name : isSchool ? "All sections" : "All batches";
+        if (!found) return isSchool || hasCollegeBatches ? "All sections" : "All batches";
+        return found.semester ? `Sem ${found.semester} - Section ${found.name}` : found.name;
     }, [selectedBatch, batches, isSchool]);
 
     const formattedDateRange = useMemo(() => {
@@ -467,6 +496,77 @@ export default function AttendanceReportPage() {
                         </AnimatePresence>
                     </div>
 
+                    {/* Semester Pop-up Button */}
+                    {hasCollegeBatches && (
+                        <div className="relative">
+                            <button
+                                onClick={() => {
+                                    setSemOpen((prev) => !prev);
+                                    setCourseOpen(false);
+                                    setBatchOpen(false);
+                                    setDateOpen(false);
+                                    setExportOpen(false);
+                                }}
+                                className={cn(
+                                    "h-8 px-3 rounded-lg text-[13px] font-medium flex items-center gap-2 transition-colors duration-120 outline-none focus-visible:ring-2 focus-visible:ring-blue-600 cursor-pointer",
+                                    semOpen ? "bg-[#E6E8EC] text-[#14161A]" : "bg-[#F2F3F5] hover:bg-[#E6E8EC] text-[#14161A]"
+                                )}
+                            >
+                                <span className="text-[#5F6673] font-normal">Semester:</span>
+                                <span className="max-w-[120px] truncate">{selectedSemesterLabel}</span>
+                                <ChevronDown size={13} className="text-[#5F6673] shrink-0" />
+                            </button>
+
+                            <AnimatePresence>
+                                {semOpen && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.96 }}
+                                        animate={{ opacity: 1, scale: 1 }}
+                                        exit={{ opacity: 0, scale: 0.96 }}
+                                        transition={SPRING.ui}
+                                        style={{ transformOrigin: "top left" }}
+                                        className="absolute top-full left-0 mt-1 z-40 w-44 max-h-64 overflow-y-auto rounded-xl bg-white/95 backdrop-blur-xl border border-black/[0.08] shadow-[0_16px_48px_-12px_rgba(16,24,40,0.22)] p-1 space-y-0.5"
+                                    >
+                                        <button
+                                            onClick={() => {
+                                                setSelectedSemester("");
+                                                setSelectedBatch("");
+                                                setSemOpen(false);
+                                            }}
+                                            className={cn(
+                                                "w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[13px] text-left transition-colors cursor-pointer",
+                                                !selectedSemester ? "bg-[#F2F3F5] font-semibold text-[#14161A]" : "text-[#5F6673] hover:bg-[#F7F8FA] hover:text-[#14161A]"
+                                            )}
+                                        >
+                                            <span>All Semesters</span>
+                                            {!selectedSemester && <Check size={14} className="text-blue-600" />}
+                                        </button>
+                                        {availableSemesters.map((sem) => {
+                                            const isSel = selectedSemester === String(sem);
+                                            return (
+                                                <button
+                                                    key={sem}
+                                                    onClick={() => {
+                                                        setSelectedSemester(String(sem));
+                                                        setSelectedBatch("");
+                                                        setSemOpen(false);
+                                                    }}
+                                                    className={cn(
+                                                        "w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[13px] text-left transition-colors cursor-pointer",
+                                                        isSel ? "bg-[#F2F3F5] font-semibold text-[#14161A]" : "text-[#5F6673] hover:bg-[#F7F8FA] hover:text-[#14161A]"
+                                                    )}
+                                                >
+                                                    <span>Sem {sem}</span>
+                                                    {isSel && <Check size={14} className="text-blue-600 shrink-0" />}
+                                                </button>
+                                            );
+                                        })}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    )}
+
                     {/* Batch / Section Pop-up Button */}
                     <div className="relative">
                         <button
@@ -481,7 +581,7 @@ export default function AttendanceReportPage() {
                                 batchOpen ? "bg-[#E6E8EC] text-[#14161A]" : "bg-[#F2F3F5] hover:bg-[#E6E8EC] text-[#14161A]"
                             )}
                         >
-                            <span className="text-[#5F6673] font-normal">{isSchool ? "Section:" : "Batch:"}</span>
+                            <span className="text-[#5F6673] font-normal">{isSchool || hasCollegeBatches ? "Section:" : "Batch:"}</span>
                             <span className="max-w-[140px] truncate">{selectedBatchLabel}</span>
                             <ChevronDown size={13} className="text-[#5F6673] shrink-0" />
                         </button>
@@ -506,7 +606,7 @@ export default function AttendanceReportPage() {
                                             !selectedBatch ? "bg-[#F2F3F5] font-semibold text-[#14161A]" : "text-[#5F6673] hover:bg-[#F7F8FA] hover:text-[#14161A]"
                                         )}
                                     >
-                                        <span>{isSchool ? "All sections" : "All batches"}</span>
+                                        <span>{isSchool || hasCollegeBatches ? "All sections" : "All batches"}</span>
                                         {!selectedBatch && <Check size={14} className="text-blue-600" />}
                                     </button>
                                     {!selectedCourse && (
@@ -514,25 +614,33 @@ export default function AttendanceReportPage() {
                                             Choose a course to filter specific batches
                                         </div>
                                     )}
-                                    {batches.map((b) => {
-                                        const isSel = selectedBatch === b._id;
-                                        return (
-                                            <button
-                                                key={b._id}
-                                                onClick={() => {
-                                                    setSelectedBatch(b._id);
-                                                    setBatchOpen(false);
-                                                }}
-                                                className={cn(
-                                                    "w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[13px] text-left transition-colors cursor-pointer",
-                                                    isSel ? "bg-[#F2F3F5] font-semibold text-[#14161A]" : "text-[#5F6673] hover:bg-[#F7F8FA] hover:text-[#14161A]"
-                                                )}
-                                            >
-                                                <span className="truncate">{b.name}</span>
-                                                {isSel && <Check size={14} className="text-blue-600 shrink-0" />}
-                                            </button>
-                                        );
-                                    })}
+                                    {batches
+                                        .filter((b) => !selectedSemester || String(b.semester) === String(selectedSemester))
+                                        .sort((a, b) => {
+                                            if (a.semester && b.semester && a.semester !== b.semester) {
+                                                return a.semester - b.semester;
+                                            }
+                                            return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+                                        })
+                                        .map((b) => {
+                                            const isSel = selectedBatch === b._id;
+                                            return (
+                                                <button
+                                                    key={b._id}
+                                                    onClick={() => {
+                                                        setSelectedBatch(b._id);
+                                                        setBatchOpen(false);
+                                                    }}
+                                                    className={cn(
+                                                        "w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-[13px] text-left transition-colors cursor-pointer",
+                                                        isSel ? "bg-[#F2F3F5] font-semibold text-[#14161A]" : "text-[#5F6673] hover:bg-[#F7F8FA] hover:text-[#14161A]"
+                                                    )}
+                                                >
+                                                    <span className="truncate">{b.semester ? `Sem ${b.semester} - Section ${b.name}` : b.name}</span>
+                                                    {isSel && <Check size={14} className="text-blue-600 shrink-0" />}
+                                                </button>
+                                            );
+                                        })}
                                 </motion.div>
                             )}
                         </AnimatePresence>

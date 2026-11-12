@@ -19,6 +19,7 @@ export async function GET(req) {
             status: searchParams.get('status'),
             student: searchParams.get('student'),
             course: searchParams.get('course'),
+            semester: searchParams.get('semester'),
             percentage: searchParams.get('percentage'),
             includeAll: searchParams.get('includeAll') === 'true',
             includeCancelled: searchParams.get('includeCancelled') === 'true',

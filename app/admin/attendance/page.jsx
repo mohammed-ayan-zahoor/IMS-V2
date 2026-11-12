@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { cn } from "@/lib/utils";
@@ -39,7 +39,31 @@ export default function AttendanceMarkingPage() {
     const [courses, setCourses] = useState([]);
     const [courseBundles, setCourseBundles] = useState([]);
     const [selectedCourse, setSelectedCourse] = useState("");
+    const [selectedSemester, setSelectedSemester] = useState("");
     const [selectedBatch, setSelectedBatch] = useState("");
+        const hasCollegeBatches = useMemo(() => (!isSchool && !isVocational) || batches.some(b => b.semester), [isSchool, isVocational, batches]);
+    const availableSemesters = useMemo(() => {
+        if (!hasCollegeBatches) return [];
+        let maxSem = 8;
+        if (selectedCourse) {
+            const courseDoc = courses.find(c => String(c._id) === String(selectedCourse));
+            if (courseDoc?.collegeConfig?.totalSemesters) {
+                maxSem = courseDoc.collegeConfig.totalSemesters;
+            } else {
+                const courseBatches = batches.filter(b => String(b.course?._id || b.course) === String(selectedCourse) && b.semester);
+                if (courseBatches.length > 0) {
+                    maxSem = Math.max(...courseBatches.map(b => b.semester));
+                }
+            }
+        } else {
+            const sems = batches.map(b => b.semester).filter(Boolean);
+            if (sems.length > 0) {
+                maxSem = Math.max(...sems, 8);
+            }
+        }
+        return Array.from({ length: Math.max(maxSem, 1) }, (_, i) => i + 1);
+    }, [hasCollegeBatches, batches, courses, selectedCourse]);
+
     const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
 
     // Data State
@@ -336,14 +360,15 @@ export default function AttendanceMarkingPage() {
 
             {/* Selection Area */}
             <div className="bg-white rounded-lg border border-slate-100 p-5 overflow-visible">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className={`grid grid-cols-1 sm:grid-cols-2 ${hasCollegeBatches ? 'lg:grid-cols-4' : 'md:grid-cols-3'} gap-6`}>
                     <div className="space-y-2">
                         <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select {isSchool ? "Class" : "Course"}</label>
                         <Select
                             value={selectedCourse}
                             onChange={(val) => {
                                 setSelectedCourse(val);
-                                setSelectedBatch(""); // Reset batch when course changes
+                                setSelectedSemester("");
+                                setSelectedBatch("");
                             }}
                             placeholder={`-- Choose ${isSchool ? "Class" : "Course"} --`}
                             options={[
@@ -357,12 +382,29 @@ export default function AttendanceMarkingPage() {
                             ]}
                         />
                     </div>
+                    {hasCollegeBatches && (
+                        <div className="space-y-2">
+                            <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select Semester</label>
+                            <Select
+                                value={selectedSemester}
+                                onChange={(val) => {
+                                    setSelectedSemester(val);
+                                    setSelectedBatch("");
+                                }}
+                                placeholder="All Semesters"
+                                options={[
+                                    { label: "All Semesters", value: "" },
+                                    ...availableSemesters.map(sem => ({ label: `Sem ${sem}`, value: String(sem) }))
+                                ]}
+                            />
+                        </div>
+                    )}
                     <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select {isSchool ? "Section" : "Batch"}</label>
+                        <label className="text-xs font-bold uppercase tracking-wider text-slate-400">Select {isSchool || hasCollegeBatches ? "Section" : "Batch"}</label>
                         <Select
                             value={selectedBatch}
                             onChange={(val) => setSelectedBatch(val)}
-                            placeholder={!selectedCourse && isSchool ? `Select a ${isSchool ? "Class" : "Course"} first` : `-- Choose ${isSchool ? "Section" : "Batch"} --`}
+                            placeholder={!selectedCourse && isSchool ? `Select a ${isSchool ? "Class" : "Course"} first` : `-- Choose ${isSchool || hasCollegeBatches ? "Section" : "Batch"} --`}
                             options={[
                                 ...batches
                                     .filter(b => {
@@ -376,12 +418,30 @@ export default function AttendanceMarkingPage() {
                                         const batchBundleId = String(b.courseBundle?._id || b.courseBundle || '');
                                         const matchesCourse = !selectedCourse || batchCourseId === String(selectedCourse) || batchBundleId === String(selectedCourse);
                                         
-                                        return matchesSession && matchesCourse;
+                                        // 3. Semester Filtering
+                                        const matchesSemester = !selectedSemester || String(b.semester) === String(selectedSemester);
+
+                                        return matchesSession && matchesCourse && matchesSemester;
                                     })
-                                    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }))
+                                    .sort((a, b) => {
+                                        if (a.semester && b.semester && a.semester !== b.semester) {
+                                            return a.semester - b.semester;
+                                        }
+                                        return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+                                    })
                                     .map(b => {
                                         const cName = b.course?.name || courses.find(c => String(c._id) === String(b.course?._id || b.course))?.name;
-                                        return { label: cName ? `${cName} - ${b.name}` : b.name, value: b._id };
+                                        let label = b.name;
+                                        if (b.semester) {
+                                            label = selectedCourse
+                                                ? `Sem ${b.semester} - Section ${b.name}`
+                                                : `${cName ? `${cName} · ` : ''}Sem ${b.semester} - Section ${b.name}`;
+                                        } else if (cName && !selectedCourse) {
+                                            label = `${cName} - ${b.name}`;
+                                        } else if (isSchool) {
+                                            label = `Section ${b.name}`;
+                                        }
+                                        return { label, value: b._id };
                                     })
                             ]}
                             disabled={!selectedCourse && isSchool}

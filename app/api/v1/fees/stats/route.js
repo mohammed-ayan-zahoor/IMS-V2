@@ -16,6 +16,7 @@ export async function GET(req) {
         const filters = {
             batch: searchParams.get('batch'),
             course: searchParams.get('course'),
+            semester: searchParams.get('semester'),
             discountOnly: searchParams.get('discountOnly') === 'true',
             session: searchParams.get('session') || req.headers.get('x-session-id')
         };

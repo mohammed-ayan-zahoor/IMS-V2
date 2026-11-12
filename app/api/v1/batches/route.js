@@ -13,6 +13,7 @@ export async function GET(req) {
         const rawSessionId = searchParams.get('sessionId') || searchParams.get('session') || req.headers.get('x-session-id');
         const targetInstParam = searchParams.get('instituteId');
         const enrolledStudents = searchParams.get('enrolledStudents');
+        const semester = searchParams.get('semester');
         const allSessions = searchParams.get('allSessions') === 'true' || rawSessionId === 'all';
 
         const scope = await getInstituteScope(req);
@@ -38,6 +39,7 @@ export async function GET(req) {
         if (courseId) filters.course = courseId;
         if (courseBundleId) filters.courseBundle = courseBundleId;
         if (enrolledStudents) filters.enrolledStudents = enrolledStudents;
+        if (semester) filters.semester = semester;
 
         // Apply Academic Session Isolation
         if (!allSessions) {

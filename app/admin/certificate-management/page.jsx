@@ -505,7 +505,15 @@ const CertificateManagementPage = () => {
                   .filter(b => !courseId || b.course?._id === courseId || b.course === courseId || b.courseBundle?._id === courseId || b.courseBundle === courseId)
                   .map(b => {
                       const cName = b.course?.name || courses?.find(c => String(c._id) === String(b.course?._id || b.course))?.name;
-                      return { label: cName ? `${cName} - ${b.name}` : b.name, value: b._id };
+                      let label = b.name;
+                      if (b.semester) {
+                          label = courseId
+                              ? `Sem ${b.semester} - Section ${b.name}`
+                              : `${cName ? `${cName} · ` : ''}Sem ${b.semester} - Section ${b.name}`;
+                      } else if (cName && !courseId) {
+                          label = `${cName} - ${b.name}`;
+                      }
+                      return { label, value: b._id };
                   })
               ]}
               disabled={batchLoading}

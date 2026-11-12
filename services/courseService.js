@@ -457,7 +457,7 @@ export class BatchService {
             }
         }
 
-        const allowedFilters = ['course', 'courseBundle', 'instructor', 'enrolledStudents', 'session'];
+        const allowedFilters = ['course', 'courseBundle', 'instructor', 'enrolledStudents', 'session', 'semester'];
         const safeFilters = {};
         Object.keys(filters).forEach(key => {
             if (allowedFilters.includes(key)) safeFilters[key] = filters[key];
@@ -502,6 +502,13 @@ export class BatchService {
 
         if (safeFilters.instructor) {
             query.instructor = safeFilters.instructor;
+        }
+
+        if (safeFilters.semester !== undefined && safeFilters.semester !== null && safeFilters.semester !== '') {
+            const semNum = parseInt(safeFilters.semester, 10);
+            if (!isNaN(semNum)) {
+                query.semester = semNum;
+            }
         }
 
         // RBAC: Restricted view for instructors

@@ -424,7 +424,8 @@ export class FeeService {
             institute,
             session,
             includeCancelled,
-            discountOnly
+            discountOnly,
+            semester
         } = filters;
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -530,6 +531,19 @@ export class FeeService {
         }
         
         if (filters.batch) query.batch = new mongoose.Types.ObjectId(filters.batch);
+        if (filters.semester && !filters.batch) {
+            const semNum = parseInt(filters.semester, 10);
+            if (!isNaN(semNum)) {
+                const semLookup = {
+                    deletedAt: null,
+                    semester: semNum,
+                    ...(filters.course ? { $or: [{ course: filters.course }, { courseBundle: filters.course }] } : {})
+                };
+                if (filters.institute) semLookup.institute = filters.institute;
+                const semBatchIds = await Batch.find(semLookup).distinct('_id');
+                query.batch = { $in: semBatchIds };
+            }
+        }
         if (filters.course) {
             const batchLookup = { 
                 $or: [{ course: filters.course }, { courseBundle: filters.course }], 
@@ -657,7 +671,8 @@ export class FeeService {
             includeCancelled,
             course,
             session,
-            discountOnly
+            discountOnly,
+            semester
         } = filters;
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
@@ -668,6 +683,16 @@ export class FeeService {
         if (institute) feeQuery.institute = institute;
         if (!includeCancelled) feeQuery.status = { $ne: 'cancelled' };
         if (discountOnly) feeQuery['discount.amount'] = { $gt: 0 };
+        if (semester) {
+            const semNum = parseInt(semester, 10);
+            if (!isNaN(semNum)) {
+                const semBatchQuery = { deletedAt: null, semester: semNum };
+                if (institute) semBatchQuery.institute = institute;
+                if (course) semBatchQuery.$or = [{ course }, { courseBundle: course }];
+                const semBatchIds = await Batch.find(semBatchQuery).distinct('_id');
+                feeQuery.batch = { $in: semBatchIds };
+            }
+        }
 
         if (session) {
             const batchQuery = { session, deletedAt: null };
@@ -700,6 +725,10 @@ export class FeeService {
             ];
         }
         if (filters.batch) batchQuery._id = filters.batch;
+        if (filters.semester) {
+            const semNum = parseInt(filters.semester, 10);
+            if (!isNaN(semNum)) batchQuery.semester = semNum;
+        }
         if (filters.institute) batchQuery.institute = filters.institute;
         if (filters.session) batchQuery.session = filters.session;
 
