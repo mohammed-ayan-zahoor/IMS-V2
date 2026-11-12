@@ -6,6 +6,7 @@ import StaffAttendance from "@/models/StaffAttendance";
 import User from "@/models/User";
 import HRSettings from "@/models/HRSettings";
 import Payslip from "@/models/Payslip";
+import Event from "@/models/Event";
 import { createAuditLog } from "@/services/auditService";
 import {
     detectFileType,
@@ -220,6 +221,25 @@ export async function POST(req) {
             existingAttendanceMap.set(`${staffId}_${dateKey}`, rec);
         });
 
+        // 5b. Fetch Scheduled Institute / Govt Holidays for the Month
+        const holidayEvents = await Event.find({
+            institute: instituteId,
+            category: 'holiday',
+            deletedAt: null,
+            startDate: { $lte: monthEnd },
+            endDate: { $gte: monthStart }
+        }).lean();
+
+        const holidayDatesSet = new Set();
+        holidayEvents.forEach(evt => {
+            const cur = new Date(evt.startDate);
+            const end = new Date(evt.endDate);
+            while (cur <= end) {
+                holidayDatesSet.add(cur.toISOString().split('T')[0]);
+                cur.setDate(cur.getDate() + 1);
+            }
+        });
+
         // 6. Match Staff and Build Attendance Upserts
         const bulkOperations = [];
         const matchedStaffIds = new Set();
@@ -356,6 +376,7 @@ export async function POST(req) {
                 const code = (dayEntry.code || "").toUpperCase();
 
                 const isSunday = dateObj.getUTCDay() === 0;
+                const isGovtHoliday = holidayDatesSet.has(dateKey);
 
                 if (checkInTime || checkOutTime) {
                     status = "present";
@@ -383,8 +404,8 @@ export async function POST(req) {
                         remarks = `Biometric In: ${checkInTime} (Missed Punch Out)`;
                     } else if (!checkInTime && checkOutTime) {
                         remarks = `Biometric Out: ${checkOutTime} (Missed Punch In)`;
-                    } else if (isSunday || code.includes("WO") || code.includes("W/O")) {
-                        remarks = `Worked on Sunday / Week Off (${checkInTime || 'No In'} - ${checkOutTime || 'No Out'})`;
+                    } else if (isSunday || isGovtHoliday || code.includes("WO") || code.includes("W/O") || code === "H") {
+                        remarks = `Worked on Holiday / Sunday (${checkInTime || 'No In'} - ${checkOutTime || 'No Out'})`;
                     } else {
                         remarks = `Biometric In: ${checkInTime} Out: ${checkOutTime}`;
                     }
@@ -392,9 +413,13 @@ export async function POST(req) {
                     // Sundays without punches are paid holidays (Week Off), never absent
                     status = "holiday";
                     remarks = "Sunday / Week Off";
-                } else if (code.includes("WO") || code.includes("W/O") || code === "OFF") {
+                } else if (isGovtHoliday) {
+                    // Scheduled Govt / Institute Holidays without punches are paid holidays, never absent
                     status = "holiday";
-                    remarks = "Week Off";
+                    remarks = "Govt / Scheduled Holiday";
+                } else if (code === "H" || /^(PH|GH|NH|FH|HOL|HLD|OFF)$/i.test(code) || code.includes("WO") || code.includes("W/O") || code.includes("HOLIDAY")) {
+                    status = "holiday";
+                    remarks = "Holiday / Week Off";
                 } else if (code === "A") {
                     status = "absent";
                     remarks = "Biometric Absent";

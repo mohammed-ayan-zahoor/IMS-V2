@@ -9,6 +9,7 @@ import StaffAttendance from "@/models/StaffAttendance";
 import HRSettings from "@/models/HRSettings";
 import SalaryComponent from "@/models/SalaryComponent";
 import Department from "@/models/Department";
+import Event from "@/models/Event";
 import { createAuditLog } from "@/services/auditService";
 
 export async function GET(req) {
@@ -91,11 +92,30 @@ export async function POST(req) {
         const endDate = new Date(year, month, 0, 23, 59, 59, 999);
         const totalDaysInMonth = new Date(year, month, 0).getDate();
 
-        // Fetch all attendance records for this staff in this range
-        const attendanceLogs = await StaffAttendance.find({
-            institute: instituteId,
-            staff: staffId,
-            date: { $gte: startDate, $lte: endDate }
+        // Fetch all attendance records and scheduled holidays for this range
+        const [attendanceLogs, holidayEvents] = await Promise.all([
+            StaffAttendance.find({
+                institute: instituteId,
+                staff: staffId,
+                date: { $gte: startDate, $lte: endDate }
+            }),
+            Event.find({
+                institute: instituteId,
+                category: 'holiday',
+                deletedAt: null,
+                startDate: { $lte: endDate },
+                endDate: { $gte: startDate }
+            }).lean()
+        ]);
+
+        const holidayDatesSet = new Set();
+        holidayEvents.forEach(evt => {
+            const cur = new Date(evt.startDate);
+            const end = new Date(evt.endDate);
+            while (cur <= end) {
+                holidayDatesSet.add(cur.toISOString().split('T')[0]);
+                cur.setDate(cur.getDate() + 1);
+            }
         });
 
         const attendanceSummary = {
@@ -109,15 +129,17 @@ export async function POST(req) {
         const loggedDaysSet = new Set();
         attendanceLogs.forEach(log => {
             const logDate = new Date(log.date);
+            const dateKey = logDate.toISOString().split('T')[0];
             const isSunday = logDate.getUTCDay() === 0;
+            const isGovtHoliday = holidayDatesSet.has(dateKey);
             const dayNum = logDate.getUTCDate();
             loggedDaysSet.add(dayNum);
 
             if (log.status === 'present') {
                 attendanceSummary.present++;
             } else if (log.status === 'absent') {
-                // If a Sunday was stored as 'absent' in older imports, treat as holiday (paid weekly off)
-                if (isSunday && !log.checkInTime && !log.checkOutTime) {
+                // If a Sunday or Govt Holiday was stored as 'absent' in older imports, treat as paid holiday
+                if ((isSunday || isGovtHoliday) && !log.checkInTime && !log.checkOutTime) {
                     attendanceSummary.holiday++;
                 } else {
                     attendanceSummary.absent++;
@@ -131,10 +153,14 @@ export async function POST(req) {
             }
         });
 
-        // Credit any unlogged Sundays in the month as paid weekly offs / holidays
+        // Credit any unlogged Sundays and Govt Holidays in the month as paid weekly offs / holidays
         for (let d = 1; d <= totalDaysInMonth; d++) {
             const curDate = new Date(Date.UTC(year, month - 1, d));
-            if (curDate.getUTCDay() === 0 && !loggedDaysSet.has(d)) {
+            const dateKey = curDate.toISOString().split('T')[0];
+            const isSunday = curDate.getUTCDay() === 0;
+            const isGovtHoliday = holidayDatesSet.has(dateKey);
+
+            if ((isSunday || isGovtHoliday) && !loggedDaysSet.has(d)) {
                 attendanceSummary.holiday++;
             }
         }

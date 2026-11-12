@@ -302,6 +302,25 @@ function PayslipsContent() {
                 const endDate = new Date(yearVal, createMonth, 0, 23, 59, 59, 999);
                 const totalDaysInMonth = new Date(yearVal, createMonth, 0).getDate();
 
+                // Fetch scheduled holidays from calendar
+                const holidayDatesSet = new Set();
+                try {
+                    const eventsRes = await fetch(`/api/v1/events`, { signal: controller.signal });
+                    if (eventsRes.ok) {
+                        const eventsData = await eventsRes.json();
+                        (eventsData.events || [])
+                            .filter(ev => ev.category === 'holiday' && !ev.deletedAt)
+                            .forEach(ev => {
+                                const cur = new Date(ev.startDate);
+                                const end = new Date(ev.endDate);
+                                while (cur <= end) {
+                                    holidayDatesSet.add(cur.toISOString().split('T')[0]);
+                                    cur.setDate(cur.getDate() + 1);
+                                }
+                            });
+                    }
+                } catch (e) {}
+
                 const matchedLogs = (staffAttendanceData.records || []).filter(log => {
                     const logDate = new Date(log.date);
                     return logDate >= startDate && logDate <= endDate;
@@ -311,14 +330,16 @@ function PayslipsContent() {
                 const loggedDaysSet = new Set();
                 matchedLogs.forEach(log => {
                     const logDate = new Date(log.date);
+                    const dateKey = logDate.toISOString().split('T')[0];
                     const isSunday = logDate.getUTCDay() === 0;
+                    const isGovtHoliday = holidayDatesSet.has(dateKey);
                     loggedDaysSet.add(logDate.getUTCDate());
 
                     if (log.status === "present") {
                         summary.present++;
                     } else if (log.status === "absent") {
-                        // If Sunday was saved as absent in older imports, treat as paid weekly off
-                        if (isSunday && !log.checkInTime && !log.checkOutTime) {
+                        // If Sunday or Govt Holiday was saved as absent in older imports, treat as paid holiday
+                        if ((isSunday || isGovtHoliday) && !log.checkInTime && !log.checkOutTime) {
                             summary.holiday++;
                         } else {
                             summary.absent++;
@@ -332,10 +353,14 @@ function PayslipsContent() {
                     }
                 });
 
-                // Credit any unlogged Sundays as paid weekly off / holidays
+                // Credit any unlogged Sundays and Govt Holidays as paid weekly off / holidays
                 for (let d = 1; d <= totalDaysInMonth; d++) {
                     const curDate = new Date(Date.UTC(yearVal, monthIndex, d));
-                    if (curDate.getUTCDay() === 0 && !loggedDaysSet.has(d)) {
+                    const dateKey = curDate.toISOString().split('T')[0];
+                    const isSunday = curDate.getUTCDay() === 0;
+                    const isGovtHoliday = holidayDatesSet.has(dateKey);
+
+                    if ((isSunday || isGovtHoliday) && !loggedDaysSet.has(d)) {
                         summary.holiday++;
                     }
                 }
@@ -1108,7 +1133,7 @@ function PayslipsContent() {
                                     <span className="px-2 py-0.5 bg-white border border-[#E6E8EC] rounded-md font-medium text-rose-700">{previewData.attendanceSummary.absent || 0}d Absent</span>
                                     <span className="px-2 py-0.5 bg-white border border-[#E6E8EC] rounded-md font-medium text-amber-700">{previewData.attendanceSummary.halfDay || 0}d Half</span>
                                     <span className="px-2 py-0.5 bg-white border border-[#E6E8EC] rounded-md font-medium text-[#0E8A7D]">{previewData.attendanceSummary.onLeave || 0}d Leave</span>
-                                    <span className="px-2 py-0.5 bg-white border border-[#E6E8EC] rounded-md font-medium text-[#5F6673]">{previewData.attendanceSummary.holiday || 0}d Holiday (inc. Sundays)</span>
+                                    <span className="px-2 py-0.5 bg-white border border-[#E6E8EC] rounded-md font-medium text-[#5F6673]">{previewData.attendanceSummary.holiday || 0}d Holiday (inc. Sundays & Govt Holidays)</span>
                                 </div>
                             </div>
 
