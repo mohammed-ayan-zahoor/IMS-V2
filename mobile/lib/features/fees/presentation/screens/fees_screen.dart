@@ -531,6 +531,70 @@ class _FeesScreenState extends State<FeesScreen> {
               ),
             ],
           ),
+
+          // Concession Received Banner (Visible for all institute types when discount is granted)
+          if (category.hasDiscount) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE6F4EA),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFCEEAD6)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.verified, size: 16, color: Color(0xFF137333)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'CONCESSION RECEIVED: ${_currencyFormat.format(category.discountAmount)}',
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: const Color(0xFF137333),
+                            letterSpacing: 0.3,
+                          ),
+                        ),
+                        if (category.discountReason != null && category.discountReason!.trim().isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            category.discountReason!,
+                            style: GoogleFonts.inter(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              color: const Color(0xFF0F5A28),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF137333),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
+                      '-${_currencyFormat.format(category.discountAmount)}',
+                      style: GoogleFonts.hankenGrotesk(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 16),
 
           // Financial Bento Grid (2 columns)
@@ -539,7 +603,7 @@ class _FeesScreenState extends State<FeesScreen> {
               // Total Due Card
               Expanded(
                 child: Container(
-                  height: 76,
+                  height: category.hasDiscount ? 108 : 76,
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: const Color(0xFFEFF4FF),
@@ -566,18 +630,45 @@ class _FeesScreenState extends State<FeesScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
+                      if (category.hasDiscount) ...[
+                        const SizedBox(height: 2),
+                        Text(
+                          'Net Fee: ${_currencyFormat.format(category.netPayable)}',
+                          style: GoogleFonts.inter(
+                            color: const Color(0xFF545F72),
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                     ],
                   ),
                 ),
               ),
               const SizedBox(width: 8),
-              // Total & Paid Cards
+              // Summary Details Cards
               Expanded(
                 child: Column(
                   children: [
-                    _buildMiniSummary('Total', _currencyFormat.format(category.totalAmount), const Color(0xFF0D1C2E)),
-                    const SizedBox(height: 8),
-                    _buildMiniSummary('Paid', _currencyFormat.format(category.paidAmount), const Color(0xFF002045)),
+                    _buildMiniSummary(
+                      category.hasDiscount ? 'Approved' : 'Total',
+                      _currencyFormat.format(category.totalAmount),
+                      const Color(0xFF0D1C2E),
+                    ),
+                    if (category.hasDiscount) ...[
+                      const SizedBox(height: 4),
+                      _buildMiniSummary(
+                        'Concession',
+                        '- ${_currencyFormat.format(category.discountAmount)}',
+                        const Color(0xFF137333),
+                      ),
+                    ],
+                    const SizedBox(height: category.hasDiscount ? 4 : 8),
+                    _buildMiniSummary(
+                      'Paid',
+                      _currencyFormat.format(category.paidAmount),
+                      const Color(0xFF002045),
+                    ),
                   ],
                 ),
               ),
@@ -590,7 +681,9 @@ class _FeesScreenState extends State<FeesScreen> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                '$pctInt% Paid',
+                category.hasDiscount
+                    ? '$pctInt% Paid (${_currencyFormat.format(category.paidAmount)} of ${_currencyFormat.format(category.netPayable)})'
+                    : '$pctInt% Paid',
                 style: GoogleFonts.inter(
                   color: const Color(0xFF545F72),
                   fontSize: 11,
@@ -855,6 +948,44 @@ class _FeesScreenState extends State<FeesScreen> {
                       fontSize: 12,
                     ),
                   ),
+                  if (category.hasDiscount) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF1F8F5),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: const Color(0xFFCEEAD6)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Approved Tuition:', style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF545F72))),
+                              Text(_currencyFormat.format(category.totalAmount), style: GoogleFonts.hankenGrotesk(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF0D1C2E))),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Concession / Scholarship:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: const Color(0xFF137333))),
+                              Text('- ${_currencyFormat.format(category.discountAmount)}', style: GoogleFonts.hankenGrotesk(fontSize: 13, fontWeight: FontWeight.bold, color: const Color(0xFF137333))),
+                            ],
+                          ),
+                          const Divider(height: 12, color: Color(0xFFCEEAD6)),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Net Payable Schedule:', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.bold, color: const Color(0xFF0D1C2E))),
+                              Text(_currencyFormat.format(category.netPayable), style: GoogleFonts.hankenGrotesk(fontSize: 14, fontWeight: FontWeight.bold, color: const Color(0xFF002045))),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   Expanded(
                     child: ListView.separated(
@@ -978,6 +1109,38 @@ class _FeesScreenState extends State<FeesScreen> {
                 category.title,
                 style: GoogleFonts.inter(color: const Color(0xFF545F72), fontSize: 12),
               ),
+              if (category.hasDiscount) ...[
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE6F4EA),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFCEEAD6)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Concession Received:',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF137333),
+                        ),
+                      ),
+                      Text(
+                        '- ${_currencyFormat.format(category.discountAmount)}',
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                          color: const Color(0xFF137333),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
               const SizedBox(height: 16),
               if (paidInstallments.isEmpty)
                 Padding(

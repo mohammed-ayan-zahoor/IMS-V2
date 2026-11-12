@@ -36,6 +36,9 @@ class FeeCategoryModel {
   final double totalAmount;
   final double paidAmount;
   final double balanceAmount;
+  final double discountAmount;
+  final String? discountReason;
+  final double netPayable;
   final List<FeeInstallmentModel> installments;
 
   FeeCategoryModel({
@@ -45,12 +48,18 @@ class FeeCategoryModel {
     required this.totalAmount,
     required this.paidAmount,
     required this.balanceAmount,
+    this.discountAmount = 0.0,
+    this.discountReason,
+    double? netPayable,
     required this.installments,
-  });
+  }) : netPayable = netPayable ?? ((totalAmount - discountAmount > 0) ? (totalAmount - discountAmount) : totalAmount);
+
+  bool get hasDiscount => discountAmount > 0;
 
   double get paidPercentage {
-    if (totalAmount <= 0) return 0.0;
-    return (paidAmount / totalAmount).clamp(0.0, 1.0);
+    final effectiveTotal = netPayable > 0 ? netPayable : totalAmount;
+    if (effectiveTotal <= 0) return 0.0;
+    return (paidAmount / effectiveTotal).clamp(0.0, 1.0);
   }
 
   factory FeeCategoryModel.fromCourseFee(Map<String, dynamic> json) {
@@ -70,13 +79,56 @@ class FeeCategoryModel {
             .toList() ??
         [];
 
+    final total = (json['totalAmount'] is num) ? (json['totalAmount'] as num).toDouble() : 0.0;
+    final paid = (json['paidAmount'] is num) ? (json['paidAmount'] as num).toDouble() : 0.0;
+    final balance = (json['balanceAmount'] is num) ? (json['balanceAmount'] as num).toDouble() : 0.0;
+
+    double discount = 0.0;
+    String? reason;
+
+    // Check discount object
+    final discountRaw = json['discount'];
+    if (discountRaw is Map) {
+      if (discountRaw['amount'] is num) {
+        discount = (discountRaw['amount'] as num).toDouble();
+      }
+      reason = discountRaw['reason']?.toString();
+    } else if (discountRaw is num) {
+      discount = discountRaw.toDouble();
+    }
+
+    // Check concession fallback
+    if (discount <= 0 && json['concession'] != null) {
+      final concRaw = json['concession'];
+      if (concRaw is Map) {
+        if (concRaw['amount'] is num) {
+          discount = (concRaw['amount'] as num).toDouble();
+        }
+        reason ??= concRaw['reason']?.toString();
+      } else if (concRaw is num) {
+        discount = concRaw.toDouble();
+      }
+    }
+
+    if (discount <= 0 && json['concessionAmount'] is num) {
+      discount = (json['concessionAmount'] as num).toDouble();
+      reason ??= json['concessionReason']?.toString();
+    }
+
+    double net = (json['netPayable'] is num)
+        ? (json['netPayable'] as num).toDouble()
+        : ((total - discount > 0) ? (total - discount) : (total > 0 ? total : 0.0));
+
     return FeeCategoryModel(
       id: json['_id'] ?? '',
       title: 'Course Fee - $batchName',
       subtitle: 'Academic Session',
-      totalAmount: (json['totalAmount'] is num) ? (json['totalAmount'] as num).toDouble() : 0.0,
-      paidAmount: (json['paidAmount'] is num) ? (json['paidAmount'] as num).toDouble() : 0.0,
-      balanceAmount: (json['balanceAmount'] is num) ? (json['balanceAmount'] as num).toDouble() : 0.0,
+      totalAmount: total,
+      paidAmount: paid,
+      balanceAmount: balance,
+      discountAmount: discount,
+      discountReason: reason,
+      netPayable: net,
       installments: installmentsList,
     );
   }
@@ -88,13 +140,30 @@ class FeeCategoryModel {
             .toList() ??
         [];
 
+    final total = (json['totalAmount'] is num) ? (json['totalAmount'] as num).toDouble() : 0.0;
+    final paid = (json['paidAmount'] is num) ? (json['paidAmount'] as num).toDouble() : 0.0;
+    final balance = (json['balanceAmount'] is num) ? (json['balanceAmount'] as num).toDouble() : 0.0;
+
+    double discount = 0.0;
+    String? reason;
+    final discountRaw = json['discount'] ?? json['concession'];
+    if (discountRaw is Map) {
+      if (discountRaw['amount'] is num) discount = (discountRaw['amount'] as num).toDouble();
+      reason = discountRaw['reason']?.toString();
+    } else if (discountRaw is num) {
+      discount = discountRaw.toDouble();
+    }
+
     return FeeCategoryModel(
       id: json['_id'] ?? '',
       title: 'Transport Fee - $routeName',
       subtitle: 'Vehicle Bus Service',
-      totalAmount: (json['totalAmount'] is num) ? (json['totalAmount'] as num).toDouble() : 0.0,
-      paidAmount: (json['paidAmount'] is num) ? (json['paidAmount'] as num).toDouble() : 0.0,
-      balanceAmount: (json['balanceAmount'] is num) ? (json['balanceAmount'] as num).toDouble() : 0.0,
+      totalAmount: total,
+      paidAmount: paid,
+      balanceAmount: balance,
+      discountAmount: discount,
+      discountReason: reason,
+      netPayable: (total - discount > 0) ? (total - discount) : total,
       installments: installmentsList,
     );
   }
@@ -107,13 +176,30 @@ class FeeCategoryModel {
             .toList() ??
         [];
 
+    final total = (json['totalAmount'] is num) ? (json['totalAmount'] as num).toDouble() : 0.0;
+    final paid = (json['paidAmount'] is num) ? (json['paidAmount'] as num).toDouble() : 0.0;
+    final balance = (json['balanceAmount'] is num) ? (json['balanceAmount'] as num).toDouble() : 0.0;
+
+    double discount = 0.0;
+    String? reason;
+    final discountRaw = json['discount'] ?? json['concession'];
+    if (discountRaw is Map) {
+      if (discountRaw['amount'] is num) discount = (discountRaw['amount'] as num).toDouble();
+      reason = discountRaw['reason']?.toString();
+    } else if (discountRaw is num) {
+      discount = discountRaw.toDouble();
+    }
+
     return FeeCategoryModel(
       id: json['_id'] ?? '',
       title: 'Hostel Fee - $blockName ($roomNo)',
       subtitle: 'Accommodation Rent',
-      totalAmount: (json['totalAmount'] is num) ? (json['totalAmount'] as num).toDouble() : 0.0,
-      paidAmount: (json['paidAmount'] is num) ? (json['paidAmount'] as num).toDouble() : 0.0,
-      balanceAmount: (json['balanceAmount'] is num) ? (json['balanceAmount'] as num).toDouble() : 0.0,
+      totalAmount: total,
+      paidAmount: paid,
+      balanceAmount: balance,
+      discountAmount: discount,
+      discountReason: reason,
+      netPayable: (total - discount > 0) ? (total - discount) : total,
       installments: installmentsList,
     );
   }

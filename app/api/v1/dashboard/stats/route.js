@@ -352,6 +352,12 @@ export async function GET(req) {
             : (isInstructor 
                 ? { institute: new mongoose.Types.ObjectId(targetInstituteId), actor: new mongoose.Types.ObjectId(scope.user.id) } 
                 : { institute: new mongoose.Types.ObjectId(targetInstituteId) });
+        activityFeedQuery.$nor = [
+            {
+                action: 'user.login',
+                'details.actorSnapshot.role': { $nin: ['admin', 'super_admin'] }
+            }
+        ];
         const activityFeedPromise = isAdminOrSuperAdmin
             ? AuditLog.find(activityFeedQuery)
                 .sort({ createdAt: -1 })

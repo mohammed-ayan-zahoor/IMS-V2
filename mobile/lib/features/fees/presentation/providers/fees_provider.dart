@@ -14,6 +14,13 @@ class FeesProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   List<FeeCategoryModel> get categories => _categories;
 
+  double get totalGrossAmount => _categories.fold(0.0, (sum, c) => sum + c.totalAmount);
+  double get totalConcessionAmount => _categories.fold(0.0, (sum, c) => sum + c.discountAmount);
+  double get totalNetPayable => _categories.fold(0.0, (sum, c) => sum + c.netPayable);
+  double get totalPaidAmount => _categories.fold(0.0, (sum, c) => sum + c.paidAmount);
+  double get totalBalanceDue => _categories.fold(0.0, (sum, c) => sum + c.balanceAmount);
+  bool get hasAnyConcession => totalConcessionAmount > 0;
+
   FeesProvider() {
     loadFees();
   }

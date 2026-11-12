@@ -7,6 +7,7 @@ import Batch from "@/models/Batch";
 import TransportFee from "@/models/TransportFee";
 import HostelAllotment from "@/models/HostelAllotment";
 import Session from "@/models/Session";
+import User from "@/models/User";
 import mongoose from "mongoose";
 
 export async function GET(req) {
@@ -75,31 +76,67 @@ export async function GET(req) {
             hostelQuery.session = new mongoose.Types.ObjectId(querySessionId);
         }
 
-        const fees = await Fee.find(feeQuery)
-            .populate({
-                path: "batch",
-                select: "name course",
-                populate: {
-                    path: "course",
-                    select: "name code"
+        const [fees, studentUser, transportFees, hostelAllotments] = await Promise.all([
+            Fee.find(feeQuery)
+                .populate({
+                    path: "batch",
+                    select: "name course",
+                    populate: {
+                        path: "course",
+                        select: "name code"
+                    }
+                })
+                .populate("institute", "name branding address contactEmail contactPhone settings")
+                .sort({ updatedAt: -1 })
+                .lean(),
+            User.findById(studentObjId).select("scholarship rte").lean(),
+            TransportFee.find(transportQuery)
+                .populate("route vehicle preset")
+                .sort({ updatedAt: -1 })
+                .lean(),
+            HostelAllotment.find(hostelQuery)
+                .populate("room block")
+                .sort({ updatedAt: -1 })
+                .lean()
+        ]);
+
+        // Enrich fees with accurate concession/discount details for all institute types
+        const enrichedFees = fees.map(f => {
+            let discountAmount = f.discount?.amount || 0;
+            let discountReason = f.discount?.reason || null;
+
+            if (discountAmount <= 0 && studentUser?.scholarship?.hasScholarship) {
+                if (studentUser.scholarship.scholarshipType === 'percentage') {
+                    discountAmount = Math.round(((f.totalAmount || 0) * (studentUser.scholarship.scholarshipAmount || 0)) / 100);
+                } else {
+                    discountAmount = studentUser.scholarship.scholarshipAmount || 0;
                 }
-            })
-            .populate("institute", "name branding address contactEmail contactPhone settings")
-            .sort({ updatedAt: -1 })
-            .lean();
+                discountReason = studentUser.scholarship.scholarshipName || "Institutional Scholarship";
+            } else if (discountAmount <= 0 && studentUser?.rte?.isRte) {
+                discountAmount = f.totalAmount || 0;
+                discountReason = "RTE 100% Concession";
+            }
 
-        const transportFees = await TransportFee.find(transportQuery)
-            .populate("route vehicle preset")
-            .sort({ updatedAt: -1 })
-            .lean();
+            const netPayable = Math.max(0, (f.totalAmount || 0) - discountAmount + (f.extraCharges?.amount || 0));
 
-        const hostelAllotments = await HostelAllotment.find(hostelQuery)
-            .populate("room block")
-            .sort({ updatedAt: -1 })
-            .lean();
+            return {
+                ...f,
+                discount: {
+                    amount: discountAmount,
+                    reason: discountReason || "Fee Concession"
+                },
+                concession: {
+                    amount: discountAmount,
+                    reason: discountReason || "Fee Concession"
+                },
+                concessionAmount: discountAmount,
+                concessionReason: discountReason || "Fee Concession",
+                netPayable
+            };
+        });
 
         return NextResponse.json({
-            fees,
+            fees: enrichedFees,
             transportFees,
             hostelAllotments,
             batches: enrolledBatches.map(b => ({
