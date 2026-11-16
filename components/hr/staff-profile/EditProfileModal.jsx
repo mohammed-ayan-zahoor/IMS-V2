@@ -122,6 +122,22 @@ export function EditProfileModal({
 
           <div>
             <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+              Employee ID
+            </label>
+            <Input
+              value={profileForm.employeeId || ""}
+              onChange={(e) =>
+                setProfileForm({ ...profileForm, employeeId: e.target.value.toUpperCase() })
+              }
+              placeholder="e.g. ATS-001"
+            />
+            <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+              Appears on payslips, bank loan applications, and attendance.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
               Role / Category
             </label>
             <select

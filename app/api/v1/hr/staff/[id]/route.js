@@ -151,6 +151,24 @@ export async function PATCH(req, { params }) {
         if (body.dob !== undefined) staff.profile.dateOfBirth = body.dob ? new Date(body.dob) : null;
         if (body.address !== undefined) staff.profile.address = body.address;
 
+        // 1b. Employee ID / Enrollment Number
+        const rawEmpId = body.employeeId !== undefined ? body.employeeId : body.enrollmentNumber;
+        if (rawEmpId !== undefined && rawEmpId !== null) {
+            const trimmedEmpId = rawEmpId.toString().trim().toUpperCase();
+            if (trimmedEmpId && trimmedEmpId !== staff.enrollmentNumber) {
+                const existingEmp = await User.findOne({
+                    _id: { $ne: staff._id },
+                    institute: instituteId,
+                    enrollmentNumber: trimmedEmpId,
+                    deletedAt: null
+                });
+                if (existingEmp) {
+                    return NextResponse.json({ error: "Employee ID is already in use by another staff member" }, { status: 400 });
+                }
+                staff.enrollmentNumber = trimmedEmpId;
+            }
+        }
+
         // 2. Email & Password updates
         if (body.email !== undefined && body.email !== null) {
             const newEmail = body.email.trim().toLowerCase();

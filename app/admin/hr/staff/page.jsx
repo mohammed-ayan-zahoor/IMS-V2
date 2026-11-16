@@ -66,6 +66,7 @@ export default function StaffDirectoryPage() {
     const [editFormData, setEditFormData] = useState({
         firstName: "",
         lastName: "",
+        employeeId: "",
         phone: "",
         staffCategory: "office_staff",
         role: "staff",
@@ -83,6 +84,7 @@ export default function StaffDirectoryPage() {
     const initialFormState = {
         firstName: "",
         lastName: "",
+        employeeId: "",
         phone: "",
         staffCategory: "office_staff", // "office_staff" | "admin" | "instructor" | "support_staff"
         role: "staff",
@@ -324,6 +326,7 @@ export default function StaffDirectoryPage() {
             const payload = {
                 firstName: formData.firstName.trim(),
                 lastName: formData.lastName.trim(),
+                employeeId: formData.employeeId?.trim() ? formData.employeeId.trim().toUpperCase() : undefined,
                 phone: formData.phone.trim(),
                 role: formData.role,
                 designation: formData.designation || undefined,
@@ -995,6 +998,20 @@ export default function StaffDirectoryPage() {
                                 value={formData.lastName}
                                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                             />
+                        </div>
+
+                        <div className="sm:col-span-2">
+                            <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                                Employee ID <span className="text-gray-400 font-normal">(Optional — will auto-generate if empty)</span>
+                            </label>
+                            <Input
+                                placeholder="e.g. ATS-001"
+                                value={formData.employeeId}
+                                onChange={(e) => setFormData({ ...formData, employeeId: e.target.value.toUpperCase() })}
+                            />
+                            <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1">
+                                Used on official payslips, bank loan applications, and attendance registers.
+                            </p>
                         </div>
 
                         <div className="sm:col-span-2">

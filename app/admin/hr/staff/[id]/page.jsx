@@ -192,6 +192,7 @@ export default function StaffProfilePage({ params }) {
         setProfileForm({
           firstName: staffData?.profile?.firstName || "",
           lastName: staffData?.profile?.lastName || "",
+          employeeId: staffData?.enrollmentNumber || staffData?.employeeCode || staffData?.employeeId || "",
           avatar: staffData?.profile?.avatar || null,
           phone: staffData?.profile?.phone || "",
           gender: staffData?.profile?.gender || "",
@@ -594,6 +595,7 @@ export default function StaffProfilePage({ params }) {
       const payload = {
         firstName: profileForm.firstName.trim(),
         lastName: profileForm.lastName.trim(),
+        employeeId: profileForm.employeeId !== undefined ? profileForm.employeeId.trim().toUpperCase() : undefined,
         phone: profileForm.phone.trim(),
         gender: profileForm.gender,
         bloodGroup: profileForm.bloodGroup,
@@ -654,6 +656,7 @@ export default function StaffProfilePage({ params }) {
       setProfileForm({
         firstName: staff.profile?.firstName || "",
         lastName: staff.profile?.lastName || "",
+        employeeId: staff.enrollmentNumber || staff.employeeCode || staff.employeeId || "",
         avatar: staff.profile?.avatar || null,
         phone: staff.profile?.phone || "",
         email: isSynthetic ? "" : staff.email || "",
@@ -736,7 +739,7 @@ export default function StaffProfilePage({ params }) {
   const fullName =
     `${staff.profile?.firstName || ""} ${staff.profile?.lastName || ""}`.trim() ||
     "Staff Member";
-  const employeeCode = staff.employeeCode || staff.employeeId || "";
+  const employeeCode = staff.enrollmentNumber || staff.employeeCode || staff.employeeId || "";
   const designationName = staff.hrDetails?.designation?.name || "General Staff";
   const departmentName = staff.department?.name || staff.department?.code || "";
   const isAdmin = staff.role === "admin";

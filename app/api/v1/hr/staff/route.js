@@ -147,7 +147,9 @@ export async function POST(req) {
             esiNumber,
             bankDetails,
             biometricId,
-            permissions
+            permissions,
+            employeeId,
+            enrollmentNumber
         } = body;
 
         if (!firstName || !firstName.trim()) {
@@ -189,8 +191,20 @@ export async function POST(req) {
             }
         }
 
+        const customEmpId = (employeeId || enrollmentNumber || "").toString().trim().toUpperCase();
+        if (customEmpId) {
+            const existingEmp = await User.findOne({
+                institute: instituteId,
+                enrollmentNumber: customEmpId,
+                deletedAt: null
+            });
+            if (existingEmp) {
+                return NextResponse.json({ error: "Employee ID is already in use by another staff member" }, { status: 400 });
+            }
+        }
+
         const passwordHash = await bcrypt.hash(userPassword, 10);
-        const empCode = `EMP-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+        const empCode = customEmpId || `EMP-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 
         const userPayload = {
             institute: instituteId,
