@@ -394,7 +394,19 @@ export default function FeesPage() {
             }
             const data = await res.json();
             if (signal?.aborted) return;
-            setCollectors(data.collectors || []);
+            const fetchedCollectors = data.collectors || [];
+            setCollectors(fetchedCollectors);
+
+            // Auto-select logged-in user collector if not chosen yet
+            setPaymentData(prev => {
+                if (prev.collectedBy) return prev;
+                const match = fetchedCollectors.find(c =>
+                    c.name?.trim().toLowerCase() === session?.user?.name?.trim().toLowerCase() ||
+                    (c.user && c.user.toString() === session?.user?.id?.toString())
+                );
+                const defaultName = match?.name || (fetchedCollectors.length === 1 ? fetchedCollectors[0].name : (session?.user?.name || ""));
+                return { ...prev, collectedBy: defaultName };
+            });
         } catch (error) {
             if (error.name === 'AbortError') return;
             console.error("Failed to fetch collectors", error);
@@ -499,6 +511,10 @@ export default function FeesPage() {
         
         // Find next pending installment
         const nextPending = fee?.installments?.find(i => i.status === 'pending');
+        const defaultCollector = collectors.find(c => 
+            c.name?.trim().toLowerCase() === session?.user?.name?.trim().toLowerCase() ||
+            (c.user && c.user.toString() === session?.user?.id?.toString())
+        )?.name || (collectors.length === 1 ? collectors[0].name : (session?.user?.name || ""));
         
         setPaymentData({
             installmentId: nextPending ? nextPending._id : "adhoc",
@@ -507,7 +523,7 @@ export default function FeesPage() {
                 : (fee.totalAmount - (fee.paidAmount || 0)).toString(),
             method: "cash",
             transactionId: "",
-            collectedBy: "",
+            collectedBy: defaultCollector,
             notes: "",
             date: format(new Date(), "yyyy-MM-dd"),
             nextDueDate: "",

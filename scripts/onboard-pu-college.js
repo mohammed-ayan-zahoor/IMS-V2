@@ -39,6 +39,8 @@ function normalizeDate(val) {
         if (ddmmyyyy) {
             let yr = +ddmmyyyy[3];
             if (yr < 100) yr += 2000;
+            // Guard against 2028 transposition in 2026 batches
+            if (yr === 2028) yr = 2026;
             return new Date(yr, +ddmmyyyy[2] - 1, +ddmmyyyy[1]);
         }
         const parsed = new Date(cleaned);

@@ -37,7 +37,9 @@ import {
     TrendingUp,
     FileSpreadsheet,
     Wallet,
-    Trash2
+    Trash2,
+    Pencil,
+    Loader2
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import ReceiptViewerModal from "@/components/finance/ReceiptViewerModal";
@@ -95,6 +97,7 @@ export default function ExpenseReportPage() {
 
     // Data States
     const [expenseHeads, setExpenseHeads] = useState([]);
+    const [accounts, setAccounts] = useState([]);
     const [expenses, setExpenses] = useState([]);
     const [summary, setSummary] = useState({ totalAmount: 0, totalCount: 0, categoryWise: {} });
     const [loading, setLoading] = useState(true);
@@ -102,6 +105,18 @@ export default function ExpenseReportPage() {
 
     // Modal State
     const [viewerModal, setViewerModal] = useState({ isOpen: false, attachments: [], title: "" });
+    const [editModal, setEditModal] = useState({
+        isOpen: false,
+        expense: null,
+        date: "",
+        expenseHead: "",
+        amount: "",
+        paymentMode: "Cash",
+        paidByAccount: "",
+        paidTo: "",
+        description: ""
+    });
+    const [savingEdit, setSavingEdit] = useState(false);
 
     const searchInputRef = useRef(null);
     const abortControllerRef = useRef(null);
@@ -172,22 +187,27 @@ export default function ExpenseReportPage() {
         }
     }, []);
 
-    // Fetch Expense Heads on mount
+    // Fetch Expense Heads and Accounts on mount
     useEffect(() => {
         const controller = new AbortController();
-        const fetchHeads = async () => {
+        const fetchInitialData = async () => {
             try {
-                const res = await fetch("/api/v1/expense-heads", { signal: controller.signal });
-                const data = await res.json();
+                const [headsRes, accountsRes] = await Promise.all([
+                    fetch("/api/v1/expense-heads", { signal: controller.signal }),
+                    fetch("/api/v1/collectors", { signal: controller.signal })
+                ]);
+                const headsData = await headsRes.json();
+                const accountsData = await accountsRes.json();
                 if (controller.signal.aborted) return;
-                setExpenseHeads(data.expenseHeads || []);
+                setExpenseHeads(headsData.expenseHeads || []);
+                setAccounts(accountsData.collectors || []);
             } catch (err) {
                 if (err.name !== "AbortError") {
-                    console.error("Failed to load categories:", err);
+                    console.error("Failed to load categories/accounts:", err);
                 }
             }
         };
-        fetchHeads();
+        fetchInitialData();
         return () => controller.abort();
     }, []);
 
@@ -240,6 +260,59 @@ export default function ExpenseReportPage() {
             }
         };
     }, [loadExpenses]);
+
+    const openEditModal = (expense) => {
+        setEditModal({
+            isOpen: true,
+            expense,
+            date: expense.date ? format(new Date(expense.date), "yyyy-MM-dd") : "",
+            expenseHead: expense.expenseHead?._id || expense.expenseHead || "",
+            amount: expense.amount?.toString() || "",
+            paymentMode: expense.paymentMode || "Cash",
+            paidByAccount: expense.paidByAccount?._id || expense.paidByAccount || "",
+            paidTo: expense.paidTo || "",
+            description: expense.description || ""
+        });
+    };
+
+    const handleSaveEdit = async (e) => {
+        e.preventDefault();
+        if (!editModal.expense) return;
+        const numAmount = parseFloat(editModal.amount);
+        if (isNaN(numAmount) || numAmount <= 0) {
+            toast.error("Please enter a valid amount");
+            return;
+        }
+
+        setSavingEdit(true);
+        try {
+            const res = await fetch(`/api/v1/expenses/${editModal.expense._id}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    date: editModal.date,
+                    expenseHead: editModal.expenseHead,
+                    amount: numAmount,
+                    paymentMode: editModal.paymentMode,
+                    paidByAccount: editModal.paidByAccount || null,
+                    paidTo: editModal.paidTo,
+                    description: editModal.description
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.success("Expense updated successfully");
+                setEditModal(prev => ({ ...prev, isOpen: false, expense: null }));
+                loadExpenses(true);
+            } else {
+                toast.error(data.error || "Failed to update expense");
+            }
+        } catch (error) {
+            toast.error("Error updating expense");
+        } finally {
+            setSavingEdit(false);
+        }
+    };
 
     const handleDelete = async (id, category, amount) => {
         if (await confirm({
@@ -848,7 +921,7 @@ export default function ExpenseReportPage() {
                                         )}
                                     </button>
                                 </th>
-                                <th className="w-10 px-2 py-3 text-right"></th>
+                                <th className="w-16 px-3 py-3 text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 text-xs">
@@ -938,15 +1011,24 @@ export default function ExpenseReportPage() {
                                                 {formatCurrency(expense.amount)}
                                             </td>
 
-                                            {/* Quiet Delete Action */}
-                                            <td className="w-10 px-2 py-3 text-right">
-                                                <button
-                                                    onClick={() => handleDelete(expense._id, expense.expenseHead?.name || "Expense", expense.amount)}
-                                                    className="w-6 h-6 inline-flex items-center justify-center text-slate-300 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-all opacity-0 group-hover:opacity-100 cursor-pointer"
-                                                    title="Delete Entry"
-                                                >
-                                                    <Trash2 size={13} />
-                                                </button>
+                                            {/* Actions: Edit & Delete */}
+                                            <td className="w-16 px-3 py-3 text-right">
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <button
+                                                        onClick={() => openEditModal(expense)}
+                                                        className="w-7 h-7 inline-flex items-center justify-center text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                                        title="Edit Entry"
+                                                    >
+                                                        <Pencil size={13} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(expense._id, expense.expenseHead?.name || "Expense", expense.amount)}
+                                                        className="w-7 h-7 inline-flex items-center justify-center text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                                        title="Delete Entry"
+                                                    >
+                                                        <Trash2 size={13} />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     );
@@ -1032,6 +1114,186 @@ export default function ExpenseReportPage() {
                 attachments={viewerModal.attachments}
                 title={viewerModal.title}
             />
+
+            {/* ── 8. Edit Expense Modal ── */}
+            <AnimatePresence>
+                {editModal.isOpen && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+                        onClick={() => !savingEdit && setEditModal(prev => ({ ...prev, isOpen: false, expense: null }))}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 10 }}
+                            animate={{ scale: 1, opacity: 1, y: 0 }}
+                            exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                            transition={{ duration: 0.15 }}
+                            onClick={(e) => e.stopPropagation()}
+                            className="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden my-8"
+                        >
+                            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
+                                        <Pencil size={15} />
+                                    </div>
+                                    <div>
+                                        <h3 className="text-sm font-bold text-slate-800">Edit Expense Entry</h3>
+                                        <p className="text-[11px] text-slate-400">Update expense details, payment method, or amount</p>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    disabled={savingEdit}
+                                    onClick={() => setEditModal(prev => ({ ...prev, isOpen: false, expense: null }))}
+                                    className="w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center cursor-pointer transition-colors"
+                                >
+                                    <X size={15} />
+                                </button>
+                            </div>
+
+                            <form onSubmit={handleSaveEdit} className="p-6 space-y-4">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                            Date *
+                                        </label>
+                                        <input
+                                            type="date"
+                                            required
+                                            value={editModal.date}
+                                            onChange={(e) => setEditModal(prev => ({ ...prev, date: e.target.value }))}
+                                            className="w-full px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg focus:border-blue-500 focus:bg-white outline-none transition-colors"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                            Amount (₹) *
+                                        </label>
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            step="0.01"
+                                            required
+                                            value={editModal.amount}
+                                            onChange={(e) => setEditModal(prev => ({ ...prev, amount: e.target.value }))}
+                                            className="w-full px-3 py-2 text-xs font-bold font-mono bg-slate-50 border border-slate-200 rounded-lg focus:border-blue-500 focus:bg-white outline-none transition-colors"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                        Expense Category *
+                                    </label>
+                                    <select
+                                        required
+                                        value={editModal.expenseHead}
+                                        onChange={(e) => setEditModal(prev => ({ ...prev, expenseHead: e.target.value }))}
+                                        className="w-full px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg focus:border-blue-500 focus:bg-white outline-none transition-colors"
+                                    >
+                                        <option value="">Select Category...</option>
+                                        {expenseHeads.map(h => (
+                                            <option key={h._id} value={h._id}>{h.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                            Payment Mode
+                                        </label>
+                                        <select
+                                            value={editModal.paymentMode}
+                                            onChange={(e) => setEditModal(prev => ({ ...prev, paymentMode: e.target.value }))}
+                                            className="w-full px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg focus:border-blue-500 focus:bg-white outline-none transition-colors"
+                                        >
+                                            <option value="Cash">Cash</option>
+                                            <option value="Bank Transfer">Bank Transfer</option>
+                                            <option value="UPI">UPI</option>
+                                            <option value="Cheque">Cheque</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                            Paid From Account / Drawer
+                                        </label>
+                                        <select
+                                            value={editModal.paidByAccount}
+                                            onChange={(e) => setEditModal(prev => ({ ...prev, paidByAccount: e.target.value }))}
+                                            className="w-full px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg focus:border-blue-500 focus:bg-white outline-none transition-colors"
+                                        >
+                                            <option value="">None / Direct</option>
+                                            {accounts.map(acc => (
+                                                <option key={acc._id} value={acc._id}>
+                                                    {acc.name} {acc.accountType ? `(${acc.accountType})` : ''}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                        Paid To (Vendor / Person)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={editModal.paidTo}
+                                        onChange={(e) => setEditModal(prev => ({ ...prev, paidTo: e.target.value }))}
+                                        placeholder="e.g. Canara Bank, Electrician, Stationery store"
+                                        className="w-full px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg focus:border-blue-500 focus:bg-white outline-none transition-colors"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                        Description / Remarks
+                                    </label>
+                                    <textarea
+                                        rows={2}
+                                        value={editModal.description}
+                                        onChange={(e) => setEditModal(prev => ({ ...prev, description: e.target.value }))}
+                                        placeholder="Add any additional notes..."
+                                        className="w-full px-3 py-2 text-xs font-semibold bg-slate-50 border border-slate-200 rounded-lg focus:border-blue-500 focus:bg-white outline-none transition-colors resize-none"
+                                    />
+                                </div>
+
+                                <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                                    <button
+                                        type="button"
+                                        disabled={savingEdit}
+                                        onClick={() => setEditModal(prev => ({ ...prev, isOpen: false, expense: null }))}
+                                        className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg cursor-pointer transition-colors"
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={savingEdit}
+                                        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-xs cursor-pointer transition-colors disabled:opacity-50"
+                                    >
+                                        {savingEdit ? (
+                                            <>
+                                                <Loader2 size={13} className="animate-spin" />
+                                                <span>Saving...</span>
+                                            </>
+                                        ) : (
+                                            <span>Save Changes</span>
+                                        )}
+                                    </button>
+                                </div>
+                            </form>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

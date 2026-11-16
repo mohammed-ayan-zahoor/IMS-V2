@@ -925,7 +925,19 @@ export default function StudentDetailsPage({ params }) {
             }
             const data = await res.json();
             if (signal?.aborted) return;
-            setCollectors(data.collectors || []);
+            const fetchedCollectors = data.collectors || [];
+            setCollectors(fetchedCollectors);
+
+            // Auto-select logged-in user collector if not chosen yet
+            setPaymentData(prev => {
+                if (prev.collectedBy) return prev;
+                const match = fetchedCollectors.find(c =>
+                    c.name?.trim().toLowerCase() === session?.user?.name?.trim().toLowerCase() ||
+                    (c.user && c.user.toString() === session?.user?.id?.toString())
+                );
+                const defaultName = match?.name || (fetchedCollectors.length === 1 ? fetchedCollectors[0].name : (session?.user?.name || ""));
+                return { ...prev, collectedBy: defaultName };
+            });
         } catch (error) {
             if (error.name === 'AbortError') return;
             console.error("Failed to fetch collectors", error);
@@ -1138,6 +1150,10 @@ export default function StudentDetailsPage({ params }) {
         
         // Find next pending installment
         const nextPending = fee?.installments?.find(i => i.status === 'pending');
+        const defaultCollector = collectors.find(c => 
+            c.name?.trim().toLowerCase() === session?.user?.name?.trim().toLowerCase() ||
+            (c.user && c.user.toString() === session?.user?.id?.toString())
+        )?.name || (collectors.length === 1 ? collectors[0].name : (session?.user?.name || ""));
         
         setPaymentData({
             amount: nextPending 
@@ -1146,7 +1162,7 @@ export default function StudentDetailsPage({ params }) {
             method: "cash",
             transactionId: "",
             notes: "",
-            collectedBy: "",
+            collectedBy: defaultCollector,
             date: format(new Date(), "yyyy-MM-dd"),
             nextDueDate: "",
             installmentId: nextPending ? nextPending._id : "adhoc"
@@ -1161,6 +1177,10 @@ export default function StudentDetailsPage({ params }) {
         
         // Find next pending installment if any
         const nextPending = fee?.installments?.find(i => i.status === 'pending');
+        const defaultCollector = collectors.find(c => 
+            c.name?.trim().toLowerCase() === session?.user?.name?.trim().toLowerCase() ||
+            (c.user && c.user.toString() === session?.user?.id?.toString())
+        )?.name || (collectors.length === 1 ? collectors[0].name : (session?.user?.name || ""));
         
         setPaymentData({
             amount: nextPending 
@@ -1169,7 +1189,7 @@ export default function StudentDetailsPage({ params }) {
             method: "cash",
             transactionId: "",
             notes: "",
-            collectedBy: "",
+            collectedBy: defaultCollector,
             date: format(new Date(), "yyyy-MM-dd"),
             nextDueDate: "",
             installmentId: nextPending ? nextPending._id : "adhoc"
@@ -1184,6 +1204,10 @@ export default function StudentDetailsPage({ params }) {
         
         // Find next pending or overdue installment if any
         const nextPending = fee?.installments?.find(i => i.status === 'pending' || i.status === 'overdue');
+        const defaultCollector = collectors.find(c => 
+            c.name?.trim().toLowerCase() === session?.user?.name?.trim().toLowerCase() ||
+            (c.user && c.user.toString() === session?.user?.id?.toString())
+        )?.name || (collectors.length === 1 ? collectors[0].name : (session?.user?.name || ""));
         
         setPaymentData({
             amount: nextPending 
@@ -1192,7 +1216,7 @@ export default function StudentDetailsPage({ params }) {
             method: "cash",
             transactionId: "",
             notes: "",
-            collectedBy: "",
+            collectedBy: defaultCollector,
             date: format(new Date(), "yyyy-MM-dd"),
             nextDueDate: "",
             installmentId: nextPending ? nextPending._id : "adhoc"
@@ -4391,7 +4415,7 @@ export default function StudentDetailsPage({ params }) {
                             <span>Revert Paid Installment to Unpaid</span>
                         </p>
                         <p className="text-amber-800 leading-relaxed">
-                            This will revert Installment #{revertPaymentModal.installmentIndex} of ₹{(revertPaymentModal.installment?.amount || 0).toLocaleString()} back to unpaid (pending) without deleting the student's fee profile or touching other installments.
+                            This will revert Installment #{revertPaymentModal.installmentIndex} of ₹{(revertPaymentModal.installment?.amount || 0).toLocaleString()} back to unpaid (pending) without deleting the student&apos;s fee profile or touching other installments.
                         </p>
                     </div>
 
@@ -4427,9 +4451,9 @@ export default function StudentDetailsPage({ params }) {
                     <div className="text-[11px] text-slate-500 bg-slate-100/60 p-2.5 rounded-lg border border-slate-200/60 space-y-1">
                         <p className="font-semibold text-slate-700">Financial Impact:</p>
                         <ul className="list-disc pl-4 space-y-0.5">
-                            <li>Student's balance will increase by ₹{(revertPaymentModal.installment?.amount || 0).toLocaleString()}.</li>
+                            <li>Student&apos;s balance will increase by ₹{(revertPaymentModal.installment?.amount || 0).toLocaleString()}.</li>
                             {revertPaymentModal.installment?.collectedBy && (
-                                <li>₹{(revertPaymentModal.installment?.amount || 0).toLocaleString()} will be refunded from <strong>{revertPaymentModal.installment.collectedBy}</strong>'s cash counter balance.</li>
+                                <li>₹{(revertPaymentModal.installment?.amount || 0).toLocaleString()} will be refunded from <strong>{revertPaymentModal.installment.collectedBy}</strong>&apos;s cash counter balance.</li>
                             )}
                             <li>All other installments and fee structures remain untouched.</li>
                         </ul>
