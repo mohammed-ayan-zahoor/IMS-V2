@@ -33,33 +33,40 @@
       scroll-margin-top: 130px;
     }
 
-    /* Apple-Style Hero Load Choreography */
+    /* Apple-Style Hero Load Choreography - Hardware Accelerated */
     @keyframes rise  {
       from {
         opacity: 0;
         transform: translateY(var(--y, 12px));
-        filter: blur(4px);
       }
       to {
         opacity: 1;
         transform: none;
-        filter: none;
       }
     }
     @keyframes drop  { from { opacity: 0; transform: translateY(-16px); } to { opacity: 1; transform: none; } }
     @keyframes word  {
       0% {
         opacity: 0;
-        transform: translateY(80%);
-        filter: blur(8px);
+        transform: translateY(70%);
       }
-      35% {
-        opacity: 0.85;
+      40% {
+        opacity: 0.9;
       }
       100% {
         opacity: 1;
         transform: none;
-        filter: none;
+      }
+    }
+    @media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+      @keyframes rise {
+        from { opacity: 0; transform: translateY(var(--y, 12px)); filter: blur(3px); }
+        to   { opacity: 1; transform: none; filter: none; }
+      }
+      @keyframes word {
+        0%   { opacity: 0; transform: translateY(70%); filter: blur(4px); }
+        40%  { opacity: 0.9; }
+        100% { opacity: 1; transform: none; filter: none; }
       }
     }
     /* wipePill moved to liquid-glass-pill.css */
@@ -82,8 +89,14 @@
     }   /* soft feathered mask for word rise */
     .w       {
       display: inline-block;
-      will-change: transform, opacity, filter;
+      will-change: transform, opacity;
       animation: word 600ms var(--ease) calc(250ms + var(--i) * 60ms) both;
+    }
+
+    /* Off-screen performance containment */
+    .steps, .trust, .manage, .price, .faq, .foot {
+      content-visibility: auto;
+      contain-intrinsic-size: 800px;
     }
 
 /* liquid-glass-pill.css
@@ -2614,11 +2627,29 @@
       return document.querySelector('.nav-item.active') || navLinks[0];
     }
 
+    let sectionTops = [];
+    let scrollTicking = false;
+
+    function cacheSectionTops() {
+      sectionTops = navSections.map(s => {
+        const el = document.getElementById(s.id) ||
+                   (s.id === 'how-it-works' ? document.getElementById('steps') : null) ||
+                   (s.id === 'features' ? document.getElementById('manage') : null) ||
+                   (s.id === 'contact' ? document.getElementById('cta') : null);
+        return {
+          section: s,
+          top: el ? (el.getBoundingClientRect().top + window.pageYOffset) : 0
+        };
+      });
+    }
+
     function updateNavOnScroll() {
+      scrollTicking = false;
       if (isUserHoveringNav) return;
 
+      const pageY = window.pageYOffset;
       // Bottom-of-page check: activate Contact when user reaches the end
-      if ((window.innerHeight + window.pageYOffset) >= document.documentElement.scrollHeight - 70) {
+      if ((window.innerHeight + pageY) >= document.documentElement.scrollHeight - 70) {
         const last = navSections[navSections.length - 1];
         if (last && last.link && !last.link.classList.contains('active')) {
           navLinks.forEach(l => l.classList.remove('active'));
@@ -2628,20 +2659,12 @@
         return;
       }
 
-      const scrollPos = window.pageYOffset + 140;
+      const scrollPos = pageY + 140;
       let activeSection = navSections[0];
 
-      for (let i = 0; i < navSections.length; i++) {
-        const targetId = navSections[i].id;
-        const el = document.getElementById(targetId) ||
-                   (targetId === 'how-it-works' ? document.getElementById('steps') : null) ||
-                   (targetId === 'features' ? document.getElementById('manage') : null) ||
-                   (targetId === 'contact' ? document.getElementById('cta') : null);
-        if (el) {
-          const top = el.getBoundingClientRect().top + window.pageYOffset;
-          if (scrollPos >= top) {
-            activeSection = navSections[i];
-          }
+      for (let i = 0; i < sectionTops.length; i++) {
+        if (scrollPos >= sectionTops[i].top) {
+          activeSection = sectionTops[i].section;
         }
       }
 
@@ -2653,16 +2676,21 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
+      cacheSectionTops();
       setTimeout(() => positionNavDot(getActiveNavLink()), 60);
     });
 
     window.addEventListener('resize', () => {
+      cacheSectionTops();
       const cur = document.querySelector('.nav-item:hover') || getActiveNavLink();
       if (cur) positionNavDot(cur);
     });
 
     window.addEventListener('scroll', () => {
-      requestAnimationFrame(updateNavOnScroll);
+      if (!scrollTicking) {
+        scrollTicking = true;
+        requestAnimationFrame(updateNavOnScroll);
+      }
     }, { passive: true });
 
     navLinks.forEach(link => {
@@ -3184,18 +3212,22 @@
         if (mode === 'idle' && inView && !document.hidden) sweep(0, 1, 1300);
       }, 7000));
 
-      /* Pointer: the glint follows the cursor. Over the pill = local x; elsewhere = page x. */
+      /* Pointer: the glint follows the cursor when near the hero. */
+      var cachedRect = null;
       var onMove = function (e) {
-        if (e.pointerType === 'touch' || !inView) return;
-        var r = el.getBoundingClientRect();
+        if (e.pointerType === 'touch' || !inView || e.clientY > 650) return;
+        if (!cachedRect) cachedRect = el.getBoundingClientRect();
+        var r = cachedRect;
         var near = e.clientX > r.left - 40 && e.clientX < r.right + 40 &&
                    e.clientY > r.top - 60 && e.clientY < r.bottom + 60;
         target = near ? clamp((e.clientX - r.left) / r.width, 0, 1)
                       : 0.15 + 0.7 * (e.clientX / window.innerWidth);
         mode = 'follow'; start();
         clearTimeout(idleT);
-        idleT = setTimeout(function () { if (mode === 'follow') mode = 'idle'; }, 2500);
+        idleT = setTimeout(function () { if (mode === 'follow') mode = 'idle'; }, 2000);
       };
+      window.addEventListener('resize', function () { cachedRect = null; });
+      window.addEventListener('scroll', function () { cachedRect = null; }, { passive: true });
       window.addEventListener('pointermove', onMove, { passive: true });
       cleanups.push(function () { window.removeEventListener('pointermove', onMove); });
     }
