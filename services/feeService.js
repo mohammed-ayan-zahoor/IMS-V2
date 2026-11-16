@@ -1125,8 +1125,11 @@ export class FeeService {
         if (collectedBy) {
             try {
                 const collector = await Collector.findOne({
-                    name: collectedBy,
-                    institute: fee.institute
+                    institute: fee.institute,
+                    $or: [
+                        { name: collectedBy },
+                        ...(mongoose.Types.ObjectId.isValid(collectedBy) ? [{ _id: collectedBy }] : [])
+                    ]
                 });
                 if (collector) {
                     collector.currentBalance = Math.max(0, (collector.currentBalance || 0) - revertedAmount);

@@ -18,7 +18,9 @@ export async function GET(req, { params }) {
         }
 
         const instituteId = session.user?.institute?.id;
-        const { pdfBuffer, filename, fee } = await generateFeeReceiptPdfBuffer(id, instituteId);
+        const { searchParams } = new URL(req.url);
+        const installmentId = searchParams.get('installmentId');
+        const { pdfBuffer, filename, fee } = await generateFeeReceiptPdfBuffer(id, instituteId, installmentId);
 
         // Ownership and access control
         if (session.user.role === 'student' && fee.student?._id?.toString() !== session.user.id) {

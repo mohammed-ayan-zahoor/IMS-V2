@@ -90,8 +90,11 @@ export async function DELETE(req, { params }) {
                 if (inst.status === 'paid' && inst.collectedBy && inst.amount > 0) {
                     try {
                         const collector = await Collector.findOne({
-                            name: inst.collectedBy,
-                            institute: fee.institute
+                            institute: fee.institute,
+                            $or: [
+                                { name: inst.collectedBy },
+                                ...(mongoose.Types.ObjectId.isValid(inst.collectedBy) ? [{ _id: inst.collectedBy }] : [])
+                            ]
                         });
                         if (collector) {
                             collector.currentBalance = Math.max(0, (collector.currentBalance || 0) - inst.amount);

@@ -17,7 +17,9 @@ import {
     Settings,
     Tag,
     Layers,
-    MessageCircle
+    MessageCircle,
+    Receipt,
+    Printer
 } from "lucide-react";
 import Link from "next/link";
 import Select from "@/components/ui/Select";
@@ -48,6 +50,9 @@ export default function FeesPage() {
     const [selectedFee, setSelectedFee] = useState(null); // For detail/payment view
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [selectedBreakdownFee, setSelectedBreakdownFee] = useState(null);
+    const [selectedHistoryFee, setSelectedHistoryFee] = useState(null);
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+    const [isDeletingPaymentId, setIsDeletingPaymentId] = useState(null);
     const [isManageHeadsModalOpen, setIsManageHeadsModalOpen] = useState(false);
     const [feeHeadsList, setFeeHeadsList] = useState([]);
     const [batchStudentsList, setBatchStudentsList] = useState([]);
@@ -512,18 +517,56 @@ export default function FeesPage() {
         setIsPaymentModalOpen(true);
     };
 
+    const handleDeletePaymentEntry = async (feeId, installmentId, amount, collectedBy) => {
+        if (!await confirm({
+            title: "Delete Fee Payment Entry?",
+            message: `Are you sure you want to delete this payment entry of ₹${amount?.toLocaleString()}? This will reverse the collected amount from ${collectedBy || "the account drawer"}, restore the student's pending balance, and record an audit log.`,
+            type: "danger"
+        })) return;
+
+        setIsDeletingPaymentId(installmentId);
+        try {
+            const res = await fetch(`/api/v1/fees/${feeId}/payment`, {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    installmentId,
+                    reason: "Manual payment entry deletion from Fees page"
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                toast.success(data.message || "Fee payment entry deleted successfully");
+                if (data.fee) {
+                    setSelectedHistoryFee(data.fee);
+                    if (!data.fee.installments?.some(i => i.status === "paid")) {
+                        setIsHistoryModalOpen(false);
+                    }
+                }
+                fetchFees();
+                fetchStats();
+            } else {
+                toast.error(data.error || "Failed to delete payment entry");
+            }
+        } catch (err) {
+            console.error("Error deleting fee entry:", err);
+            toast.error("Failed to delete payment entry");
+        } finally {
+            setIsDeletingPaymentId(null);
+        }
+    };
+
     // No longer needed client-side filtering as we do it on the server
     const filteredFees = fees;
 
-
-
-     const handleExport = (formatType = 'xlsx') => {
-         if (!filteredFees.length) {
-             toast.error("No data to export");
+     const handleExport = (formatType = 'xlsx', onlyBalances = false) => {
+         const sourceList = onlyBalances ? filteredFees.filter(f => (f.balanceAmount || 0) > 0) : filteredFees;
+         if (!sourceList.length) {
+             toast.error(onlyBalances ? "No pending fee balances found to export" : "No data to export");
              return;
          }
 
-         const dataToExport = filteredFees.map(fee => {
+         const dataToExport = sourceList.map(fee => {
              const baseAmount = fee.totalAmount || 0;
              const discount = fee.discount?.amount || 0;
              const extraCharges = fee.extraCharges?.amount || 0;
@@ -576,9 +619,11 @@ export default function FeesPage() {
              ];
          }
 
-         const fileName = `Fee_Ledger_Export_${format(new Date(), 'yyyy-MM-dd')}.${formatType}`;
+         const fileName = onlyBalances 
+             ? `Fee_Balances_Pending_${format(new Date(), 'yyyy-MM-dd')}.${formatType}`
+             : `Fee_Ledger_Export_${format(new Date(), 'yyyy-MM-dd')}.${formatType}`;
          XLSX.writeFile(workbook, fileName);
-         toast.success(`Export started (${formatType.toUpperCase()})`);
+         toast.success(`Export started (${onlyBalances ? "Balances Only" : formatType.toUpperCase()})`);
      };
 
     // Summary calculation is now done on the server via fetchStats()
@@ -608,6 +653,16 @@ export default function FeesPage() {
                     >
                         <DollarSign size={14} className="text-emerald-600" />
                         <span>Export Excel</span>
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleExport('xlsx', true)}
+                        className="flex items-center gap-2 border-amber-200 text-amber-700 hover:bg-amber-50"
+                        title="Export only students with pending fee balances"
+                    >
+                        <Clock size={14} className="text-amber-600" />
+                        <span>Only Balances (Excel)</span>
                     </Button>
                     <Button
                         variant="outline"
@@ -904,8 +959,23 @@ export default function FeesPage() {
                                                      <td className="px-6 py-4 text-right text-sm font-semibold text-amber-600 font-mono">
                                                          ₹{fee.extraCharges?.amount?.toLocaleString() || 0}
                                                      </td>
-                                                     <td className="px-6 py-4 text-right text-sm font-semibold text-emerald-600 font-mono">
-                                                         ₹{fee.paidAmount?.toLocaleString()}
+                                                     <td className="px-6 py-4 text-right text-sm font-semibold font-mono">
+                                                         {(fee.paidAmount || 0) > 0 ? (
+                                                             <button
+                                                                 type="button"
+                                                                 onClick={() => {
+                                                                     setSelectedHistoryFee(fee);
+                                                                     setIsHistoryModalOpen(true);
+                                                                 }}
+                                                                 className="inline-flex items-center gap-1 text-emerald-600 hover:text-emerald-700 hover:underline font-bold cursor-pointer"
+                                                                 title="View payment entries, single receipts, and delete entries"
+                                                             >
+                                                                 <span>₹{fee.paidAmount?.toLocaleString()}</span>
+                                                                 <Receipt size={12} className="text-emerald-500 opacity-75" />
+                                                             </button>
+                                                         ) : (
+                                                             <span className="text-slate-400">₹0</span>
+                                                         )}
                                                      </td>
                                                     <td className="px-6 py-4 text-right">
                                                         {!fee.hasFeeRecord ? (
@@ -940,6 +1010,20 @@ export default function FeesPage() {
                                                             >
                                                                 <DollarSign size={14} className="mr-1" /> Pay
                                                             </Button>
+                                                            {fee.hasFeeRecord && (fee.paidAmount || 0) > 0 && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="text-slate-400 hover:text-emerald-600 hover:bg-emerald-50"
+                                                                    title="Payment Receipts & History"
+                                                                    onClick={() => {
+                                                                        setSelectedHistoryFee(fee);
+                                                                        setIsHistoryModalOpen(true);
+                                                                    }}
+                                                                >
+                                                                    <Receipt size={14} />
+                                                                </Button>
+                                                            )}
                                                             {fee.hasFeeRecord && fee.status !== 'cancelled' && (
                                                                 <Button
                                                                     size="sm"
@@ -1055,6 +1139,121 @@ export default function FeesPage() {
                     })()}
                 </div>
             </div>
+
+            {/* Payment History & Single Receipts Modal */}
+            <Modal
+                isOpen={isHistoryModalOpen && Boolean(selectedHistoryFee)}
+                onClose={() => setIsHistoryModalOpen(false)}
+                title="Payment History & Receipts"
+                maxWidth="max-w-2xl"
+            >
+                {selectedHistoryFee && (() => {
+                    const paidList = (selectedHistoryFee.installments || []).filter(i => i.status === 'paid');
+                    return (
+                        <div className="space-y-4">
+                            <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl flex justify-between items-center text-xs">
+                                <div>
+                                    <div className="font-bold text-slate-800 text-sm">
+                                        {selectedHistoryFee.student?.profile?.firstName} {selectedHistoryFee.student?.profile?.lastName}
+                                    </div>
+                                    <div className="text-slate-500 font-mono text-[11px] mt-0.5">
+                                        {selectedHistoryFee.batch?.name} • {selectedHistoryFee.student?.enrollmentNumber || "Student"}
+                                    </div>
+                                </div>
+                                <div className="text-right flex items-center gap-3">
+                                    <div>
+                                        <div className="text-[10px] uppercase font-bold text-slate-400">Total Paid</div>
+                                        <div className="text-sm font-bold text-emerald-600 font-mono">
+                                            ₹{selectedHistoryFee.paidAmount?.toLocaleString()}
+                                        </div>
+                                    </div>
+                                    <a
+                                        href={`/api/v1/fees/${selectedHistoryFee._id}/pdf`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-white border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 hover:bg-slate-50 shadow-xs cursor-pointer"
+                                    >
+                                        <Printer size={13} />
+                                        <span>Consolidated Receipt</span>
+                                    </a>
+                                </div>
+                            </div>
+
+                            {paidList.length === 0 ? (
+                                <p className="text-center text-slate-400 py-6 text-xs">No paid entries found for this fee profile.</p>
+                            ) : (
+                                <div className="border border-slate-200 rounded-xl overflow-hidden">
+                                    <table className="w-full text-xs text-left">
+                                        <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                                            <tr>
+                                                <th className="px-3.5 py-2.5">Date</th>
+                                                <th className="px-3.5 py-2.5 text-right">Amount</th>
+                                                <th className="px-3.5 py-2.5">Mode</th>
+                                                <th className="px-3.5 py-2.5">Collected By</th>
+                                                <th className="px-3.5 py-2.5 text-right">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-100 bg-white">
+                                            {paidList.map((inst, idx) => (
+                                                <tr key={inst._id || idx} className="hover:bg-slate-50/60">
+                                                    <td className="px-3.5 py-3 font-medium text-slate-700">
+                                                        {inst.paidDate ? format(new Date(inst.paidDate), "dd MMM yyyy") : "—"}
+                                                        {inst.transactionId && (
+                                                            <div className="text-[10px] text-slate-400 font-mono">Ref: {inst.transactionId}</div>
+                                                        )}
+                                                    </td>
+                                                    <td className="px-3.5 py-3 text-right font-bold font-mono text-emerald-600">
+                                                        ₹{inst.amount?.toLocaleString()}
+                                                    </td>
+                                                    <td className="px-3.5 py-3 text-slate-600 uppercase font-medium text-[11px]">
+                                                        {inst.paymentMethod || "Cash"}
+                                                    </td>
+                                                    <td className="px-3.5 py-3 text-slate-600">
+                                                        {inst.collectedBy || "Counter"}
+                                                    </td>
+                                                    <td className="px-3.5 py-3 text-right">
+                                                        <div className="flex items-center justify-end gap-1.5">
+                                                            <a
+                                                                href={`/api/v1/fees/${selectedHistoryFee._id}/pdf?installmentId=${inst._id}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex items-center gap-1 px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded text-[11px] font-semibold transition-colors cursor-pointer"
+                                                                title="Download/Print single receipt for this transaction"
+                                                            >
+                                                                <Printer size={12} />
+                                                                <span>Receipt</span>
+                                                            </a>
+                                                            <button
+                                                                type="button"
+                                                                disabled={isDeletingPaymentId === inst._id}
+                                                                onClick={() => handleDeletePaymentEntry(selectedHistoryFee._id, inst._id, inst.amount, inst.collectedBy)}
+                                                                className="p-1 rounded text-slate-400 hover:text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-colors cursor-pointer disabled:opacity-50"
+                                                                title="Delete this payment entry"
+                                                            >
+                                                                <Trash2 size={13} />
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+
+                            <div className="flex justify-end pt-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => setIsHistoryModalOpen(false)}
+                                >
+                                    Close
+                                </Button>
+                            </div>
+                        </div>
+                    );
+                })()}
+            </Modal>
 
 {/* Fee Heads Breakdown Modal */}
             <Modal

@@ -38,7 +38,7 @@ function numberToWordsINR(num) {
     return (str.trim() + ' Rupees Only');
 }
 
-export function generateExecutiveReceiptHtml(fee, logoBase64 = null) {
+export function generateExecutiveReceiptHtml(fee, logoBase64 = null, installmentId = null) {
     const studentProfile = fee.student?.profile || {};
     const studentName = (studentProfile.firstName || studentProfile.lastName) 
         ? `${studentProfile.firstName || ''} ${studentProfile.lastName || ''}`.trim()
@@ -59,7 +59,7 @@ export function generateExecutiveReceiptHtml(fee, logoBase64 = null) {
     const batchName = fee.batch?.name || 'Batch 01';
     const courseName = fee.batch?.course?.name || fee.batch?.name || 'Course Tuition';
     const courseCode = fee.batch?.course?.code || 'CRS';
-    const receiptNo = `REC-${fee._id.toString().slice(-8).toUpperCase()}`;
+    let receiptNo = `REC-${fee._id.toString().slice(-8).toUpperCase()}`;
 
     const d = new Date(fee.createdAt || Date.now());
     const year = d.getFullYear();
@@ -67,10 +67,21 @@ export function generateExecutiveReceiptHtml(fee, logoBase64 = null) {
     const sessionStr = month >= 3 ? `${year}-${String(year + 1).slice(-2)}` : `${year - 1}-${String(year).slice(-2)}`;
     const issueDateStr = new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
-    const paidInstallments = (fee.installments || []).filter(i => i.status === 'paid');
+    let paidInstallments = (fee.installments || []).filter(i => i.status === 'paid');
+    let singleReceipt = false;
+    if (installmentId) {
+        const target = paidInstallments.find(i => String(i._id) === String(installmentId));
+        if (target) {
+            paidInstallments = [target];
+            singleReceipt = true;
+            receiptNo = `REC-${(target.transactionId || target._id.toString().slice(-8)).toUpperCase()}`;
+        }
+    }
+
+    const currentReceiptPaid = paidInstallments.reduce((sum, i) => sum + i.amount, 0);
     const finalAmount = (fee.totalAmount || 0) - (fee.discount?.amount || 0) + (fee.extraCharges?.amount || 0);
     const balanceAmount = Math.max(0, finalAmount - (fee.paidAmount || 0));
-    const amountInWords = numberToWordsINR(fee.paidAmount || 0);
+    const amountInWords = numberToWordsINR(currentReceiptPaid);
 
     const tableRows = paidInstallments.map((inst, idx) => {
         const paidDateStr = inst.paidDate 
@@ -524,8 +535,8 @@ export function generateExecutiveReceiptHtml(fee, logoBase64 = null) {
                             <td class="t-val" style="font-weight: 800;">₹${finalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                         </tr>
                         <tr class="highlight-paid">
-                            <td class="t-label">Total Amount Cleared:</td>
-                            <td class="t-val">₹${(fee.paidAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                            <td class="t-label">${singleReceipt ? 'Receipt Amount Paid:' : 'Total Amount Cleared:'}</td>
+                            <td class="t-val">₹${currentReceiptPaid.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                         </tr>
                         <tr class="highlight-due">
                             <td class="t-label">Balance Outstanding Due:</td>
@@ -553,7 +564,7 @@ export function generateExecutiveReceiptHtml(fee, logoBase64 = null) {
 /**
  * Generate Fee Receipt PDF buffer using Puppeteer
  */
-export async function generateFeeReceiptPdfBuffer(feeId, instituteId = null) {
+export async function generateFeeReceiptPdfBuffer(feeId, instituteId = null, installmentId = null) {
     await connectDB();
 
     const query = { _id: feeId, deletedAt: null };
@@ -592,7 +603,7 @@ export async function generateFeeReceiptPdfBuffer(feeId, instituteId = null) {
         logoBase64 = rawLogoUrl;
     }
 
-    const html = generateExecutiveReceiptHtml(fee, logoBase64);
+    const html = generateExecutiveReceiptHtml(fee, logoBase64, installmentId);
 
     let browser = null;
     try {
@@ -624,7 +635,9 @@ export async function generateFeeReceiptPdfBuffer(feeId, instituteId = null) {
         return {
             pdfBuffer: Buffer.from(pdfBuffer),
             fee,
-            filename: `Fee-Receipt-${fee._id.toString().slice(-8).toUpperCase()}.pdf`
+            filename: installmentId 
+                ? `Fee-Receipt-${installmentId.toString().slice(-6).toUpperCase()}.pdf`
+                : `Fee-Receipt-${fee._id.toString().slice(-8).toUpperCase()}.pdf`
         };
     } finally {
         if (browser) {
