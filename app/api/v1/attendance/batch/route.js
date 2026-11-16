@@ -205,6 +205,8 @@ export async function GET(req) {
                     const rawId = (r.student || '').toString();
                     if (subdocToStudentObj[rawId]) {
                         studentObj = subdocToStudentObj[rawId];
+                    } else if (rawId) {
+                        studentObj = { _id: rawId, id: rawId, profile: { firstName: "Student", lastName: "" } };
                     }
                 }
 
@@ -282,6 +284,27 @@ export async function POST(req) {
             };
         });
 
+        // Preserve and merge existing attendance records (e.g. other periods/slots) instead of wiping them
+        const existingAttendance = await Attendance.findOne({
+            batch: batchId,
+            date: {
+                $gte: startOfDay(targetDate),
+                $lte: endOfDay(targetDate)
+            }
+        });
+
+        let finalRecords = recordSchema;
+        if (existingAttendance && Array.isArray(existingAttendance.records) && existingAttendance.records.length > 0) {
+            const newKeySet = new Set(
+                recordSchema.map(r => `${(r.student || '').toString()}_${r.slot || 'checkin'}_${r.periodId || 'all'}`)
+            );
+            const preservedExisting = existingAttendance.records
+                .filter(r => !newKeySet.has(`${(r.student || '').toString()}_${r.slot || 'checkin'}_${r.periodId || 'all'}`))
+                .map(r => (typeof r.toObject === 'function' ? r.toObject() : r));
+
+            finalRecords = [...preservedExisting, ...recordSchema];
+        }
+
         await Attendance.findOneAndUpdate(
             {
                 batch: batchId,
@@ -295,7 +318,7 @@ export async function POST(req) {
                     institute: batchDoc.institute,
                     batch: batchId,
                     date: targetDate,
-                    records: recordSchema,
+                    records: finalRecords,
                     markedBy: session.user.id,
                     updatedAt: new Date()
                 },

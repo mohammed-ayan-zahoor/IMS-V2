@@ -70,23 +70,42 @@ export async function GET(req) {
         if (session.user.role === 'instructor') {
             const User = (await import("@/models/User")).default;
             const instructor = await User.findById(session.user.id).select('assignments');
-            const assignedCourses = instructor?.assignments?.courses || [];
-            const assignedBatches = instructor?.assignments?.batches || [];
+            const assignedCourses = (instructor?.assignments?.courses || []).map(c => c.toString());
+            const assignedBatches = (instructor?.assignments?.batches || []).map(b => b.toString());
 
-            query.$or = [
-                { course: { $in: assignedCourses } },
-                { courses: { $in: assignedCourses } },
-                { batches: { $in: assignedBatches } }
+            const instructorConditions = [
+                { uploadedBy: session.user.id }
             ];
+
+            if (assignedCourses.length > 0) {
+                instructorConditions.push({ course: { $in: assignedCourses } });
+                instructorConditions.push({ courses: { $in: assignedCourses } });
+            }
+            if (assignedBatches.length > 0) {
+                instructorConditions.push({ batches: { $in: assignedBatches } });
+            }
+
+            // Fallback: If instructor has no explicit course/batch assigned yet, show all institute materials
+            if (assignedCourses.length === 0 && assignedBatches.length === 0 && session.user.institute?.id) {
+                instructorConditions.push({ institute: session.user.institute.id });
+            }
+
+            query.$or = instructorConditions;
         }
 
         if (courseId) {
-            query.$or = [
+            const courseFilter = [
                 { course: courseId },
                 { courses: courseId },
                 { courseBundle: courseId },
                 { courseBundles: courseId }
             ];
+            if (query.$or) {
+                query.$and = (query.$and || []).concat([{ $or: query.$or }, { $or: courseFilter }]);
+                delete query.$or;
+            } else {
+                query.$or = courseFilter;
+            }
         }
         if (batchId) {
             if (session.user.role === 'student') {

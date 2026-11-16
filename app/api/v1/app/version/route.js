@@ -24,11 +24,11 @@ export async function GET() {
             }
         }
 
-        let mtimeMs = newestMtime > 0 ? Math.floor(newestMtime) : Date.now();
+        let mtimeMs = newestMtime > 0 ? Math.floor(newestMtime) : 0;
 
         // Dynamically resolve version from mobile/pubspec.yaml if present
-        let version = "0.1.0+5";
-        let versionCode = 5;
+        let version = "0.1.0+10";
+        let versionCode = 10;
         try {
             const pubspecPath = path.join(process.cwd(), "mobile/pubspec.yaml");
             if (fs.existsSync(pubspecPath)) {
@@ -44,7 +44,7 @@ export async function GET() {
             }
         } catch (_) {}
 
-        const sizeMb = fileSize > 0 ? (fileSize / (1024 * 1024)).toFixed(1) : "72.1";
+        const sizeMb = fileSize > 0 ? (fileSize / (1024 * 1024)).toFixed(1) : "73.5";
 
         return NextResponse.json({
             version,
@@ -54,7 +54,7 @@ export async function GET() {
             fileSize: fileSize,
             fileSizeFormatted: `${sizeMb} MB`,
             downloadUrl: "/api/v1/app/download",
-            releaseNotes: "Latest student app with native in-app Razorpay checkout, student photo avatar, and performance optimizations.",
+            releaseNotes: "Latest student & teacher app with attendance sync, instant material uploads, and update fixes.",
             forceUpdate: false,
         });
     } catch (error) {

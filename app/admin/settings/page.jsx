@@ -959,11 +959,11 @@ export default function SettingsPage() {
                                 </div>
                                 <div>
                                     <div className="flex items-center gap-2">
-                                        <h3 className="text-sm font-semibold text-white">Flutter Student Mobile App (Android APK)</h3>
+                                        <h3 className="text-sm font-semibold text-white">Student & Teacher Mobile App (Android APK)</h3>
                                         <span className="px-2 py-0.5 text-[10px] font-bold bg-[#444CE7] text-white rounded-full">{appVersionInfo.version}</span>
                                     </div>
                                     <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                                        Direct release APK build for Android devices (~{appVersionInfo.fileSizeFormatted}). Share this URL with students or staff to install the app instantly.
+                                        Direct release APK build for Android devices (~{appVersionInfo.fileSizeFormatted}). Share this URL with students, teachers, or staff to install the app.
                                     </p>
                                 </div>
                             </div>

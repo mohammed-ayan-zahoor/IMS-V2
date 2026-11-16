@@ -663,7 +663,7 @@ class _FeesScreenState extends State<FeesScreen> {
                         const Color(0xFF137333),
                       ),
                     ],
-                    const SizedBox(height: category.hasDiscount ? 4 : 8),
+                    SizedBox(height: category.hasDiscount ? 4 : 8),
                     _buildMiniSummary(
                       'Paid',
                       _currencyFormat.format(category.paidAmount),

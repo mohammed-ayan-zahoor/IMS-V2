@@ -11,7 +11,7 @@ class AppUpdateService {
 
   static const String _lastSeenBuildKey = 'last_seen_app_build_mtime';
   static const String _lastSeenVersionCodeKey = 'last_seen_app_version_code';
-  static const int currentVersionCode = 8;
+  static const int currentVersionCode = 10;
   static bool _hasCheckedThisSession = false;
 
   Future<void> checkForUpdates(BuildContext context, {bool forceCheck = false}) async {
@@ -30,39 +30,28 @@ class AppUpdateService {
       final bool forceUpdate = data['forceUpdate'] ?? false;
 
       const storage = FlutterSecureStorage();
-      final storedTimeVal = await storage.read(key: _lastSeenBuildKey);
       final storedVersionVal = await storage.read(key: _lastSeenVersionCodeKey);
+      final int acknowledgedVersionCode = storedVersionVal != null ? (int.tryParse(storedVersionVal) ?? 0) : 0;
 
-      final int localLastModified = storedTimeVal != null ? (int.tryParse(storedTimeVal) ?? 0) : 0;
-      final int localVersionCode = storedVersionVal != null ? (int.tryParse(storedVersionVal) ?? 0) : currentVersionCode;
-
-      // First run baseline: if stored mtime is 0, initialize it with current server mtime so future modifications trigger
-      if (localLastModified == 0 && serverVersionCode <= currentVersionCode) {
-        await storage.write(key: _lastSeenBuildKey, value: serverLastModified.toString());
-        await storage.write(key: _lastSeenVersionCodeKey, value: currentVersionCode.toString());
+      // Only prompt if server version code is strictly higher than currently installed app
+      if (serverVersionCode <= currentVersionCode) {
         return;
       }
 
-      // If user has already acknowledged this server build, do not prompt again!
-      if (localVersionCode >= serverVersionCode && localLastModified > 0 && localLastModified >= serverLastModified) {
+      // If user has already seen or acknowledged this server version, do not prompt again!
+      if (acknowledgedVersionCode >= serverVersionCode) {
         return;
       }
 
-      // Check if server version is higher than installed version code OR file was replaced/modified
-      final bool isNewerVersion = serverVersionCode > currentVersionCode;
-      final bool isNewerFile = (localLastModified > 0 && serverLastModified > localLastModified);
-
-      if (isNewerVersion || isNewerFile) {
-        if (!context.mounted) return;
-        _showUpdateModal(
-          context: context,
-          releaseNotes: releaseNotes,
-          downloadUrl: downloadUrl,
-          serverVersionCode: serverVersionCode,
-          serverMtime: serverLastModified,
-          forceUpdate: forceUpdate,
-        );
-      }
+      if (!context.mounted) return;
+      _showUpdateModal(
+        context: context,
+        releaseNotes: releaseNotes,
+        downloadUrl: downloadUrl,
+        serverVersionCode: serverVersionCode,
+        serverMtime: serverLastModified,
+        forceUpdate: forceUpdate,
+      );
     } catch (e) {
       debugPrint('[AppUpdateService] Version check error: $e');
     }
