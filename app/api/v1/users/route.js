@@ -35,6 +35,9 @@ export async function GET(req) {
         const limitParam = searchParams.get("limit");
 
         const rolesList = role ? role.split(',').map(r => r.trim()).filter(Boolean) : null;
+        if (rolesList && rolesList.includes('instructor') && !rolesList.includes('teacher')) {
+            rolesList.push('teacher');
+        }
 
         let query = { deletedAt: null };
         let memberships = [];
@@ -64,9 +67,10 @@ export async function GET(req) {
 
             const userIdsFromMemberships = memberships.map(m => m.user);
 
-            const baseOr = [
-                { _id: { $in: userIdsFromMemberships } }
-            ];
+            const baseOr = [];
+            if (userIdsFromMemberships.length > 0) {
+                baseOr.push({ _id: { $in: userIdsFromMemberships } });
+            }
             if (rolesList && rolesList.length > 0) {
                 baseOr.push({ institute: safeInstituteId, role: { $in: rolesList } });
             } else {
@@ -74,7 +78,7 @@ export async function GET(req) {
             }
 
             query = {
-                $or: baseOr,
+                ...(baseOr.length === 1 ? baseOr[0] : (baseOr.length > 1 ? { $or: baseOr } : { _id: null })),
                 deletedAt: null
             };
         } else if (rolesList && rolesList.length > 0) {

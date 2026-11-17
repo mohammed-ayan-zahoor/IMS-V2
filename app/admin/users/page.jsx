@@ -30,7 +30,18 @@ export default function UserManagementPage() {
     const [totalPages, setTotalPages] = useState(1);
     const [totalUsers, setTotalUsers] = useState(0);
     const limit = 50;
-    const [activeTab, setActiveTab] = useState("students"); // 'students' or 'admins'
+    const [activeTab, setActiveTab] = useState(() => {
+        if (typeof window !== "undefined") {
+            const saved = localStorage.getItem("userActiveTab");
+            if (saved === "students" || saved === "admins") return saved;
+        }
+        return "students";
+    });
+    const abortControllerRef = useRef(null);
+    const activeTabRef = useRef(activeTab);
+    useEffect(() => {
+        activeTabRef.current = activeTab;
+    }, [activeTab]);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
     // Assignment Data
@@ -73,19 +84,22 @@ export default function UserManagementPage() {
         permissions: []
     });
 
-    const isInitialFetch = useRef(true);
-
-    // Persist active tab
-    useEffect(() => {
-        const savedTab = localStorage.getItem("userActiveTab");
-        if (savedTab) {
-            setActiveTab(savedTab);
+    const handleTabChange = (newTab) => {
+        if (newTab === activeTab) return;
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
         }
-    }, []);
-
-    useEffect(() => {
-        localStorage.setItem("userActiveTab", activeTab);
-    }, [activeTab]);
+        setActiveTab(newTab);
+        activeTabRef.current = newTab;
+        setPage(1);
+        setUsers([]);
+        setTotalUsers(0);
+        setTotalPages(1);
+        setLoading(true);
+        if (typeof window !== "undefined") {
+            localStorage.setItem("userActiveTab", newTab);
+        }
+    };
 
     const [designations, setDesignations] = useState([]);
     const [departments, setDepartments] = useState([]);
@@ -135,16 +149,28 @@ export default function UserManagementPage() {
     }, [status, session?.user?.institute?.id, activeTab, page, debouncedSearch]);
 
     const fetchUsers = async () => {
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+        abortControllerRef.current = new AbortController();
+        const requestTab = activeTab;
+
         try {
             setLoading(true);
             const params = new URLSearchParams({
                 page: String(page),
                 limit: String(limit),
-                role: activeTab === "students" ? "student" : "admin,instructor,staff,super_admin"
+                role: requestTab === "students" ? "student" : "admin,instructor,staff,super_admin,teacher"
             });
+            const instId = session?.user?.institute?.id || session?.user?.institute?._id;
+            if (instId) {
+                params.set("instituteId", instId);
+            }
             if (debouncedSearch) params.set("search", debouncedSearch);
 
-            const res = await fetch(`/api/v1/users?${params.toString()}`);
+            const res = await fetch(`/api/v1/users?${params.toString()}`, {
+                signal: abortControllerRef.current.signal
+            });
 
             if (!res.ok) {
                 const contentType = res.headers.get("content-type");
@@ -159,25 +185,24 @@ export default function UserManagementPage() {
             }
 
             const data = await res.json();
+            // Discard response if user switched tabs during flight
+            if (requestTab !== activeTabRef.current) return;
+
             const fetchedUsers = data.users || [];
             setUsers(fetchedUsers);
             setTotalUsers(data.total ?? fetchedUsers.length);
             setTotalPages(data.totalPages ?? 1);
-
-            // UX Improvement: If no students on initial fetch, switch to Admins tab automatically
-            const savedTab = localStorage.getItem("userActiveTab");
-            if (isInitialFetch.current && !savedTab && activeTab === "students" && (data.total ?? fetchedUsers.length) === 0 && !debouncedSearch) {
-                setActiveTab("admins");
-            }
-
-            isInitialFetch.current = false;
-
         } catch (error) {
+            if (error.name === 'AbortError') return;
             console.error("Failed to fetch users", error);
             toast.error(error.message || "Failed to load users");
             setUsers([]);
+            setTotalUsers(0);
+            setTotalPages(1);
         } finally {
-            setLoading(false);
+            if (requestTab === activeTabRef.current) {
+                setLoading(false);
+            }
         }
     };
     
@@ -408,22 +433,17 @@ export default function UserManagementPage() {
     };
 
     const filteredUsers = useMemo(() => {
+        if (!search.trim()) return users;
         const q = search.trim().toLowerCase();
         return users.filter(u => {
-            const effectiveRole = u.instituteRole || u.role;
-            const isStudent = effectiveRole === 'student';
-            const matchesTab = activeTab === 'students' ? isStudent : !isStudent;
-            if (!matchesTab) return false;
-            if (!q) return true;
-
             const fullName = `${u.profile?.firstName || ''} ${u.profile?.lastName || ''}`.toLowerCase();
             return fullName.includes(q) ||
                 u.email?.toLowerCase().includes(q) ||
                 u.enrollmentNumber?.toLowerCase().includes(q) ||
                 u.profile?.phone?.toLowerCase().includes(q) ||
-                effectiveRole?.toLowerCase().includes(q);
+                (u.instituteRole || u.role)?.toLowerCase().includes(q);
         });
-    }, [users, search, activeTab]);
+    }, [users, search]);
 
     return (
         <div className="space-y-6">
@@ -448,7 +468,7 @@ export default function UserManagementPage() {
             {/* Tabs */}
             <div className="flex gap-4 border-b border-slate-200">
                 <button
-                    onClick={() => { setActiveTab("students"); setPage(1); }}
+                    onClick={() => handleTabChange("students")}
                     className={`pb-3 px-1 text-sm font-bold transition-all relative ${activeTab === "students"
                         ? "text-premium-blue"
                         : "text-slate-500 hover:text-slate-700"}`}
@@ -459,7 +479,7 @@ export default function UserManagementPage() {
                     )}
                 </button>
                 <button
-                    onClick={() => { setActiveTab("admins"); setPage(1); }}
+                    onClick={() => handleTabChange("admins")}
                     className={`pb-3 px-1 text-sm font-bold transition-all relative ${activeTab === "admins"
                         ? "text-premium-blue"
                         : "text-slate-500 hover:text-slate-700"}`}
