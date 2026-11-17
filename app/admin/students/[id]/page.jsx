@@ -914,6 +914,36 @@ export default function StudentDetailsPage({ params }) {
         }
     };
 
+    const getStoredDefaultCollector = useCallback((collectorsList) => {
+        if (!collectorsList || collectorsList.length === 0) return "";
+        const instId = studentData?.student?.institute?._id || studentData?.student?.institute || session?.user?.institute?.id || session?.user?.institute?._id || "";
+        const userId = session?.user?.id || "";
+        if (instId && userId && typeof window !== "undefined") {
+            try {
+                const saved = localStorage.getItem(`ims_default_collector_${instId}_${userId}`);
+                if (saved && collectorsList.some(c => c.name === saved)) {
+                    return saved;
+                }
+            } catch (_) {}
+        }
+        const match = collectorsList.find(c => 
+            (c.email && session?.user?.email && c.email.trim().toLowerCase() === session.user.email.trim().toLowerCase()) ||
+            (c.name && session?.user?.name && c.name.trim().toLowerCase() === session.user.name.trim().toLowerCase())
+        );
+        return match?.name || "";
+    }, [studentData?.student?.institute, session?.user?.institute?.id, session?.user?.institute?._id, session?.user?.id, session?.user?.email, session?.user?.name]);
+
+    const handleCollectorChange = (collectorName) => {
+        setPaymentData(prev => ({ ...prev, collectedBy: collectorName }));
+        const instId = studentData?.student?.institute?._id || studentData?.student?.institute || session?.user?.institute?.id || session?.user?.institute?._id || "";
+        const userId = session?.user?.id || "";
+        if (collectorName && instId && userId && typeof window !== "undefined") {
+            try {
+                localStorage.setItem(`ims_default_collector_${instId}_${userId}`, collectorName);
+            } catch (_) {}
+        }
+    };
+
     const fetchCollectors = async (signal) => {
         try {
             const res = await fetch("/api/v1/collectors", {
@@ -931,12 +961,7 @@ export default function StudentDetailsPage({ params }) {
             // Auto-select logged-in user collector if not chosen yet
             setPaymentData(prev => {
                 if (prev.collectedBy) return prev;
-                const match = fetchedCollectors.find(c =>
-                    c.name?.trim().toLowerCase() === session?.user?.name?.trim().toLowerCase() ||
-                    (c.user && c.user.toString() === session?.user?.id?.toString())
-                );
-                const defaultName = match?.name || "";
-                return { ...prev, collectedBy: defaultName };
+                return { ...prev, collectedBy: getStoredDefaultCollector(fetchedCollectors) };
             });
         } catch (error) {
             if (error.name === 'AbortError') return;
@@ -1150,10 +1175,7 @@ export default function StudentDetailsPage({ params }) {
         
         // Find next pending installment
         const nextPending = fee?.installments?.find(i => i.status === 'pending');
-        const defaultCollector = collectors.find(c => 
-            c.name?.trim().toLowerCase() === session?.user?.name?.trim().toLowerCase() ||
-            (c.user && c.user.toString() === session?.user?.id?.toString())
-        )?.name || "";
+        const defaultCollector = getStoredDefaultCollector(collectors);
         
         setPaymentData({
             amount: nextPending 
@@ -1177,10 +1199,7 @@ export default function StudentDetailsPage({ params }) {
         
         // Find next pending installment if any
         const nextPending = fee?.installments?.find(i => i.status === 'pending');
-        const defaultCollector = collectors.find(c => 
-            c.name?.trim().toLowerCase() === session?.user?.name?.trim().toLowerCase() ||
-            (c.user && c.user.toString() === session?.user?.id?.toString())
-        )?.name || "";
+        const defaultCollector = getStoredDefaultCollector(collectors);
         
         setPaymentData({
             amount: nextPending 
@@ -1204,10 +1223,7 @@ export default function StudentDetailsPage({ params }) {
         
         // Find next pending or overdue installment if any
         const nextPending = fee?.installments?.find(i => i.status === 'pending' || i.status === 'overdue');
-        const defaultCollector = collectors.find(c => 
-            c.name?.trim().toLowerCase() === session?.user?.name?.trim().toLowerCase() ||
-            (c.user && c.user.toString() === session?.user?.id?.toString())
-        )?.name || "";
+        const defaultCollector = getStoredDefaultCollector(collectors);
         
         setPaymentData({
             amount: nextPending 
@@ -4270,10 +4286,15 @@ export default function StudentDetailsPage({ params }) {
                     />
 
                     <div className="space-y-1">
-                        <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Collected By</label>
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider ml-1">Collected By</label>
+                            {paymentData.collectedBy && (
+                                <span className="text-[10px] text-blue-600 font-medium">Default for your login</span>
+                            )}
+                        </div>
                         <Select
                             value={paymentData.collectedBy}
-                            onChange={(val) => setPaymentData({ ...paymentData, collectedBy: val })}
+                            onChange={handleCollectorChange}
                             options={[
                                 { label: "Select Collector", value: "" },
                                 ...collectors.map(c => ({ label: c.name, value: c.name }))
