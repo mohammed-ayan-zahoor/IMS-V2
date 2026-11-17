@@ -41,12 +41,14 @@ export default function AttendanceReportPage() {
 
     // URL Param Initializers
     const initialCourse = searchParams.get("course") || "";
+    const initialSemester = searchParams.get("semester") || "";
     const initialBatch = searchParams.get("batch") || "";
     const initialFrom = searchParams.get("from") || format(startOfMonth(new Date()), "yyyy-MM-dd");
     const initialTo = searchParams.get("to") || format(endOfMonth(new Date()), "yyyy-MM-dd");
 
     // Filter States
     const [selectedCourse, setSelectedCourse] = useState(initialCourse);
+    const [selectedSemester, setSelectedSemester] = useState(initialSemester);
     const [selectedBatch, setSelectedBatch] = useState(initialBatch);
     const [startDate, setStartDate] = useState(initialFrom);
     const [endDate, setEndDate] = useState(initialTo);
@@ -63,6 +65,7 @@ export default function AttendanceReportPage() {
 
     // Active Popovers
     const [courseOpen, setCourseOpen] = useState(false);
+    const [semOpen, setSemOpen] = useState(false);
     const [batchOpen, setBatchOpen] = useState(false);
     const [dateOpen, setDateOpen] = useState(false);
     const [exportOpen, setExportOpen] = useState(false);
@@ -83,6 +86,7 @@ export default function AttendanceReportPage() {
                 searchInputRef.current?.focus();
             } else if (e.key === "Escape") {
                 setCourseOpen(false);
+                setSemOpen(false);
                 setBatchOpen(false);
                 setDateOpen(false);
                 setExportOpen(false);
@@ -97,6 +101,7 @@ export default function AttendanceReportPage() {
     useEffect(() => {
         const params = new URLSearchParams();
         if (selectedCourse) params.set("course", selectedCourse);
+        if (selectedSemester) params.set("semester", selectedSemester);
         if (selectedBatch) params.set("batch", selectedBatch);
         if (startDate) params.set("from", startDate);
         if (endDate) params.set("to", endDate);
@@ -106,7 +111,7 @@ export default function AttendanceReportPage() {
         if (newQuery !== currentQuery) {
             router.replace(`${pathname}${newQuery ? `?${newQuery}` : ""}`, { scroll: false });
         }
-    }, [selectedCourse, selectedBatch, startDate, endDate, pathname, router, searchParams]);
+    }, [selectedCourse, selectedSemester, selectedBatch, startDate, endDate, pathname, router, searchParams]);
 
     // Fetch Courses on mount
     useEffect(() => {
@@ -176,6 +181,7 @@ export default function AttendanceReportPage() {
                 startDate,
                 endDate,
                 ...(selectedCourse && { courseId: selectedCourse }),
+                ...(selectedSemester && { semester: selectedSemester }),
                 ...(selectedBatch && { batchId: selectedBatch }),
                 ...(!isVocational && selectedSessionId && { sessionId: selectedSessionId }),
             });
@@ -195,7 +201,7 @@ export default function AttendanceReportPage() {
         } finally {
             setLoading(false);
         }
-    }, [startDate, endDate, selectedCourse, selectedSemester, selectedBatch, isSchool, selectedSessionId]);
+    }, [startDate, endDate, selectedCourse, selectedSemester, selectedBatch, isVocational, selectedSessionId]);
 
     // Re-query automatically on any filter change
     useEffect(() => {
@@ -363,7 +369,7 @@ const selectedBatchLabel = useMemo(() => {
         const found = batches.find((b) => b._id === selectedBatch);
         if (!found) return isSchool || hasCollegeBatches ? "All sections" : "All batches";
         return found.semester ? `Sem ${found.semester} - Section ${found.name}` : found.name;
-    }, [selectedBatch, batches, isSchool]);
+    }, [selectedBatch, batches, isSchool, hasCollegeBatches]);
 
     const formattedDateRange = useMemo(() => {
         try {
@@ -433,6 +439,7 @@ const selectedBatchLabel = useMemo(() => {
                         <button
                             onClick={() => {
                                 setCourseOpen((prev) => !prev);
+                                setSemOpen(false);
                                 setBatchOpen(false);
                                 setDateOpen(false);
                                 setExportOpen(false);
@@ -460,6 +467,7 @@ const selectedBatchLabel = useMemo(() => {
                                     <button
                                         onClick={() => {
                                             setSelectedCourse("");
+                                            setSelectedSemester("");
                                             setSelectedBatch("");
                                             setCourseOpen(false);
                                         }}
@@ -478,6 +486,7 @@ const selectedBatchLabel = useMemo(() => {
                                                 key={c._id}
                                                 onClick={() => {
                                                     setSelectedCourse(c._id);
+                                                    setSelectedSemester("");
                                                     setSelectedBatch("");
                                                     setCourseOpen(false);
                                                 }}
@@ -573,6 +582,7 @@ const selectedBatchLabel = useMemo(() => {
                             onClick={() => {
                                 setBatchOpen((prev) => !prev);
                                 setCourseOpen(false);
+                                setSemOpen(false);
                                 setDateOpen(false);
                                 setExportOpen(false);
                             }}
@@ -652,6 +662,7 @@ const selectedBatchLabel = useMemo(() => {
                             onClick={() => {
                                 setDateOpen((prev) => !prev);
                                 setCourseOpen(false);
+                                setSemOpen(false);
                                 setBatchOpen(false);
                                 setExportOpen(false);
                             }}
@@ -762,6 +773,7 @@ const selectedBatchLabel = useMemo(() => {
                             onClick={() => {
                                 setExportOpen((prev) => !prev);
                                 setCourseOpen(false);
+                                setSemOpen(false);
                                 setBatchOpen(false);
                                 setDateOpen(false);
                             }}
