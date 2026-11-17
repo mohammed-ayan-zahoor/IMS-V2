@@ -935,7 +935,7 @@ export default function StudentDetailsPage({ params }) {
                     c.name?.trim().toLowerCase() === session?.user?.name?.trim().toLowerCase() ||
                     (c.user && c.user.toString() === session?.user?.id?.toString())
                 );
-                const defaultName = match?.name || (fetchedCollectors.length === 1 ? fetchedCollectors[0].name : (session?.user?.name || ""));
+                const defaultName = match?.name || "";
                 return { ...prev, collectedBy: defaultName };
             });
         } catch (error) {
@@ -1153,7 +1153,7 @@ export default function StudentDetailsPage({ params }) {
         const defaultCollector = collectors.find(c => 
             c.name?.trim().toLowerCase() === session?.user?.name?.trim().toLowerCase() ||
             (c.user && c.user.toString() === session?.user?.id?.toString())
-        )?.name || (collectors.length === 1 ? collectors[0].name : (session?.user?.name || ""));
+        )?.name || "";
         
         setPaymentData({
             amount: nextPending 
@@ -1180,7 +1180,7 @@ export default function StudentDetailsPage({ params }) {
         const defaultCollector = collectors.find(c => 
             c.name?.trim().toLowerCase() === session?.user?.name?.trim().toLowerCase() ||
             (c.user && c.user.toString() === session?.user?.id?.toString())
-        )?.name || (collectors.length === 1 ? collectors[0].name : (session?.user?.name || ""));
+        )?.name || "";
         
         setPaymentData({
             amount: nextPending 
@@ -1207,7 +1207,7 @@ export default function StudentDetailsPage({ params }) {
         const defaultCollector = collectors.find(c => 
             c.name?.trim().toLowerCase() === session?.user?.name?.trim().toLowerCase() ||
             (c.user && c.user.toString() === session?.user?.id?.toString())
-        )?.name || (collectors.length === 1 ? collectors[0].name : (session?.user?.name || ""));
+        )?.name || "";
         
         setPaymentData({
             amount: nextPending 
