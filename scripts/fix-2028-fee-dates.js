@@ -30,12 +30,15 @@ function parseArgs() {
     const args = process.argv.slice(2);
     const dryRun = args.includes('--dry-run');
     const all = args.includes('--all');
-    let code = 'SDCPUK';
+    let codes = [];
     const codeIdx = args.indexOf('--code');
     if (codeIdx !== -1 && args[codeIdx + 1]) {
-        code = args[codeIdx + 1].trim().toUpperCase();
+        codes = args[codeIdx + 1]
+            .split(',')
+            .map(c => c.trim().toUpperCase())
+            .filter(Boolean);
     }
-    return { dryRun, all, code };
+    return { dryRun, all: all || codes.length === 0, codes };
 }
 
 function fixDateYear(d, targetYear = 2026) {
@@ -51,7 +54,7 @@ function fixDateYear(d, targetYear = 2026) {
 }
 
 async function main() {
-    const { dryRun, all, code } = parseArgs();
+    const { dryRun, all, codes } = parseArgs();
     const uri = process.env.MONGODB_URI;
     if (!uri) {
         console.error('❌ MONGODB_URI not found in environment or .env.local');
@@ -60,7 +63,7 @@ async function main() {
 
     console.log(`\n======================================================`);
     console.log(`🔧 Fee Date Year-2028 Correction Utility`);
-    console.log(`   Target Institute: ${all ? 'ALL INSTITUTES' : code}`);
+    console.log(`   Target Scope    : ${all ? 'ALL INSTITUTES (PU + Degree + Others)' : codes.join(', ')}`);
     console.log(`   Execution Mode  : ${dryRun ? 'DRY-RUN (No changes will be saved)' : 'LIVE EXECUTION'}`);
     console.log(`======================================================\n`);
 
@@ -74,19 +77,26 @@ async function main() {
     const TransportFee = mongoose.models.TransportFee || mongoose.model('TransportFee', new mongoose.Schema({}, { strict: false }), 'transportfees');
 
     let instituteIds = [];
-    if (!all) {
-        const inst = await Institute.findOne({ code });
-        if (!inst) {
-            console.error(`❌ Institute with code "${code}" not found.`);
+    if (!all && codes.length > 0) {
+        const found = await Institute.find({
+            $or: [
+                { code: { $in: codes } },
+                { code: { $in: codes.map(c => new RegExp(`^${c}$`, 'i')) } }
+            ]
+        });
+        if (found.length === 0) {
+            console.error(`❌ No institutes found matching code(s): ${codes.join(', ')}`);
             await mongoose.disconnect();
             process.exit(1);
         }
-        instituteIds = [inst._id];
-        console.log(`🏫 Institute: ${inst.name || code} (_id: ${inst._id})`);
+        instituteIds = found.map(i => i._id);
+        console.log(`🏫 Targeted Institutes (${found.length}):`);
+        found.forEach(i => console.log(`   - ${i.name || i.code} (code: ${i.code}, _id: ${i._id})`));
     } else {
         const allInsts = await Institute.find({});
         instituteIds = allInsts.map(i => i._id);
-        console.log(`🏫 Scanning across ${instituteIds.length} institutes`);
+        console.log(`🏫 Scanning across ALL ${instituteIds.length} institutes in database:`);
+        allInsts.forEach(i => console.log(`   - ${i.name || i.code} (code: ${i.code || 'NO_CODE'})`));
     }
 
     // 1. Scan and fix Fee documents
