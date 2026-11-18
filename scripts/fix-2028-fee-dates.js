@@ -69,12 +69,17 @@ async function main() {
 
     await mongoose.connect(uri);
     console.log('✅ Connected to MongoDB');
+    mongoose.set('strictPopulate', false);
 
     // Register / load models
-    const Institute = mongoose.models.Institute || mongoose.model('Institute', new mongoose.Schema({}, { strict: false }), 'institutes');
-    const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema({}, { strict: false }), 'users');
-    const Fee = mongoose.models.Fee || mongoose.model('Fee', new mongoose.Schema({}, { strict: false }), 'fees');
-    const TransportFee = mongoose.models.TransportFee || mongoose.model('TransportFee', new mongoose.Schema({}, { strict: false }), 'transportfees');
+    const Institute = mongoose.models.Institute || mongoose.model('Institute', new mongoose.Schema({}, { strict: false, strictPopulate: false }), 'institutes');
+    const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema({}, { strict: false, strictPopulate: false }), 'users');
+    const Fee = mongoose.models.Fee || mongoose.model('Fee', new mongoose.Schema({
+        student: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    }, { strict: false, strictPopulate: false }), 'fees');
+    const TransportFee = mongoose.models.TransportFee || mongoose.model('TransportFee', new mongoose.Schema({
+        student: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+    }, { strict: false, strictPopulate: false }), 'transportfees');
 
     let instituteIds = [];
     if (!all && codes.length > 0) {
@@ -104,7 +109,8 @@ async function main() {
     const fees = await Fee.find(feeFilter).populate({
         path: 'student',
         model: User,
-        select: 'profile enrollmentNumber email'
+        select: 'profile enrollmentNumber email',
+        strictPopulate: false
     });
 
     console.log(`\n🔎 Checking ${fees.length} fee records for year 2028 dates...`);
@@ -182,7 +188,8 @@ async function main() {
     const transportFees = await TransportFee.find(feeFilter).populate({
         path: 'student',
         model: User,
-        select: 'profile enrollmentNumber email'
+        select: 'profile enrollmentNumber email',
+        strictPopulate: false
     });
     console.log(`\n🔎 Checking ${transportFees.length} transport fee records for year 2028 dates...`);
     let transportFeeFixCount = 0;
