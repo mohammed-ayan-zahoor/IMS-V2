@@ -68,9 +68,10 @@ async function main() {
     console.log('✅ Connected to MongoDB');
 
     // Register / load models
-    const Institute = mongoose.models.Institute || mongoose.model('Institute', new mongoose.Schema({}, { strict: false }));
-    const Student = mongoose.models.Student || mongoose.model('Student', new mongoose.Schema({}, { strict: false }));
-    const Fee = mongoose.models.Fee || mongoose.model('Fee', new mongoose.Schema({}, { strict: false }));
+    const Institute = mongoose.models.Institute || mongoose.model('Institute', new mongoose.Schema({}, { strict: false }), 'institutes');
+    const User = mongoose.models.User || mongoose.model('User', new mongoose.Schema({}, { strict: false }), 'users');
+    const Fee = mongoose.models.Fee || mongoose.model('Fee', new mongoose.Schema({}, { strict: false }), 'fees');
+    const TransportFee = mongoose.models.TransportFee || mongoose.model('TransportFee', new mongoose.Schema({}, { strict: false }), 'transportfees');
 
     let instituteIds = [];
     if (!all) {
@@ -90,7 +91,11 @@ async function main() {
 
     // 1. Scan and fix Fee documents
     const feeFilter = { institute: { $in: instituteIds } };
-    const fees = await Fee.find(feeFilter).populate('student', 'firstName lastName enrollmentNumber');
+    const fees = await Fee.find(feeFilter).populate({
+        path: 'student',
+        model: User,
+        select: 'profile enrollmentNumber email'
+    });
 
     console.log(`\n🔎 Checking ${fees.length} fee records for year 2028 dates...`);
 
@@ -101,7 +106,7 @@ async function main() {
     for (const fee of fees) {
         let changed = false;
         const studentInfo = fee.student 
-            ? `${fee.student.firstName || ''} ${fee.student.lastName || ''} (${fee.student.enrollmentNumber || fee.student._id})` 
+            ? `${fee.student.profile?.firstName || ''} ${fee.student.profile?.lastName || ''} (${fee.student.enrollmentNumber || fee.student._id})` 
             : `Student ID ${fee.student}`;
 
         // Check installments
@@ -163,20 +168,72 @@ async function main() {
         }
     }
 
-    // 2. Scan and fix Student admission dates
+    // 2. Scan and fix TransportFee documents
+    const transportFees = await TransportFee.find(feeFilter).populate({
+        path: 'student',
+        model: User,
+        select: 'profile enrollmentNumber email'
+    });
+    console.log(`\n🔎 Checking ${transportFees.length} transport fee records for year 2028 dates...`);
+    let transportFeeFixCount = 0;
+
+    for (const tFee of transportFees) {
+        let changed = false;
+        const studentInfo = tFee.student
+            ? `${tFee.student.profile?.firstName || ''} ${tFee.student.profile?.lastName || ''} (${tFee.student.enrollmentNumber || tFee.student._id})`
+            : `Student ID ${tFee.student}`;
+
+        if (Array.isArray(tFee.installments)) {
+            for (let idx = 0; idx < tFee.installments.length; idx++) {
+                const inst = tFee.installments[idx];
+                if (inst.dueDate) {
+                    const fixedDue = fixDateYear(inst.dueDate, 2026);
+                    if (fixedDue) {
+                        console.log(`   [Transport Inst #${idx + 1} DueDate] ${studentInfo}`);
+                        console.log(`     Old: ${new Date(inst.dueDate).toISOString()} -> New: ${fixedDue.toISOString()}`);
+                        inst.dueDate = fixedDue;
+                        changed = true;
+                        installmentFixCount++;
+                    }
+                }
+                if (inst.paidDate) {
+                    const fixedPaid = fixDateYear(inst.paidDate, 2026);
+                    if (fixedPaid) {
+                        console.log(`   [Transport Inst #${idx + 1} PaidDate] ${studentInfo}`);
+                        console.log(`     Old: ${new Date(inst.paidDate).toISOString()} -> New: ${fixedPaid.toISOString()}`);
+                        inst.paidDate = fixedPaid;
+                        changed = true;
+                        installmentFixCount++;
+                    }
+                }
+            }
+        }
+
+        if (changed) {
+            transportFeeFixCount++;
+            if (!dryRun) {
+                await TransportFee.updateOne(
+                    { _id: tFee._id },
+                    { $set: { installments: tFee.installments } }
+                );
+            }
+        }
+    }
+
+    // 3. Scan and fix Student admission dates
     console.log(`\n🔎 Checking student admission dates for year 2028...`);
-    const students = await Student.find({ institute: { $in: instituteIds } });
+    const students = await User.find({ institute: { $in: instituteIds }, role: 'student', deletedAt: null });
     let studentFixCount = 0;
 
     for (const student of students) {
         if (student.admissionDate) {
             const fixedAdm = fixDateYear(student.admissionDate, 2026);
             if (fixedAdm) {
-                console.log(`   [Student AdmissionDate] ${student.firstName} ${student.lastName} (${student.enrollmentNumber || student._id})`);
+                console.log(`   [Student AdmissionDate] ${student.profile?.firstName || ''} ${student.profile?.lastName || ''} (${student.enrollmentNumber || student._id})`);
                 console.log(`     Old: ${new Date(student.admissionDate).toISOString()} -> New: ${fixedAdm.toISOString()}`);
                 studentFixCount++;
                 if (!dryRun) {
-                    await Student.updateOne(
+                    await User.updateOne(
                         { _id: student._id },
                         { $set: { admissionDate: fixedAdm } }
                     );
@@ -187,10 +244,11 @@ async function main() {
 
     console.log(`\n======================================================`);
     console.log(`📊 Summary of Findings:`);
-    console.log(`   - Fees affected       : ${feeFixCount}`);
-    console.log(`   - Installments fixed  : ${installmentFixCount}`);
-    console.log(`   - Payments fixed      : ${paymentFixCount}`);
-    console.log(`   - Students fixed      : ${studentFixCount}`);
+    console.log(`   - Academic Fees affected   : ${feeFixCount}`);
+    console.log(`   - Transport Fees affected  : ${transportFeeFixCount}`);
+    console.log(`   - Total Installments fixed : ${installmentFixCount}`);
+    console.log(`   - Payments fixed           : ${paymentFixCount}`);
+    console.log(`   - Students fixed           : ${studentFixCount}`);
     if (dryRun) {
         console.log(`\n⚠️  DRY-RUN completed. Run without --dry-run to apply changes to DB.`);
     } else {
