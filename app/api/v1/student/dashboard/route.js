@@ -171,6 +171,7 @@ export async function GET(req) {
         ]);
 
         const syllabusProgress = progressRecords.map(r => ({
+            subjectId: r.subject?._id?.toString() || r.subject?.toString(),
             subject: r.subject?.name,
             code: r.subject?.code,
             progress: r.overallProgress || 0

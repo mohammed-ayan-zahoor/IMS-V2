@@ -5,6 +5,7 @@ import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:student_app/features/dashboard/presentation/providers/dashboard_provider.dart';
 import 'package:student_app/features/timetable/presentation/screens/timetable_screen.dart';
 import 'package:student_app/features/batches/presentation/screens/batches_screen.dart';
+import 'package:student_app/features/syllabus/presentation/screens/student_syllabus_screen.dart';
 import 'package:student_app/features/fees/presentation/screens/fees_screen.dart';
 import 'package:student_app/features/materials/presentation/screens/learning_materials_screen.dart';
 import 'package:student_app/features/profile/presentation/screens/profile_screen.dart';
@@ -362,14 +363,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      TextButton(
-                        onPressed: () {},
-                        child: Text(
-                          'View Grades',
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const StudentSyllabusScreen()),
+                          );
+                        },
+                        icon: const Icon(Icons.arrow_forward_rounded, size: 14, color: Color(0xFF002045)),
+                        label: Text(
+                          'View Syllabus',
                           style: GoogleFonts.inter(
                             color: const Color(0xFF002045),
                             fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
                       ),
@@ -426,7 +433,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ),
                           )
                         else
-                          ...?data?.syllabusProgress.map((s) => _buildCourseRow(s.subject, s.code, s.progress / 100)),
+                          ...?data?.syllabusProgress.map((s) => _buildCourseRow(s.subject, s.code, s.progress / 100, subjectId: s.subjectId)),
                       ],
                     ),
                   ),
@@ -611,75 +618,92 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  // Course row item builder
-  Widget _buildCourseRow(String subject, String courseCode, double progressPercent) {
-    return Container(
-      decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Color(0xFFC4C6CF), width: 1),
-        ),
-      ),
-      padding: const EdgeInsets.all(16.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  subject,
-                  style: GoogleFonts.hankenGrotesk(
-                    color: const Color(0xFF0D1C2E),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Course Code: $courseCode',
-                  style: GoogleFonts.inter(
-                    color: const Color(0xFF545F72),
-                    fontSize: 11,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-              ],
-            ),
+  // Course row item builder (clickable to view detailed chapter syllabus)
+  Widget _buildCourseRow(String subject, String courseCode, double progressPercent, {String? subjectId}) {
+    return InkWell(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => StudentSyllabusScreen(initialSubjectId: subjectId),
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '${(progressPercent * 100).round()}%',
-                style: GoogleFonts.inter(
-                  color: const Color(0xFF002045),
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Container(
-                height: 6,
-                width: 96,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD4E4FC),
-                  borderRadius: BorderRadius.circular(9999),
-                ),
-                child: FractionallySizedBox(
-                  alignment: Alignment.centerLeft,
-                  widthFactor: progressPercent,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF002045),
-                      borderRadius: BorderRadius.circular(9999),
+        );
+      },
+      child: Container(
+        decoration: const BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Color(0xFFC4C6CF), width: 1),
+          ),
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 14.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    subject,
+                    style: GoogleFonts.hankenGrotesk(
+                      color: const Color(0xFF0D1C2E),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ),
+                  const SizedBox(height: 2),
+                  Text(
+                    courseCode.isNotEmpty ? 'Course Code: $courseCode' : 'Tap to view chapters',
+                    style: GoogleFonts.inter(
+                      color: const Color(0xFF545F72),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
-        ],
+            ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      '${(progressPercent * 100).round()}%',
+                      style: GoogleFonts.inter(
+                        color: const Color(0xFF002045),
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      height: 6,
+                      width: 88,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFD4E4FC),
+                        borderRadius: BorderRadius.circular(9999),
+                      ),
+                      child: FractionallySizedBox(
+                        alignment: Alignment.centerLeft,
+                        widthFactor: progressPercent.clamp(0.0, 1.0),
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF002045),
+                            borderRadius: BorderRadius.circular(9999),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 8),
+                const Icon(Icons.chevron_right_rounded, size: 18, color: Color(0xFF94A3B8)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

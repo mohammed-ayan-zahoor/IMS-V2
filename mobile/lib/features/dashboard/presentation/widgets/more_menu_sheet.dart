@@ -13,6 +13,8 @@ import 'package:student_app/features/library/presentation/screens/my_library_scr
 import 'package:student_app/features/chat/presentation/screens/chat_screen.dart';
 import 'package:student_app/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:student_app/features/profile/presentation/screens/profile_screen.dart';
+import 'package:student_app/features/batches/presentation/screens/batches_screen.dart';
+import 'package:student_app/features/syllabus/presentation/screens/student_syllabus_screen.dart';
 import 'package:student_app/core/localization/language_picker_sheet.dart';
 import 'package:student_app/core/localization/locale_provider.dart';
 import 'package:student_app/l10n/app_localizations.dart';
@@ -352,6 +354,17 @@ class MoreMenuSheet extends StatelessWidget {
                 _buildSectionHeader(l10n?.general ?? 'General'),
                 const SizedBox(height: 8),
 
+                _buildMenuItem(
+                  icon: Icons.school_outlined,
+                  title: auth.isDegreeCollege ? 'My Degree Sections' : (auth.isPuCollege ? 'My Classes & Sections' : (auth.isSchool ? 'My Classes' : 'My Batches')),
+                  onTap: () => _navigateTo(context, const BatchesScreen()),
+                ),
+                _buildMenuItem(
+                  icon: Icons.menu_book_rounded,
+                  title: auth.isDegreeCollege ? 'Curriculum & Modules' : (auth.isCollege ? 'Syllabus & Chapters' : 'Curriculum & Syllabus'),
+                  isHighlighted: true,
+                  onTap: () => _navigateTo(context, const StudentSyllabusScreen()),
+                ),
                 _buildMenuItem(
                   icon: Icons.receipt_long_outlined,
                   title: l10n?.feesAndPayments ?? 'Fees & Payments',

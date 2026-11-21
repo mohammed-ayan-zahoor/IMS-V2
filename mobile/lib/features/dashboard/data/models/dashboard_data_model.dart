@@ -95,11 +95,13 @@ class RecentMaterialModel {
 }
 
 class SyllabusProgressModel {
+  final String? subjectId;
   final String subject;
   final String code;
   final int progress;
 
   SyllabusProgressModel({
+    this.subjectId,
     required this.subject,
     required this.code,
     required this.progress,
@@ -107,6 +109,7 @@ class SyllabusProgressModel {
 
   factory SyllabusProgressModel.fromJson(Map<String, dynamic> json) {
     return SyllabusProgressModel(
+      subjectId: json['subjectId']?.toString(),
       subject: json['subject'] ?? 'Subject',
       code: json['code'] ?? '',
       progress: json['progress'] is num ? (json['progress'] as num).round() : 0,

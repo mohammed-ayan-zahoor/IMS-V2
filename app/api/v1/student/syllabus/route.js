@@ -139,6 +139,9 @@ export async function GET(req) {
                 };
             });
 
+            const totalChapters = chapters.length;
+            const completedChapters = chapters.filter(c => c.isCompleted).length;
+
             return {
                 batchId: pair.batchId,
                 batchName: pair.batchName,
