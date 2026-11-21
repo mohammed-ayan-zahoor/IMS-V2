@@ -200,6 +200,7 @@ export default function FeesPage() {
         }
         fetchCourses();
         fetchFeeHeadsList();
+        fetchAllBatches();
         if (isVocational) {
             fetchCourseBundles();
         }
@@ -394,11 +395,18 @@ export default function FeesPage() {
     const fetchAllBatches = async () => {
         try {
             setLoadingAllBatches(true);
-            const sessionParam = selectedSessionId && selectedSessionId !== 'all' ? `?sessionId=${selectedSessionId}` : '';
-            const res = await fetch(`/api/v1/batches${sessionParam}`);
-            if (res.ok) {
-                const data = await res.json();
-                setAllBatches(data.batches || []);
+            const sessionParam = selectedSessionId && selectedSessionId !== 'all' ? `?sessionId=${selectedSessionId}` : '?allSessions=true';
+            let res = await fetch(`/api/v1/batches${sessionParam}`);
+            let data = res.ok ? await res.json() : null;
+            
+            // If session-filtered query returned 0 batches, fallback to all batches across sessions
+            if ((!data?.batches || data.batches.length === 0) && sessionParam !== '?allSessions=true') {
+                res = await fetch(`/api/v1/batches?allSessions=true`);
+                data = res.ok ? await res.json() : null;
+            }
+            
+            if (data?.batches) {
+                setAllBatches(data.batches);
             }
         } catch (error) {
             console.error("Failed to fetch all batches", error);
