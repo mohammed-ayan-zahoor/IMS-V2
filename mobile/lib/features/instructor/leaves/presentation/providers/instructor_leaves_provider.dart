@@ -120,4 +120,12 @@ class InstructorLeavesProvider extends ChangeNotifier {
     }
     return success;
   }
+
+  Future<bool> markReturned(String id) async {
+    final success = await _repository.markReturned(id);
+    if (success) {
+      loadPermissions(refresh: true);
+    }
+    return success;
+  }
 }

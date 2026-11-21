@@ -13,6 +13,9 @@ class InstructorPermissionItem {
   final String? adminComment;
   final String? approvedByName;
   final DateTime? createdAt;
+  final DateTime? departedAt;
+  final DateTime? returnedAt;
+  final int? actualDurationMinutes;
 
   InstructorPermissionItem({
     required this.id,
@@ -29,6 +32,9 @@ class InstructorPermissionItem {
     this.adminComment,
     this.approvedByName,
     this.createdAt,
+    this.departedAt,
+    this.returnedAt,
+    this.actualDurationMinutes,
   });
 
   factory InstructorPermissionItem.fromJson(Map<String, dynamic> json) {
@@ -53,6 +59,23 @@ class InstructorPermissionItem {
       created = DateTime.tryParse(json['createdAt'].toString());
     }
 
+    DateTime? depAt;
+    if (json['departedAt'] != null) {
+      depAt = DateTime.tryParse(json['departedAt'].toString());
+    }
+
+    DateTime? retAt;
+    if (json['returnedAt'] != null) {
+      retAt = DateTime.tryParse(json['returnedAt'].toString());
+    }
+
+    int? actualMins;
+    if (json['actualDurationMinutes'] != null) {
+      actualMins = int.tryParse(json['actualDurationMinutes'].toString());
+    } else if (depAt != null && retAt != null) {
+      actualMins = retAt.difference(depAt).inMinutes;
+    }
+
     return InstructorPermissionItem(
       id: (json['_id'] ?? json['id'] ?? '').toString(),
       passNumber: (json['passNumber'] ?? 'GP-PASS').toString(),
@@ -68,6 +91,9 @@ class InstructorPermissionItem {
       adminComment: json['adminComment']?.toString(),
       approvedByName: approver,
       createdAt: created,
+      departedAt: depAt,
+      returnedAt: retAt,
+      actualDurationMinutes: actualMins,
     );
   }
 

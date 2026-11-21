@@ -159,6 +159,37 @@ export default function GatePassModal({ pass, isOpen, onClose }) {
                                 &ldquo;{pass.reason}&rdquo;
                             </p>
                         </div>
+
+                        {/* Actual Security Departure & Return Audit */}
+                        {(pass.departedAt || pass.returnedAt) && (
+                            <div className="col-span-2 mt-1 p-3 bg-slate-100 rounded-xl border border-slate-200">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-slate-600 block mb-2">
+                                    Actual Gate Exit & Return Log
+                                </span>
+                                <div className="grid grid-cols-3 gap-2 text-xs">
+                                    <div>
+                                        <span className="text-[10px] text-slate-400 block font-medium">Exit Stamped</span>
+                                        <span className="font-bold text-slate-800">
+                                            {pass.departedAt ? format(new Date(pass.departedAt), "hh:mm a") : "—"}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-slate-400 block font-medium">Return Stamped</span>
+                                        <span className="font-bold text-slate-800">
+                                            {pass.returnedAt ? format(new Date(pass.returnedAt), "hh:mm a") : "Outside"}
+                                        </span>
+                                    </div>
+                                    <div>
+                                        <span className="text-[10px] text-slate-400 block font-medium">Total Time Away</span>
+                                        <span className="font-bold text-indigo-700">
+                                            {pass.actualDurationMinutes
+                                                ? `${Math.floor(pass.actualDurationMinutes / 60) > 0 ? `${Math.floor(pass.actualDurationMinutes / 60)}h ` : ""}${pass.actualDurationMinutes % 60}m`
+                                                : pass.departedAt ? `${Math.max(1, Math.round((Date.now() - new Date(pass.departedAt).getTime()) / 60000))}m so far` : "—"}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* Authorization Footer */}

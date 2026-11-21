@@ -134,4 +134,16 @@ class InstructorLeavesRepository {
       return false;
     }
   }
+
+  Future<bool> markReturned(String id) async {
+    try {
+      final res = await _apiClient.patch(
+        ApiEndpoints.cancelPermission(id),
+        data: {'status': 'COMPLETED'},
+      );
+      return res.statusCode == 200;
+    } catch (_) {
+      return false;
+    }
+  }
 }

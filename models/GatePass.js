@@ -104,6 +104,10 @@ const GatePassSchema = new Schema({
     returnedAt: {
         type: Date
     },
+    actualDurationMinutes: {
+        type: Number,
+        default: null
+    },
     securityNotes: {
         type: String,
         trim: true

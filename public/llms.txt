@@ -1,0 +1,50 @@
+# Quantech — Campus Management & School ERP
+
+> A modern school operating system that works like an Organiser. Built for CBSE, ICSE, and State Board schools, PU colleges, and multi-branch educational trusts.
+
+## Overview
+Quantech is a comprehensive campus ERP and student information management system that automates school administration, fee collection, student attendance, marksheet generation, and parent communication.
+
+- **Website**: https://imsportal.3ftech.in
+- **Target Audience**: School Trustees, Principals, Administrators, Teachers, Students, and Parents.
+- **Coverage**: CBSE, ICSE, State Boards, Degree Colleges, and Multi-Campus Trusts across India.
+
+## Key Capabilities & Features
+
+### 1. Admissions & Student Management
+- Online & in-person digital admission workflows.
+- Secure digital KYC student document vaults (Aadhaar, Transfer Certificate, Birth Certificate).
+- Automated roll number & student ID assignment.
+- Compliant with APAAR, PEN, and UDISE+ student registries.
+
+### 2. Zero-Reconciliation Fee Collection
+- Automated term & monthly fee ledger tracking.
+- Instant UPI QR codes, debit/credit cards, and NetBanking payments.
+- Automatic digital receipt generation with zero reconciliation lag.
+- Automated WhatsApp fee payment reminders with direct payment links sent to parents.
+
+### 3. Examination & 1-Click Marksheets
+- Pre-configured assessment engines for CBSE 9-point grading, ICSE bifurcation, and State Board frameworks.
+- Automated calculation of scholastic marks, co-scholastic grades, term aggregates, and attendance percentages.
+- 1-click generation of board-compliant report cards with digital QR verification.
+
+### 4. Smart Attendance Tracking
+- Dedicated Android Facial Recognition Kiosk App for tablets and wall-mount devices.
+- Teacher mobile roll-call app with offline caching and multi-period attendance.
+- Automated instant WhatsApp notifications to parents within 3 minutes of student absence.
+
+### 5. Multi-Branch Campus & Trust Governance
+- Centralized multi-campus dashboard with strict role-based access control (Super Admin, Branch Admin, Principal, Accountant, Teacher, Student).
+- Comprehensive staff payroll, biometric employee attendance, and departmental analytics.
+- Live GPS school bus fleet tracking with real-time ETA alerts for parents.
+
+## Pricing
+
+- **Campus Pro Plan**: ₹59 / student / year.
+  - Includes full core ERP modules, automated fees, marksheet generation, parent WhatsApp alerts, and complimentary physical high-durability PVC student ID cards with custom campus branding.
+- **Trust & Group Plan (Enterprise)**: Custom pricing for multi-campus chains, universities, and large school trusts requiring hardware integrations and dedicated account management.
+
+## Contact & Implementation
+- **Phone**: +91 9488842786
+- **Email**: support@quantech.in
+- **Onboarding Speed**: Complete campus data migration from legacy registers or Excel within 48 hours.

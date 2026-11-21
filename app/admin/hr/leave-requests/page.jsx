@@ -908,6 +908,30 @@ export default function LeaveRequestsPage() {
                                                     <span>{perm.departureTime} → {perm.expectedReturnTime}</span>
                                                     <span className="text-[11px] text-[#5F6673] font-normal">({perm.durationHours || "1h"})</span>
                                                 </div>
+
+                                                {/* Actual Out & In Timing Log */}
+                                                {isCompleted && (perm.departedAt || perm.returnedAt) && (
+                                                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-purple-700 mt-0.5">
+                                                        <span>Away:</span>
+                                                        <span>
+                                                            {perm.departedAt ? format(new Date(perm.departedAt), "hh:mm a") : perm.departureTime} → {perm.returnedAt ? format(new Date(perm.returnedAt), "hh:mm a") : ""}
+                                                        </span>
+                                                        {perm.actualDurationMinutes ? (
+                                                            <span className="px-1.5 py-0.2 bg-purple-100 text-purple-800 rounded text-[10px] font-bold">
+                                                                {perm.actualDurationMinutes < 60 
+                                                                    ? `${perm.actualDurationMinutes}m` 
+                                                                    : `${Math.floor(perm.actualDurationMinutes / 60)}h ${perm.actualDurationMinutes % 60}m`}
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
+                                                )}
+
+                                                {isDeparted && perm.departedAt && (
+                                                    <div className="flex items-center gap-1 text-[11px] text-blue-700 font-medium mt-0.5">
+                                                        <span>Out since: {format(new Date(perm.departedAt), "hh:mm a")}</span>
+                                                    </div>
+                                                )}
+
                                                 <p className="text-[11px] text-[#5F6673] truncate mt-0.5" title={perm.reason}>
                                                     {perm.reason}
                                                 </p>

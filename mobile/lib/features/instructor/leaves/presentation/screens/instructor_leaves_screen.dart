@@ -529,6 +529,64 @@ class _InstructorLeavesScreenState extends State<InstructorLeavesScreen> {
               ),
             ),
           ],
+
+          if (item.status == 'DEPARTED') ...[
+            const SizedBox(height: 8),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  item.departedAt != null
+                      ? 'Exit Logged: ${DateFormat('hh:mm a').format(item.departedAt!)}'
+                      : 'Exit recorded',
+                  style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF4F46E5)),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    final ok = await provider.markReturned(item.id);
+                    if (ok && context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Welcome back! Return time recorded.')),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.login_rounded, size: 14),
+                  label: const Text('Mark Returned'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                    elevation: 0,
+                  ),
+                ),
+              ],
+            ),
+          ],
+
+          if (item.status == 'COMPLETED' && (item.actualDurationMinutes != null || item.returnedAt != null)) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(4),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_outline, size: 14, color: Color(0xFF16A34A)),
+                  const SizedBox(width: 6),
+                  Text(
+                    item.actualDurationMinutes != null
+                        ? 'Total Time Away: ${item.actualDurationMinutes} mins (${item.durationHours} requested)'
+                        : 'Returned to campus',
+                    style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w600, color: const Color(0xFF15803D)),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -139,13 +139,23 @@ export async function PATCH(req, { params }) {
                 console.error("[Permission Push] Error creating notification or push:", notifErr);
             }
         } else if (['DEPARTED', 'COMPLETED'].includes(status)) {
-            // Marking exit or return (by admin, staff, or gatekeeper)
-            if (!isAdmin && role !== 'staff') {
+            // Marking exit or return (by admin, staff, gatekeeper, or the teacher themselves)
+            const isOwner = gatePass.user?.toString() === session.user.id || gatePass.requestedBy?.toString() === session.user.id;
+            const canUpdateGate = isAdmin || ['staff', 'instructor'].includes(role) || isOwner;
+            if (!canUpdateGate) {
                 return NextResponse.json({ error: "Forbidden: Cannot update gate status" }, { status: 403 });
             }
             gatePass.status = status;
-            if (status === 'DEPARTED') gatePass.departedAt = new Date();
-            if (status === 'COMPLETED') gatePass.returnedAt = new Date();
+            if (status === 'DEPARTED') {
+                gatePass.departedAt = new Date();
+            }
+            if (status === 'COMPLETED') {
+                gatePass.returnedAt = new Date();
+                if (gatePass.departedAt) {
+                    const diffMs = gatePass.returnedAt.getTime() - new Date(gatePass.departedAt).getTime();
+                    gatePass.actualDurationMinutes = Math.max(1, Math.round(diffMs / 60000));
+                }
+            }
             if (securityNotes !== undefined) gatePass.securityNotes = securityNotes;
         } else {
             return NextResponse.json({ error: "Invalid status" }, { status: 400 });
