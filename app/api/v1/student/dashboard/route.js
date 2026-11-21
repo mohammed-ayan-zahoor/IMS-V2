@@ -11,6 +11,7 @@ import BatchSyllabusProgress from "@/models/BatchSyllabusProgress";
 import Subject from "@/models/Subject";
 import "@/models/Course"; // Ensure Course schema is registered
 import User from "@/models/User";
+import Institute from "@/models/Institute";
 
 import mongoose from "mongoose";
 
@@ -209,6 +210,15 @@ export async function GET(req) {
             })
             : [];
 
+        const instId = session.user.institute?.id || session.user.institute?._id;
+        let supportPhone = "";
+        if (instId && mongoose.Types.ObjectId.isValid(instId)) {
+            const instDoc = await Institute.findById(instId).select('name contactPhone supportPhone settings.supportPhone').lean();
+            if (instDoc) {
+                supportPhone = instDoc.supportPhone || instDoc.settings?.supportPhone || instDoc.contactPhone || "";
+            }
+        }
+
         return NextResponse.json({
             attendance: attendancePercentage,
             examsTaken: examsTakenCount,
@@ -217,7 +227,8 @@ export async function GET(req) {
             recentMaterials,
             syllabusProgress,
             studentProfile,
-            enrolledCourses
+            enrolledCourses,
+            supportPhone
         });
 
     } catch (error) {

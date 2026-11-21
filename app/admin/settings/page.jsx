@@ -33,11 +33,12 @@ export default function SettingsPage() {
         name: "",
         contactEmail: "",
         contactPhone: "",
+        supportPhone: "",
         website: "",
         address: { street: "", city: "", state: "", pincode: "" },
         branding: { logo: "" },
         type: "VOCATIONAL",
-        settings: { receiptTemplate: "classic" }
+        settings: { receiptTemplate: "classic", supportPhone: "" }
     });
 
     // Mobile APK Build Information
@@ -74,6 +75,7 @@ export default function SettingsPage() {
                 setInstitute(prev => ({
                     ...prev,
                     ...data.institute,
+                    supportPhone: data.institute?.supportPhone || data.institute?.settings?.supportPhone || data.institute?.contactPhone || "",
                     address: {
                         street: data.institute?.address?.street || "Poonam Tower, Tiranga Chowk",
                         city: data.institute?.address?.city || "Dhule",
@@ -373,6 +375,32 @@ export default function SettingsPage() {
                                             placeholder="+91 98765 43210"
                                         />
                                     </div>
+                                </div>
+                                <div className="space-y-1.5 sm:col-span-2">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs font-semibold text-[#101828]">Student App Support / Helpline Number</label>
+                                        <span className="text-[11px] text-[#444CE7] font-medium">Used for mobile app "Support" call button</span>
+                                    </div>
+                                    <div className="relative">
+                                        <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#444CE7]" size={16} />
+                                        <input
+                                            type="text"
+                                            value={institute.supportPhone || ""}
+                                            onChange={e => setInstitute({
+                                                ...institute,
+                                                supportPhone: e.target.value,
+                                                settings: {
+                                                    ...(institute.settings || {}),
+                                                    supportPhone: e.target.value
+                                                }
+                                            })}
+                                            className="w-full pl-10 pr-3.5 py-2 text-xs font-medium text-[#101828] bg-white border border-[#D0D5DD] rounded-lg outline-none focus:border-[#444CE7] focus:ring-4 focus:ring-[#444CE7]/10 transition-all placeholder:text-[#98A2B3]"
+                                            placeholder="+91 98765 43210 (Helpline dialed when students tap Support)"
+                                        />
+                                    </div>
+                                    <p className="text-[11px] text-[#667085]">
+                                        When students tap the <strong>Support</strong> quick action on the mobile home screen, they can directly call this number.
+                                    </p>
                                 </div>
                             </div>
                         </div>

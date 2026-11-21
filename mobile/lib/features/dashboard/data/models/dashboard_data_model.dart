@@ -5,6 +5,7 @@ class DashboardDataModel {
   final List<UpcomingExamModel> upcomingExams;
   final List<RecentMaterialModel> recentMaterials;
   final List<SyllabusProgressModel> syllabusProgress;
+  final String? supportPhone;
 
   DashboardDataModel({
     required this.attendance,
@@ -13,6 +14,7 @@ class DashboardDataModel {
     required this.upcomingExams,
     required this.recentMaterials,
     required this.syllabusProgress,
+    this.supportPhone,
   });
 
   factory DashboardDataModel.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,7 @@ class DashboardDataModel {
               ?.map((e) => SyllabusProgressModel.fromJson(e))
               .toList() ??
           [],
+      supportPhone: json['supportPhone']?.toString(),
     );
   }
 }

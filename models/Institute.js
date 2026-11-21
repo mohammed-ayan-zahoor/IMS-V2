@@ -41,6 +41,7 @@ const InstituteSchema = new Schema({
         match: [/^\S+@\S+\.\S+$/, 'Invalid email']
     },
     contactPhone: String,
+    supportPhone: { type: String, default: "" },
     website: String,
 
     // Status
@@ -95,6 +96,7 @@ const InstituteSchema = new Schema({
         dateFormat: { type: String, default: 'YYYY-MM-DD' },
         currency: { type: String, default: 'INR' },
         language: { type: String, default: 'en' },
+        supportPhone: { type: String, default: "" },
         receiptTemplate: {
             type: String,
             enum: ['classic', 'compact'],

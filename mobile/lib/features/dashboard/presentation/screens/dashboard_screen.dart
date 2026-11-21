@@ -21,6 +21,7 @@ import 'package:student_app/features/chat/presentation/screens/chat_screen.dart'
 import 'package:student_app/features/assignments/presentation/screens/assignments_screen.dart';
 import 'package:student_app/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:student_app/features/notifications/presentation/providers/notifications_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:student_app/core/providers/academic_session_provider.dart';
 
@@ -41,6 +42,177 @@ class _DashboardScreenState extends State<DashboardScreen> {
       'July', 'August', 'September', 'October', 'November', 'December'
     ];
     return '${weekdays[now.weekday - 1]}, ${months[now.month - 1]} ${now.day}, ${now.year}';
+  }
+
+  Future<void> _handleSupportCall(BuildContext context) async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final dash = Provider.of<DashboardProvider>(context, listen: false);
+
+    // Resolve support phone from multiple layers: dashboard data, auth institute, or user object
+    final String? phone = (dash.data?.supportPhone?.isNotEmpty == true)
+        ? dash.data?.supportPhone
+        : (auth.institute?['supportPhone']?.toString().isNotEmpty == true)
+            ? auth.institute?['supportPhone']?.toString()
+            : (auth.institute?['contactPhone']?.toString().isNotEmpty == true)
+                ? auth.institute?['contactPhone']?.toString()
+                : (auth.user?['institute']?['supportPhone']?.toString().isNotEmpty == true)
+                    ? auth.user?['institute']?['supportPhone']?.toString()
+                    : null;
+
+    final instituteName = auth.instituteName ?? 'Institute Support';
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (ctx) {
+        return Container(
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Center(
+                child: Container(
+                  width: 36,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFC4C6CF),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFEFF4FF),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFFD4E4FC)),
+                ),
+                child: const Icon(Icons.support_agent_rounded, size: 28, color: Color(0xFF002045)),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Student & Parent Support',
+                style: GoogleFonts.hankenGrotesk(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF0D1C2E),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                instituteName,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: const Color(0xFF545F72),
+                ),
+              ),
+              const SizedBox(height: 20),
+              if (phone != null && phone.trim().isNotEmpty) ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.phone_in_talk_rounded, size: 18, color: Color(0xFF16A34A)),
+                      const SizedBox(width: 10),
+                      Text(
+                        phone,
+                        style: GoogleFonts.hankenGrotesk(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF0F172A),
+                          letterSpacing: 0.5,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      Navigator.pop(ctx);
+                      final cleaned = phone.replaceAll(RegExp(r'[^\d+]'), '');
+                      final Uri uri = Uri(scheme: 'tel', path: cleaned);
+                      try {
+                        if (await canLaunchUrl(uri)) {
+                          await launchUrl(uri);
+                        } else {
+                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Could not initiate call to $phone')),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.call_rounded, size: 18),
+                    label: const Text('Call Support Now'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF16A34A),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                    ),
+                  ),
+                ),
+              ] else ...[
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFFDE68A)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline_rounded, color: Color(0xFFD97706), size: 20),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Support helpline has not been configured by the school administration yet. Please reach out to your school office.',
+                          style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF92400E), height: 1.4),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(ctx),
+                    child: const Text('Close'),
+                  ),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -295,7 +467,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     children: [
                       // Timetable Action (Active Style)
                       ElevatedButton.icon(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const TimetableScreen()),
+                          );
+                        },
                         icon: const Icon(Icons.schedule, size: 18),
                         label: const Text('Timetable'),
                         style: ElevatedButton.styleFrom(
@@ -312,7 +489,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                       // Assignments Action (Inactive Style)
                       OutlinedButton.icon(
-                        onPressed: () {},
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const AssignmentsScreen()),
+                          );
+                        },
                         icon: const Icon(Icons.assignment, size: 18, color: Color(0xFF002045)),
                         label: const Text('Assignments'),
                         style: OutlinedButton.styleFrom(
@@ -329,7 +511,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                       // Support Action (Inactive Style)
                       OutlinedButton.icon(
-                        onPressed: () {},
+                        onPressed: () => _handleSupportCall(context),
                         icon: const Icon(Icons.support_agent, size: 18, color: Color(0xFF002045)),
                         label: const Text('Support'),
                         style: OutlinedButton.styleFrom(

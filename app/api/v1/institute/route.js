@@ -80,11 +80,12 @@ export async function PATCH(req) {
             // Add other allowed address fields
         } if (body.contactEmail) updateData.contactEmail = body.contactEmail;
         if (body.contactPhone) updateData.contactPhone = body.contactPhone;
+        if (body.supportPhone !== undefined) updateData.supportPhone = body.supportPhone;
         if (body.website) updateData.website = body.website;
 
         if (body.settings) {
             updateData.settings = {};
-            const allowedSettings = ['timezone', 'dateFormat', 'currency', 'language', 'receiptTemplate', 'emailNotifications', 'smsNotifications'];
+            const allowedSettings = ['timezone', 'dateFormat', 'currency', 'language', 'receiptTemplate', 'emailNotifications', 'smsNotifications', 'supportPhone'];
 
             allowedSettings.forEach(key => {
                 if (body.settings[key] !== undefined) {
