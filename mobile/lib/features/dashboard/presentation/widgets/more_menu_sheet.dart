@@ -362,7 +362,6 @@ class MoreMenuSheet extends StatelessWidget {
                 _buildMenuItem(
                   icon: Icons.menu_book_rounded,
                   title: auth.isDegreeCollege ? 'Curriculum & Modules' : (auth.isCollege ? 'Syllabus & Chapters' : 'Curriculum & Syllabus'),
-                  isHighlighted: true,
                   onTap: () => _navigateTo(context, const StudentSyllabusScreen()),
                 ),
                 _buildMenuItem(
@@ -378,7 +377,6 @@ class MoreMenuSheet extends StatelessWidget {
                 _buildMenuItem(
                   icon: Icons.menu_book_outlined,
                   title: auth.getLocalizedMaterialsTitle(context),
-                  isHighlighted: true, // Freud-style subtle pill highlight
                   onTap: () => _navigateTo(context, const LearningMaterialsScreen()),
                 ),
                 _buildMenuItem(
