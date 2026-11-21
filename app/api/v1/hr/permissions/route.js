@@ -164,7 +164,7 @@ export async function POST(req) {
                     }).select('_id');
                     const adminIds = adminUsers.map(a => a._id.toString());
                     if (adminIds.length > 0) {
-                        const { getBeamsInstance } = await import("@/lib/pusher");
+                        const { getBeamsInstance, getPusherInstance } = await import("@/lib/pusher");
                         const beamsClient = await getBeamsInstance(instituteId);
                         if (beamsClient) {
                             const adminPayload = {
@@ -193,9 +193,38 @@ export async function POST(req) {
                             };
                             await beamsClient.publishToUsers(adminIds, adminPayload);
                         }
+
+                        // Broadcast live WebSocket event to open admin dashboards
+                        const pusher = await getPusherInstance(instituteId);
+                        if (pusher) {
+                            await pusher.trigger(`institute-${instituteId}-admin`, 'new-permission-request', {
+                                title: "New Out-Pass Request",
+                                message: `${requesterName} requested out-pass (${durationHours})`,
+                                gatePassId: gatePass._id.toString(),
+                                link: "/admin/hr/leave-requests"
+                            }).catch(() => {});
+                        }
                     }
                 } catch (adminPushErr) {
                     console.error("[Permission Apply Push] Error notifying admins:", adminPushErr);
+                }
+
+                // Dispatch instant WhatsApp alert to Principal/Admin phone if configured
+                try {
+                    const Institute = (await import("@/models/Institute")).default;
+                    const inst = await Institute.findById(instituteId).select('contactPhone supportPhone settings.supportPhone').lean();
+                    const adminPhone = inst?.supportPhone || inst?.settings?.supportPhone || inst?.contactPhone;
+                    if (adminPhone) {
+                        const { NotificationService } = await import("@/services/notificationService");
+                        const appUrl = process.env.NEXTAUTH_URL || "https://imsportal.3ftech.in";
+                        await NotificationService.sendWhatsAppText(
+                            instituteId,
+                            adminPhone,
+                            `📢 *New Out-Pass Request*\n\n*Staff:* ${requesterName}\n*Timing:* ${departureTime} → ${expectedReturnTime} (${durationHours})\n*Reason:* ${reason.trim()}\n\nReview & Approve here:\n${appUrl}/admin/hr/leave-requests`
+                        ).catch(e => console.log("[WhatsApp Admin Alert]", e.message));
+                    }
+                } catch (waErr) {
+                    console.warn("[Admin WhatsApp Alert Error]", waErr.message);
                 }
             } catch (nErr) {
                 console.error("Failed to create permission notification", nErr);

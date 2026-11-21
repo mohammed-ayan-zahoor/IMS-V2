@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import MobileInstructorNav from "@/components/mobile/MobileInstructorNav";
 import NotificationBellDropdown from "@/components/notifications/NotificationBellDropdown";
+import WebPushInitializer from "@/components/notifications/WebPushInitializer";
 import { 
     LayoutDashboard, 
     Users, 
@@ -765,6 +766,7 @@ export default function AdminLayout({ children }) {
 
                         {/* Real-time Notification Bell */}
                         <NotificationBellDropdown />
+                        <WebPushInitializer />
 
                         {/* User Profile Dropdown Menu with Sign Out Option */}
                         <div className="relative" ref={userMenuRef}>
