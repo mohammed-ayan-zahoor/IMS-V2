@@ -50,7 +50,7 @@ export async function POST(req) {
         let componentCategory = category;
         let componentAmount = parseFloat(amount) || 0;
 
-        if (feeHeadId) {
+        if (feeHeadId && mongoose.Types.ObjectId.isValid(feeHeadId)) {
             const head = await FeeHead.findOne({ _id: feeHeadId, institute: scope.instituteId, deletedAt: null });
             if (head) {
                 componentName = head.name;

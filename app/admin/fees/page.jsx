@@ -96,10 +96,12 @@ export default function FeesPage() {
     const [courses, setCourses] = useState([]);
     const [courseBundles, setCourseBundles] = useState([]);
     const [batches, setBatches] = useState([]);
+    const [allBatches, setAllBatches] = useState([]);
+    const [loadingAllBatches, setLoadingAllBatches] = useState(false);
     const [selectedCourse, setSelectedCourse] = useState("");
     const [selectedSemester, setSelectedSemester] = useState("");
     const [selectedBatch, setSelectedBatch] = useState("");
-        const hasCollegeBatches = useMemo(() => (!isSchool && !isVocational) || batches.some(b => b.semester), [isSchool, isVocational, batches]);
+    const hasCollegeBatches = useMemo(() => (!isSchool && !isVocational) || batches.some(b => b.semester), [isSchool, isVocational, batches]);
     const availableSemesters = useMemo(() => {
         if (!hasCollegeBatches) return [];
         let maxSem = 8;
@@ -121,6 +123,59 @@ export default function FeesPage() {
         }
         return Array.from({ length: Math.max(maxSem, 1) }, (_, i) => i + 1);
     }, [hasCollegeBatches, batches, courses, selectedCourse]);
+
+    // Computed batch options for Manage Fee Heads modal (includes Class/Course name so sections like A, B are distinct)
+    const manageHeadsBatchOptions = useMemo(() => {
+        const sourceList = allBatches.length > 0 ? allBatches : batches;
+        const sorted = sourceList.slice().sort((a, b) => {
+            const cNameA = a.course?.name || courses.find(c => String(c._id) === String(a.course?._id || a.course))?.name || a.courseBundle?.title || "";
+            const cNameB = b.course?.name || courses.find(c => String(c._id) === String(b.course?._id || b.course))?.name || b.courseBundle?.title || "";
+            const cmp = cNameA.localeCompare(cNameB, undefined, { numeric: true, sensitivity: 'base' });
+            if (cmp !== 0) return cmp;
+            if (a.semester && b.semester && a.semester !== b.semester) {
+                return a.semester - b.semester;
+            }
+            return (a.name || "").localeCompare(b.name || "", undefined, { numeric: true, sensitivity: 'base' });
+        });
+
+        return [
+            {
+                label: loadingAllBatches
+                    ? "-- Loading Classes & Sections... --"
+                    : sorted.length === 0
+                        ? "-- No Classes / Sections Found --"
+                        : "-- Select Class & Section --",
+                value: ""
+            },
+            ...sorted.map(b => {
+                const cName = b.course?.name || courses.find(c => String(c._id) === String(b.course?._id || b.course))?.name || b.courseBundle?.title || "Class";
+                const semLabel = b.semester ? ` · Sem ${b.semester}` : "";
+                const secName = b.name ? (b.name.toLowerCase().startsWith('sec') ? b.name : `Section ${b.name}`) : "Section";
+                return {
+                    label: `${cName}${semLabel} - ${secName}`,
+                    value: b._id
+                };
+            })
+        ];
+    }, [allBatches, batches, courses, loadingAllBatches]);
+
+    const feeHeadOptions = useMemo(() => {
+        const options = [{ label: "-- Choose Fee Head --", value: "" }];
+        if (feeHeadsList.length > 0) {
+            feeHeadsList.forEach(h => {
+                options.push({ label: `${h.name} (${h.category})`, value: h._id });
+            });
+        } else {
+            options.push(
+                { label: "School Uniform Set (uniform)", value: "uniform-preset" },
+                { label: "Books & Study Material (books)", value: "books-preset" },
+                { label: "Tuition Fee (tuition)", value: "tuition-preset" },
+                { label: "Annual Activity & Development (activity)", value: "activity-preset" }
+            );
+        }
+        options.push({ label: "+ Custom Component Name...", value: "custom" });
+        return options;
+    }, [feeHeadsList]);
 
     const [percentageFilter, setPercentageFilter] = useState("");
     const [summary, setSummary] = useState({ totalGross: 0, totalDiscount: 0, extraCharges: 0, totalCollected: 0, totalPending: 0 });
@@ -212,13 +267,34 @@ export default function FeesPage() {
     const handleBulkAssignSubmit = async (e) => {
         e.preventDefault();
         if (!manageHeadsData.batchId) {
-            toast.error("Please select a class / section");
+            toast.error("Please select a class & section");
             return;
         }
 
+        let nameToUse = manageHeadsData.customName;
+        let categoryToUse = manageHeadsData.category;
+        let headIdToSend = undefined;
+
         const selectedHead = feeHeadsList.find(h => h._id === manageHeadsData.feeHeadId);
-        const nameToUse = selectedHead ? selectedHead.name : manageHeadsData.customName;
-        if (!nameToUse) {
+        if (selectedHead) {
+            nameToUse = selectedHead.name;
+            categoryToUse = selectedHead.category;
+            headIdToSend = selectedHead._id;
+        } else if (manageHeadsData.feeHeadId === "uniform-preset") {
+            nameToUse = "School Uniform Set";
+            categoryToUse = "uniform";
+        } else if (manageHeadsData.feeHeadId === "books-preset") {
+            nameToUse = "Books & Study Material";
+            categoryToUse = "books";
+        } else if (manageHeadsData.feeHeadId === "tuition-preset") {
+            nameToUse = "Tuition Fee";
+            categoryToUse = "tuition";
+        } else if (manageHeadsData.feeHeadId === "activity-preset") {
+            nameToUse = "Annual Activity & Development";
+            categoryToUse = "activity";
+        }
+
+        if (!nameToUse || !nameToUse.trim()) {
             toast.error("Please select or enter a fee head name");
             return;
         }
@@ -240,9 +316,9 @@ export default function FeesPage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     batchId: manageHeadsData.batchId,
-                    feeHeadId: manageHeadsData.feeHeadId || undefined,
-                    name: nameToUse,
-                    category: selectedHead?.category || manageHeadsData.category,
+                    feeHeadId: headIdToSend,
+                    name: nameToUse.trim(),
+                    category: categoryToUse || "other",
                     amount: parseFloat(manageHeadsData.amount) || 0,
                     action: manageHeadsData.action,
                     target: manageHeadsData.target,
@@ -312,6 +388,22 @@ export default function FeesPage() {
             }
         } catch (error) {
             console.error("Failed to fetch batches", error);
+        }
+    };
+
+    const fetchAllBatches = async () => {
+        try {
+            setLoadingAllBatches(true);
+            const sessionParam = selectedSessionId && selectedSessionId !== 'all' ? `?sessionId=${selectedSessionId}` : '';
+            const res = await fetch(`/api/v1/batches${sessionParam}`);
+            if (res.ok) {
+                const data = await res.json();
+                setAllBatches(data.batches || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch all batches", error);
+        } finally {
+            setLoadingAllBatches(false);
         }
     };
 
@@ -705,7 +797,11 @@ export default function FeesPage() {
                     <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => setIsManageHeadsModalOpen(true)}
+                        onClick={() => {
+                            fetchAllBatches();
+                            fetchFeeHeadsList();
+                            setIsManageHeadsModalOpen(true);
+                        }}
                         className="flex items-center gap-2 border-slate-200 text-slate-700 hover:bg-slate-50"
                     >
                         <Layers size={14} className="text-blue-600" />
@@ -1356,26 +1452,23 @@ export default function FeesPage() {
             <Modal
                 isOpen={isManageHeadsModalOpen}
                 onClose={() => setIsManageHeadsModalOpen(false)}
-                title="Manage Section Fee Heads"
+                title="Manage Class & Section Fee Heads"
                 className="max-w-xl"
             >
                 <form onSubmit={handleBulkAssignSubmit} className="space-y-4">
                     <p className="text-xs text-slate-500">
-                        Add or remove specific fee components (such as Books, Uniforms, or Kits) for an entire section or selective students.
+                        Add or remove specific fee components (such as Uniforms, Books, or Kits) for an entire class section or selective students.
                     </p>
 
                     <div className="space-y-1.5">
-                        <label className="text-xs font-semibold text-slate-700">Select Section / Class Batch</label>
+                        <label className="text-xs font-semibold text-slate-700">Select Class & Section</label>
                         <Select
                             value={manageHeadsData.batchId}
                             onChange={(val) => {
                                 setManageHeadsData(prev => ({ ...prev, batchId: val, studentIds: [] }));
                                 fetchStudentsForBatch(val);
                             }}
-                            options={[
-                                { label: "-- Select Section / Batch --", value: "" },
-                                ...batches.map(b => ({ label: b.semester ? `Sem ${b.semester} - Section ${b.name}` : b.name, value: b._id }))
-                            ]}
+                            options={manageHeadsBatchOptions}
                         />
                     </div>
 
@@ -1385,18 +1478,27 @@ export default function FeesPage() {
                             <Select
                                 value={manageHeadsData.feeHeadId}
                                 onChange={(val) => {
-                                    const head = feeHeadsList.find(h => h._id === val);
-                                    setManageHeadsData(prev => ({
-                                        ...prev,
-                                        feeHeadId: val,
-                                        customName: head ? head.name : "",
-                                        category: head ? head.category : "other"
-                                    }));
+                                    if (val === "custom") {
+                                        setManageHeadsData(prev => ({ ...prev, feeHeadId: "custom", customName: "", category: "other" }));
+                                    } else if (val === "uniform-preset") {
+                                        setManageHeadsData(prev => ({ ...prev, feeHeadId: "uniform-preset", customName: "School Uniform Set", category: "uniform" }));
+                                    } else if (val === "books-preset") {
+                                        setManageHeadsData(prev => ({ ...prev, feeHeadId: "books-preset", customName: "Books & Study Material", category: "books" }));
+                                    } else if (val === "tuition-preset") {
+                                        setManageHeadsData(prev => ({ ...prev, feeHeadId: "tuition-preset", customName: "Tuition Fee", category: "tuition" }));
+                                    } else if (val === "activity-preset") {
+                                        setManageHeadsData(prev => ({ ...prev, feeHeadId: "activity-preset", customName: "Annual Activity & Development", category: "activity" }));
+                                    } else {
+                                        const head = feeHeadsList.find(h => h._id === val);
+                                        setManageHeadsData(prev => ({
+                                            ...prev,
+                                            feeHeadId: val,
+                                            customName: head ? head.name : "",
+                                            category: head ? head.category : "other"
+                                        }));
+                                    }
                                 }}
-                                options={[
-                                    { label: "-- Choose Fee Head --", value: "" },
-                                    ...feeHeadsList.map(h => ({ label: `${h.name} (${h.category})`, value: h._id }))
-                                ]}
+                                options={feeHeadOptions}
                             />
                         </div>
 
@@ -1412,6 +1514,17 @@ export default function FeesPage() {
                             />
                         </div>
                     </div>
+
+                    {manageHeadsData.feeHeadId === "custom" && (
+                        <Input
+                            id="customHeadName"
+                            label="Custom Component Name"
+                            placeholder="e.g. Uniform Set, Sports Blazer, Workshop Fee"
+                            value={manageHeadsData.customName}
+                            onChange={(e) => setManageHeadsData(prev => ({ ...prev, customName: e.target.value }))}
+                            required
+                        />
+                    )}
 
                     {manageHeadsData.action === "apply" && (
                         <Input
