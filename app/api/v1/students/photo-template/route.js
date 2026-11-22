@@ -51,6 +51,9 @@ export async function GET(req) {
                     const s = e.student;
                     return {
                         StudentID: s._id?.toString() || "",
+                        BatchID: batchDoc._id?.toString() || "",
+                        ClassName: courseName,
+                        Section: batchName,
                         FirstName: s.profile?.firstName || "",
                         LastName: s.profile?.lastName || "",
                         RollNo: s.metadata?.studentDetails?.rollNo || "",
@@ -92,6 +95,9 @@ export async function GET(req) {
                         const s = e.student;
                         studentsList.push({
                             StudentID: s._id?.toString() || "",
+                            BatchID: b._id?.toString() || "",
+                            ClassName: courseDoc.name || "",
+                            Section: b.name || "",
                             FirstName: s.profile?.firstName || "",
                             LastName: s.profile?.lastName || "",
                             RollNo: s.metadata?.studentDetails?.rollNo || "",
