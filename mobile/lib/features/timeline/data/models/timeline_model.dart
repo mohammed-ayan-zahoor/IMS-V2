@@ -1,3 +1,5 @@
+import 'package:student_app/core/constants/api_endpoints.dart';
+
 class TimelineEventModel {
   final String id;
   final String title;
@@ -16,13 +18,22 @@ class TimelineEventModel {
   });
 
   factory TimelineEventModel.fromJson(Map<String, dynamic> json) {
+    DateTime parsedDate;
+    try {
+      parsedDate = json['date'] != null
+          ? DateTime.parse(json['date'].toString()).toLocal()
+          : DateTime.now();
+    } catch (_) {
+      parsedDate = DateTime.now();
+    }
+
     return TimelineEventModel(
-      id: json['_id'] ?? '',
-      title: json['title'] ?? '',
-      description: json['description'] ?? '',
-      date: json['date'] != null ? DateTime.parse(json['date']).toLocal() : DateTime.now(),
-      category: json['category'] ?? 'general',
-      photoUrl: json['photoUrl']?.toString(),
+      id: json['_id']?.toString() ?? '',
+      title: json['title']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      date: parsedDate,
+      category: json['category']?.toString() ?? 'general',
+      photoUrl: ApiEndpoints.resolveUrl(json['photoUrl']?.toString()),
     );
   }
 }

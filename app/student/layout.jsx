@@ -25,7 +25,8 @@ import {
     Search,
     ChevronLeft,
     ChevronRight,
-    Target
+    Target,
+    Award
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import NotificationBellDropdown from "@/components/notifications/NotificationBellDropdown";
@@ -43,6 +44,7 @@ export default function StudentLayout({ children }) {
         { label: "Dashboard", icon: LayoutDashboard, href: "/student/dashboard" },
         { label: "Attendance", icon: CalendarCheck, href: "/student/attendance" },
         { label: "Timetable", icon: Clock, href: "/student/timetable" },
+        { label: "Timeline", icon: Award, href: "/student/timeline" },
         { label: "Fees", icon: CreditCard, href: "/student/fees" },
         { label: "Library", icon: BookOpen, href: "/student/library" },
         { label: "My Batches", icon: Layers, href: "/student/batches" },
@@ -65,6 +67,7 @@ export default function StudentLayout({ children }) {
 
     // Mobile "More" menu items
     const mobileMoreItems = [
+        { label: "Timeline", icon: Award, href: "/student/timeline", desc: "Achievements & milestones" },
         { label: "Library", icon: BookOpen, href: "/student/library", desc: "Catalog & issued books" },
         { label: "My Batches", icon: Layers, href: "/student/batches", desc: "Active enrolled classes" },
         { label: "Materials", icon: FileText, href: "/student/materials", desc: "Notes & study resources" },
@@ -100,6 +103,7 @@ export default function StudentLayout({ children }) {
         if (pathname === "/student/dashboard") return "Student Details";
         if (pathname === "/student/attendance") return "Attendance Record";
         if (pathname === "/student/timetable") return "Class Timetable";
+        if (pathname === "/student/timeline") return "Student Timeline";
         if (pathname === "/student/fees") return "Fees & Payments";
         if (pathname === "/student/library") return "Student Library";
         if (pathname === "/student/batches") return "My Batches";
