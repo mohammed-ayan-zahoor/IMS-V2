@@ -429,4 +429,46 @@ class AppLocalizationsHi extends AppLocalizations {
 
   @override
   String get photoRemovedSuccess => 'प्रोफ़ाइल फ़ोटो सफलतापूर्वक हटा दी गई।';
+
+  @override
+  String get changePassword => 'पासवर्ड बदलें';
+
+  @override
+  String get changePasswordSubtitle =>
+      'कम से कम 8 वर्णों का एक मजबूत पासवर्ड चुनें';
+
+  @override
+  String get currentPassword => 'वर्तमान पासवर्ड';
+
+  @override
+  String get enterCurrentPassword => 'वर्तमान पासवर्ड दर्ज करें';
+
+  @override
+  String get newPassword => 'नया पासवर्ड';
+
+  @override
+  String get enterNewPassword => 'नया पासवर्ड दर्ज करें (न्यूनतम 8 वर्ण)';
+
+  @override
+  String get confirmNewPassword => 'नए पासवर्ड की पुष्टि करें';
+
+  @override
+  String get reenterNewPassword => 'नया पासवर्ड दोबारा दर्ज करें';
+
+  @override
+  String get updatePasswordButton => 'पासवर्ड अपडेट करें';
+
+  @override
+  String get fillAllFields => 'कृपया सभी पासवर्ड फ़ील्ड भरें।';
+
+  @override
+  String get passwordMinLength =>
+      'नया पासवर्ड कम से कम 8 वर्ण लंबा होना चाहिए।';
+
+  @override
+  String get passwordMustDiffer =>
+      'नया पासवर्ड आपके वर्तमान पासवर्ड से अलग होना चाहिए।';
+
+  @override
+  String get passwordsDoNotMatch => 'नए पासवर्ड मेल नहीं खाते।';
 }

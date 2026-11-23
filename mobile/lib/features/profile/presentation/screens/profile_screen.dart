@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:student_app/core/auth/auth_provider.dart';
 import 'package:student_app/features/attendance/presentation/providers/attendance_provider.dart';
 import 'package:student_app/features/profile/presentation/screens/academic_history_screen.dart';
+import 'package:student_app/features/profile/presentation/widgets/change_password_sheet.dart';
 import 'package:student_app/core/localization/language_picker_sheet.dart';
 import 'package:student_app/core/localization/locale_provider.dart';
 import 'package:student_app/l10n/app_localizations.dart';
@@ -692,6 +693,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         clipBehavior: Clip.antiAlias,
                         child: Column(
                           children: [
+                            _buildActionRow(
+                              Icons.lock_reset_rounded,
+                              l10n?.changePassword ?? 'Change Password',
+                              isLast: false,
+                              onTap: () => ChangePasswordSheet.show(context),
+                            ),
                             _buildActionRow(
                               Icons.language_rounded,
                               l10n?.changeLanguage ?? 'Change Language',

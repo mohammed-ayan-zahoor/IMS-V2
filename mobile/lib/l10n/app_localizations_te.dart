@@ -432,4 +432,46 @@ class AppLocalizationsTe extends AppLocalizations {
 
   @override
   String get photoRemovedSuccess => 'ప్రొఫైల్ ఫోటో విజయవంతంగా తీసివేయబడింది.';
+
+  @override
+  String get changePassword => 'పాస్‌వర్డ్ మార్చండి';
+
+  @override
+  String get changePasswordSubtitle =>
+      'కనీసం 8 అక్షరాల బలమైన పాస్‌వర్డ్‌ను ఎంచుకోండి';
+
+  @override
+  String get currentPassword => 'ప్రస్తుత పాస్‌వర్డ్';
+
+  @override
+  String get enterCurrentPassword => 'ప్రస్తుత పాస్‌వర్డ్‌ను నమోదు చేయండి';
+
+  @override
+  String get newPassword => 'కొత్త పాస్‌వర్డ్';
+
+  @override
+  String get enterNewPassword => 'కొత్త పాస్‌వర్డ్‌ను నమోదు చేయండి (కనీసం 8 అక్షరాలు)';
+
+  @override
+  String get confirmNewPassword => 'కొత్త పాస్‌వర్డ్‌ను నిర్ధారించండి';
+
+  @override
+  String get reenterNewPassword => 'కొత్త పాస్‌వర్డ్‌ను మళ్లీ నమోదు చేయండి';
+
+  @override
+  String get updatePasswordButton => 'పాస్‌వర్డ్‌ను అప్‌డేట్ చేయండి';
+
+  @override
+  String get fillAllFields => 'దయచేసి అన్ని పాస్‌వర్డ్ ఫీల్డ్‌లను పూరించండి.';
+
+  @override
+  String get passwordMinLength =>
+      'కొత్త పాస్‌వర్డ్ కనీసం 8 అక్షరాల పొడవు ఉండాలి.';
+
+  @override
+  String get passwordMustDiffer =>
+      'కొత్త పాస్‌వర్డ్ ప్రస్తుత పాస్‌వర్డ్ కంటే భిన్నంగా ఉండాలి.';
+
+  @override
+  String get passwordsDoNotMatch => 'కొత్త పాస్‌వర్డ్‌లు సరిపోలడం లేదు.';
 }

@@ -427,4 +427,46 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get photoRemovedSuccess => 'Profile photo removed successfully.';
+
+  @override
+  String get changePassword => 'Change Password';
+
+  @override
+  String get changePasswordSubtitle =>
+      'Choose a strong password of at least 8 characters';
+
+  @override
+  String get currentPassword => 'Current Password';
+
+  @override
+  String get enterCurrentPassword => 'Enter current password';
+
+  @override
+  String get newPassword => 'New Password';
+
+  @override
+  String get enterNewPassword => 'Enter new password (min. 8 characters)';
+
+  @override
+  String get confirmNewPassword => 'Confirm New Password';
+
+  @override
+  String get reenterNewPassword => 'Re-enter new password';
+
+  @override
+  String get updatePasswordButton => 'Update Password';
+
+  @override
+  String get fillAllFields => 'Please fill in all password fields.';
+
+  @override
+  String get passwordMinLength =>
+      'New password must be at least 8 characters long.';
+
+  @override
+  String get passwordMustDiffer =>
+      'New password must be different from your current password.';
+
+  @override
+  String get passwordsDoNotMatch => 'New passwords do not match.';
 }

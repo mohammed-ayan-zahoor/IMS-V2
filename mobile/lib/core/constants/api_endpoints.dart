@@ -36,6 +36,7 @@ class ApiEndpoints {
   static const String studentSubscriptionCreateOrder = '/student/subscription/create-order';
   static const String studentSubscriptionVerify = '/student/subscription/verify-payment';
   static String studentPaywallWeb = '$host/student/paywall';
+  static const String changePassword = '/auth/student/change-password';
 
   // Exams
   static const String exams = '/exams';

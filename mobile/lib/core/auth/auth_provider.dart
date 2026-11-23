@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:student_app/core/constants/api_endpoints.dart';
 import 'package:student_app/core/network/api_client.dart';
 import 'package:student_app/core/notifications/notification_service.dart';
 import 'package:student_app/l10n/app_localizations.dart';
@@ -447,5 +449,43 @@ class AuthProvider extends ChangeNotifier {
       if (kDebugMode) print('Update avatar error: $e');
     }
     return false;
+  }
+
+  Future<({bool success, String message})> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final res = await _apiClient.post(
+        ApiEndpoints.changePassword,
+        data: {
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        },
+      );
+
+      if (res.statusCode == 200) {
+        final msg = res.data is Map && res.data['message'] != null
+            ? res.data['message'].toString()
+            : 'Password updated successfully';
+        return (success: true, message: msg);
+      } else {
+        final err = res.data is Map && res.data['error'] != null
+            ? res.data['error'].toString()
+            : 'Failed to update password (${res.statusCode})';
+        return (success: false, message: err);
+      }
+    } on DioException catch (e) {
+      String errMsg = 'Network connection error. Please try again.';
+      if (e.response?.data is Map && e.response?.data['error'] != null) {
+        errMsg = e.response!.data['error'].toString();
+      } else if (e.message != null && e.message!.isNotEmpty) {
+        errMsg = e.message!;
+      }
+      return (success: false, message: errMsg);
+    } catch (e) {
+      if (kDebugMode) print('Change password unexpected error: $e');
+      return (success: false, message: 'An unexpected error occurred. Please try again.');
+    }
   }
 }

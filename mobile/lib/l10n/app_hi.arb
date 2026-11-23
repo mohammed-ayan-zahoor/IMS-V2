@@ -138,5 +138,18 @@
   "removePhoto": "फ़ोटो हटाएं",
   "removePhotoConfirmTitle": "प्रोफ़ाइल फ़ोटो हटाएं?",
   "removePhotoConfirmMessage": "क्या आप वाकई अपनी प्रोफ़ाइल फ़ोटो हटाना चाहते हैं?",
-  "photoRemovedSuccess": "प्रोफ़ाइल फ़ोटो सफलतापूर्वक हटा दी गई।"
+  "photoRemovedSuccess": "प्रोफ़ाइल फ़ोटो सफलतापूर्वक हटा दी गई।",
+  "changePassword": "पासवर्ड बदलें",
+  "changePasswordSubtitle": "कम से कम 8 वर्णों का एक मजबूत पासवर्ड चुनें",
+  "currentPassword": "वर्तमान पासवर्ड",
+  "enterCurrentPassword": "वर्तमान पासवर्ड दर्ज करें",
+  "newPassword": "नया पासवर्ड",
+  "enterNewPassword": "नया पासवर्ड दर्ज करें (न्यूनतम 8 वर्ण)",
+  "confirmNewPassword": "नए पासवर्ड की पुष्टि करें",
+  "reenterNewPassword": "नया पासवर्ड दोबारा दर्ज करें",
+  "updatePasswordButton": "पासवर्ड अपडेट करें",
+  "fillAllFields": "कृपया सभी पासवर्ड फ़ील्ड भरें।",
+  "passwordMinLength": "नया पासवर्ड कम से कम 8 वर्ण लंबा होना चाहिए।",
+  "passwordMustDiffer": "नया पासवर्ड आपके वर्तमान पासवर्ड से अलग होना चाहिए।",
+  "passwordsDoNotMatch": "नए पासवर्ड मेल नहीं खाते।"
 }

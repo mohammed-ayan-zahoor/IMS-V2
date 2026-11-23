@@ -4,51 +4,65 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 import AuditLog from "@/models/AuditLog";
+import rateLimit from "@/lib/rateLimit";
 import bcrypt from "bcryptjs";
 
 export async function POST(req) {
     try {
         const session = await getServerSession(authOptions);
+        const role = session?.user?.role?.toLowerCase();
 
-        if (!session?.user || session.user.role !== "student") {
+        if (!session?.user || role !== "student") {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { currentPassword, newPassword } = await req.json();
+        // Rate limiting: 5 attempts per 15 minutes per user
+        const rateLimitKey = `change-password:${session.user.id}`;
+        try {
+            await rateLimit(rateLimitKey, {
+                points: 1,
+                maxPoints: 5,
+                duration: 900,     // 15-minute window
+                blockDuration: 900 // Block for 15 minutes if exceeded
+            });
+        } catch (limitErr) {
+            const waitMins = Math.max(1, Math.ceil((limitErr.resetIn || 900) / 60));
+            return NextResponse.json({
+                error: `Too many password change attempts. Please wait ${waitMins} minute(s) before trying again.`
+            }, { status: 429 });
+        }
+
+        const body = await req.json().catch(() => ({}));
+        const { currentPassword, newPassword } = body;
 
         if (!currentPassword || !newPassword) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        if (newPassword.length < 8) {
+        if (typeof newPassword !== 'string' || newPassword.length < 8) {
             return NextResponse.json({ error: "Password must be at least 8 characters long" }, { status: 400 });
+        }
+
+        if (currentPassword === newPassword) {
+            return NextResponse.json({ error: "New password must be different from your current password" }, { status: 400 });
         }
 
         await connectDB();
 
-        // Find user and include passwordHash
+        // Find user with passwordHash
         const user = await User.findById(session.user.id).select("+passwordHash");
 
         if (!user) {
-            console.error("Change Password: User not found", session.user.id);
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
 
-        // Verify current password
-        const trimmedPassword = currentPassword.trim();
-        const isMatch = await bcrypt.compare(trimmedPassword, user.passwordHash);
-        
-        if (process.env.NODE_ENV === 'development') {
-            console.log("Change Password Debug Deep:", {
-                userId: session.user.id,
-                email: user.email,
-                role: user.role,
-                inputLen: trimmedPassword?.length,
-                hashPrefix: user.passwordHash?.substring(0, 10),
-                hashSuffix: user.passwordHash?.substring(user.passwordHash.length - 10),
-                isMatch
-            });
+        // Guard: check if passwordHash exists
+        if (!user.passwordHash) {
+            return NextResponse.json({ error: "No password set for this account. Please contact school administration." }, { status: 400 });
         }
+
+        // Verify current password (consistent with auth.js - untrimmed)
+        const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
 
         if (!isMatch) {
             return NextResponse.json({ error: "Incorrect current password" }, { status: 400 });
@@ -58,24 +72,32 @@ export async function POST(req) {
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(newPassword, salt);
 
-        // Update password
-        user.passwordHash = hashedPassword;
-        await user.save();
+        // Safe DB update: avoids full-document re-validation while updating password & clearing reset tokens
+        await User.findByIdAndUpdate(user._id, {
+            $set: {
+                passwordHash: hashedPassword,
+                passwordChangeRequested: false,
+                passwordResetToken: null,
+                passwordResetExpires: null,
+                passwordChangedAt: new Date()
+            }
+        });
 
-        // Audit Log
-        await AuditLog.create({
+        // Audit Log (safe async)
+        const instId = session.user.instituteId || session.user.institute?.id || session.user.institute?._id || user.institute;
+        AuditLog.create({
             action: "user.password_change",
             actor: user._id,
             resource: {
                 type: "User",
                 id: user._id
             },
-            institute: session.user.institute?.id,
+            institute: instId || undefined,
             status: "success",
             details: {
-                method: "settings_panel"
+                method: "mobile_or_web_student"
             }
-        });
+        }).catch(err => console.warn("[AuditLog] Failed to record password change:", err.message));
 
         return NextResponse.json({ success: true, message: "Password updated successfully" });
 

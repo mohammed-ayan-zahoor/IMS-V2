@@ -138,5 +138,18 @@
   "removePhoto": "Remove Photo",
   "removePhotoConfirmTitle": "Remove Profile Photo?",
   "removePhotoConfirmMessage": "Are you sure you want to remove your profile photo?",
-  "photoRemovedSuccess": "Profile photo removed successfully."
+  "photoRemovedSuccess": "Profile photo removed successfully.",
+  "changePassword": "Change Password",
+  "changePasswordSubtitle": "Choose a strong password of at least 8 characters",
+  "currentPassword": "Current Password",
+  "enterCurrentPassword": "Enter current password",
+  "newPassword": "New Password",
+  "enterNewPassword": "Enter new password (min. 8 characters)",
+  "confirmNewPassword": "Confirm New Password",
+  "reenterNewPassword": "Re-enter new password",
+  "updatePasswordButton": "Update Password",
+  "fillAllFields": "Please fill in all password fields.",
+  "passwordMinLength": "New password must be at least 8 characters long.",
+  "passwordMustDiffer": "New password must be different from your current password.",
+  "passwordsDoNotMatch": "New passwords do not match."
 }

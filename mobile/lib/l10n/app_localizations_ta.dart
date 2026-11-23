@@ -432,4 +432,46 @@ class AppLocalizationsTa extends AppLocalizations {
   @override
   String get photoRemovedSuccess =>
       'சுயவிவரப் புகைப்படம் வெற்றிகரமாக அகற்றப்பட்டது.';
+
+  @override
+  String get changePassword => 'கடவுச்சொல்லை மாற்றவும்';
+
+  @override
+  String get changePasswordSubtitle =>
+      'குறைந்தது 8 எழுத்துக்கள் கொண்ட வலுவான கடவுச்சொல்லைத் தேர்ந்தெடுக்கவும்';
+
+  @override
+  String get currentPassword => 'தற்போதைய கடவுச்சொல்';
+
+  @override
+  String get enterCurrentPassword => 'தற்போதைய கடவுச்சொல்லை உள்ளிடவும்';
+
+  @override
+  String get newPassword => 'புதிய கடவுச்சொல்';
+
+  @override
+  String get enterNewPassword => 'புதிய கடவுச்சொல்லை உள்ளிடவும் (குறைந்தது 8 எழுத்துக்கள்)';
+
+  @override
+  String get confirmNewPassword => 'புதிய கடவுச்சொல்லை உறுதிப்படுத்தவும்';
+
+  @override
+  String get reenterNewPassword => 'புதிய கடவுச்சொல்லை மீண்டும் உள்ளிடவும்';
+
+  @override
+  String get updatePasswordButton => 'கடவுச்சொல்லைப் புதுப்பிக்கவும்';
+
+  @override
+  String get fillAllFields => 'அனைத்து கடவுச்சொல் புலங்களையும் நிரப்பவும்.';
+
+  @override
+  String get passwordMinLength =>
+      'புதிய கடவுச்சொல் குறைந்தது 8 எழுத்துக்கள் நீளமாக இருக்க வேண்டும்.';
+
+  @override
+  String get passwordMustDiffer =>
+      'புதிய கடவுச்சொல் உங்கள் தற்போதைய கடவுச்சொல்லிலிருந்து வேறுபட்டதாக இருக்க வேண்டும்.';
+
+  @override
+  String get passwordsDoNotMatch => 'புதிய கடவுச்சொற்கள் பொருந்தவில்லை.';
 }

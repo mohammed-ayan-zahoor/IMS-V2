@@ -138,5 +138,18 @@
   "removePhoto": "फोटो काढा",
   "removePhotoConfirmTitle": "प्रोफाइल फोटो काढायचा का?",
   "removePhotoConfirmMessage": "तुम्हाला नक्की तुमचा प्रोफाइल फोटो काढायचा आहे का?",
-  "photoRemovedSuccess": "प्रोफाइल फोटो यशस्वीरित्या काढला गेला."
+  "photoRemovedSuccess": "प्रोफाइल फोटो यशस्वीरित्या काढला गेला.",
+  "changePassword": "पासवर्ड बदला",
+  "changePasswordSubtitle": "किमान 8 वर्णांचा मजबूत पासवर्ड निवडा",
+  "currentPassword": "सध्याचा पासवर्ड",
+  "enterCurrentPassword": "सध्याचा पासवर्ड टाका",
+  "newPassword": "नवीन पासवर्ड",
+  "enterNewPassword": "नवीन पासवर्ड टाका (किमान 8 वर्ण)",
+  "confirmNewPassword": "नवीन पासवर्डची पुष्टी करा",
+  "reenterNewPassword": "नवीन पासवर्ड पुन्हा टाका",
+  "updatePasswordButton": "पासवर्ड अपडेट करा",
+  "fillAllFields": "कृपया सर्व पासवर्ड फील्ड भरा.",
+  "passwordMinLength": "नवीन पासवर्ड किमान 8 वर्णांचा असावा.",
+  "passwordMustDiffer": "नवीन पासवर्ड तुमच्या सध्याच्या पासवर्डपेक्षा वेगळा असावा.",
+  "passwordsDoNotMatch": "नवीन पासवर्ड जुळत नाहीत."
 }

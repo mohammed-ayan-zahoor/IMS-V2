@@ -939,6 +939,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Profile photo removed successfully.'**
   String get photoRemovedSuccess;
+
+  /// No description provided for @changePassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Change Password'**
+  String get changePassword;
+
+  /// No description provided for @changePasswordSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose a strong password of at least 8 characters'**
+  String get changePasswordSubtitle;
+
+  /// No description provided for @currentPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Current Password'**
+  String get currentPassword;
+
+  /// No description provided for @enterCurrentPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter current password'**
+  String get enterCurrentPassword;
+
+  /// No description provided for @newPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'New Password'**
+  String get newPassword;
+
+  /// No description provided for @enterNewPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter new password (min. 8 characters)'**
+  String get enterNewPassword;
+
+  /// No description provided for @confirmNewPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm New Password'**
+  String get confirmNewPassword;
+
+  /// No description provided for @reenterNewPassword.
+  ///
+  /// In en, this message translates to:
+  /// **'Re-enter new password'**
+  String get reenterNewPassword;
+
+  /// No description provided for @updatePasswordButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Update Password'**
+  String get updatePasswordButton;
+
+  /// No description provided for @fillAllFields.
+  ///
+  /// In en, this message translates to:
+  /// **'Please fill in all password fields.'**
+  String get fillAllFields;
+
+  /// No description provided for @passwordMinLength.
+  ///
+  /// In en, this message translates to:
+  /// **'New password must be at least 8 characters long.'**
+  String get passwordMinLength;
+
+  /// No description provided for @passwordMustDiffer.
+  ///
+  /// In en, this message translates to:
+  /// **'New password must be different from your current password.'**
+  String get passwordMustDiffer;
+
+  /// No description provided for @passwordsDoNotMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'New passwords do not match.'**
+  String get passwordsDoNotMatch;
 }
 
 class _AppLocalizationsDelegate

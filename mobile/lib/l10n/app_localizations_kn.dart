@@ -432,4 +432,46 @@ class AppLocalizationsKn extends AppLocalizations {
   @override
   String get photoRemovedSuccess =>
       'ಪ್ರೊಫೈಲ್ ಫೋಟೋವನ್ನು ಯಶಸ್ವಿಯಾಗಿ ತೆಗೆದುಹಾಕಲಾಗಿದೆ.';
+
+  @override
+  String get changePassword => 'ಪಾಸ್‌ವರ್ಡ್ ಬದಲಾಯಿಸಿ';
+
+  @override
+  String get changePasswordSubtitle =>
+      'ಕನಿಷ್ಠ 8 ಅಕ್ಷರಗಳ ಬಲವಾದ ಪಾಸ್‌ವರ್ಡ್ ಆಯ್ಕೆಮಾಡಿ';
+
+  @override
+  String get currentPassword => 'ಪ್ರಸ್ತುತ ಪಾಸ್‌ವರ್ಡ್';
+
+  @override
+  String get enterCurrentPassword => 'ಪ್ರಸ್ತುತ ಪಾಸ್‌ವರ್ಡ್ ನಮೂದಿಸಿ';
+
+  @override
+  String get newPassword => 'ಹೊಸ ಪಾಸ್‌ವರ್ಡ್';
+
+  @override
+  String get enterNewPassword => 'ಹೊಸ ಪಾಸ್‌ವರ್ಡ್ ನಮೂದಿಸಿ (ಕನಿಷ್ಠ 8 ಅಕ್ಷರಗಳು)';
+
+  @override
+  String get confirmNewPassword => 'ಹೊಸ ಪಾಸ್‌ವರ್ಡ್ ದೃಢೀಕರಿಸಿ';
+
+  @override
+  String get reenterNewPassword => 'ಹೊಸ ಪಾಸ್‌ವರ್ಡ್ ಮರುನಮೂದಿಸಿ';
+
+  @override
+  String get updatePasswordButton => 'ಪಾಸ್‌ವರ್ಡ್ ನವೀಕರಿಸಿ';
+
+  @override
+  String get fillAllFields => 'ದಯವಿಟ್ಟು ಎಲ್ಲಾ ಪಾಸ್‌ವರ್ಡ್ ಕ್ಷೇತ್ರಗಳನ್ನು ಭರ್ತಿ ಮಾಡಿ.';
+
+  @override
+  String get passwordMinLength =>
+      'ಹೊಸ ಪಾಸ್‌ವರ್ಡ್ ಕನಿಷ್ಠ 8 ಅಕ್ಷರಗಳಷ್ಟು ಉದ್ದವಿರಬೇಕು.';
+
+  @override
+  String get passwordMustDiffer =>
+      'ಹೊಸ ಪಾಸ್‌ವರ್ಡ್ ಪ್ರಸ್ತುತ ಪಾಸ್‌ವರ್ಡ್‌ಗಿಂತ ಭಿನ್ನವಾಗಿರಬೇಕು.';
+
+  @override
+  String get passwordsDoNotMatch => 'ಹೊಸ ಪಾಸ್‌ವರ್ಡ್‌ಗಳು ಹೊಂದಿಕೆಯಾಗುತ್ತಿಲ್ಲ.';
 }
