@@ -40,7 +40,9 @@ export async function PATCH(req, { params }) {
         if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        if (!["admin", "super_admin", "instructor"].includes(session.user.role)) {
+        const userRole = session.user.role?.toLowerCase();
+        const ALLOWED_ROLES = ["admin", "super_admin", "instructor", "teacher", "staff"];
+        if (!ALLOWED_ROLES.includes(userRole)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -51,6 +53,15 @@ export async function PATCH(req, { params }) {
         delete body.uploadedBy; // Prevent changing owner
         delete body.createdAt;
         delete body.deletedAt; // Prevent manual restoration
+
+        // Normalize file.type if provided
+        if (body.file?.type) {
+            const VALID_FILE_TYPES = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'video', 'image', 'zip', 'other'];
+            let resolved = body.file.type.toLowerCase();
+            if (resolved === 'document') resolved = 'pdf';
+            if (!VALID_FILE_TYPES.includes(resolved)) resolved = 'other';
+            body.file.type = resolved;
+        }
 
         // Handle courses and courseBundles field
         if (body.courses && Array.isArray(body.courses)) {
@@ -87,12 +98,22 @@ export async function DELETE(req, { params }) {
         if (!session) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
-        if (!["admin", "super_admin"].includes(session.user.role)) {
+        const userRole = session.user.role?.toLowerCase();
+        const ALLOWED_ROLES = ["admin", "super_admin", "instructor", "teacher", "staff"];
+        if (!ALLOWED_ROLES.includes(userRole)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
         await connectDB();
         const { id } = await params;
+
+        // Non-admin can only delete materials they uploaded
+        if (!["admin", "super_admin"].includes(userRole)) {
+            const existing = await Material.findById(id).select('uploadedBy');
+            if (!existing || existing.uploadedBy.toString() !== session.user.id) {
+                return NextResponse.json({ error: "Forbidden: You can only delete your own materials" }, { status: 403 });
+            }
+        }
 
         // Atomic Delete (Hard Delete) - Returns document if found and deleted
         const material = await Material.findByIdAndDelete(id);

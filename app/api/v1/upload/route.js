@@ -36,12 +36,13 @@ const allowedMimeTypes = {
 export async function POST(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !['super_admin', 'admin', 'instructor', 'staff', 'student'].includes(session.user.role)) {
+        const userRole = session?.user?.role?.toLowerCase();
+        if (!session || !['super_admin', 'admin', 'instructor', 'teacher', 'staff', 'student'].includes(userRole)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
         // SECURITY: Extract instituteId from session (never from query params)
-        const instituteId = session.user.institute?.id || session.user.instituteId;
+        const instituteId = session.user.institute?.id || session.user.instituteId || session.user.institute?._id || (typeof session.user.institute === 'string' ? session.user.institute : null);
         if (!instituteId) {
             return NextResponse.json({ error: "No institute context" }, { status: 400 });
         }

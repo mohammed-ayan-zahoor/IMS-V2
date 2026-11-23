@@ -173,7 +173,9 @@ export async function GET(req) {
 export async function POST(req) {
     try {
         const session = await getServerSession(authOptions);
-        if (!session || !["admin", "super_admin", "instructor"].includes(session.user.role)) {
+        const userRole = session?.user?.role?.toLowerCase();
+        const ALLOWED_ROLES = ["admin", "super_admin", "instructor", "teacher", "staff"];
+        if (!session || !ALLOWED_ROLES.includes(userRole)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -187,16 +189,29 @@ export async function POST(req) {
             return NextResponse.json({ error: "Missing required fields: title, file.url, and at least one course or package" }, { status: 400 });
         }
 
+        // Normalize file.type to match Mongoose enum: ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'video', 'image', 'zip', 'other']
+        const VALID_FILE_TYPES = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'video', 'image', 'zip', 'other'];
+        let resolvedFileType = (body.file?.type || body.type || 'other').toLowerCase();
+        if (resolvedFileType === 'document') {
+            const rawUrl = (body.file?.url || '').toLowerCase();
+            if (rawUrl.endsWith('.doc') || rawUrl.endsWith('.docx')) resolvedFileType = 'doc';
+            else if (rawUrl.endsWith('.png') || rawUrl.endsWith('.jpg') || rawUrl.endsWith('.jpeg')) resolvedFileType = 'image';
+            else resolvedFileType = 'pdf';
+        }
+        if (!VALID_FILE_TYPES.includes(resolvedFileType)) {
+            resolvedFileType = 'other';
+        }
+
         // Prevent mass assignment by picking allowed fields
         const safeBody = {
             title: body.title,
             description: body.description,
-            type: body.type, // 'video', 'document', 'link'
-            category: body.category,
+            type: ['video', 'link'].includes(body.type) ? body.type : (resolvedFileType === 'video' ? 'video' : 'document'),
+            category: body.category || 'lecture',
             file: {
                 url: body.file.url,
                 fileId: body.file.fileId,
-                type: body.file.type,
+                type: resolvedFileType,
                 size: body.file.size
             },
             courses: courses, // Array of course IDs
@@ -211,10 +226,10 @@ export async function POST(req) {
             totalMarks: body.totalMarks || null
         };
 
-        // Determine Institute
-        let instituteId = session.user.institute?.id;
+        // Determine Institute with robust fallback
+        let instituteId = session.user.institute?.id || session.user.instituteId || session.user.institute?._id || (typeof session.user.institute === 'string' ? session.user.institute : null);
 
-        if (session.user.role !== 'super_admin') {
+        if (userRole !== 'super_admin') {
             if (!instituteId) {
                 return NextResponse.json({ error: "Institute context missing for this user" }, { status: 403 });
             }
@@ -276,7 +291,7 @@ export async function POST(req) {
                         title,
                         message,
                         type: isAssignment ? 'ASSIGNMENT' : 'NOTICE',
-                        link: isAssignment ? '/student/assignments' : '/student/materials',
+                        link: `/student/materials?id=${material._id}`,
                         metadata: {
                             materialId: material._id.toString(),
                             category: material.category,

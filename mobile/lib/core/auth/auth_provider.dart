@@ -37,7 +37,7 @@ class AuthProvider extends ChangeNotifier {
   String? get institutePrimaryColor => institute?['primaryColor']?.toString();
 
   String get role => _user?['role']?.toString().toLowerCase() ?? '';
-  bool get isInstructor => role == 'instructor';
+  bool get isInstructor => role == 'instructor' || role == 'teacher' || role == 'staff';
   bool get isStudent => role == 'student';
   bool get needsSubscriptionPayment => _user?['needsSubscriptionPayment'] == true;
   Map<String, dynamic>? get accessSubscription =>

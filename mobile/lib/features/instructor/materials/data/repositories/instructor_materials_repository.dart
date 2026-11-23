@@ -76,6 +76,22 @@ class InstructorMaterialsRepository {
     int? fileSize,
   }) async {
     try {
+      final validEnumTypes = ['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'video', 'image', 'zip', 'other'];
+      String resolvedFileType = type.toLowerCase();
+      if (resolvedFileType == 'document') {
+        final lowerUrl = fileUrl.toLowerCase().split('?').first;
+        if (lowerUrl.endsWith('.doc') || lowerUrl.endsWith('.docx')) {
+          resolvedFileType = 'doc';
+        } else if (lowerUrl.endsWith('.png') || lowerUrl.endsWith('.jpg') || lowerUrl.endsWith('.jpeg')) {
+          resolvedFileType = 'image';
+        } else {
+          resolvedFileType = 'pdf';
+        }
+      }
+      if (!validEnumTypes.contains(resolvedFileType)) {
+        resolvedFileType = 'other';
+      }
+
       final body = {
         'title': title,
         'description': description ?? '',
@@ -90,7 +106,7 @@ class InstructorMaterialsRepository {
         if (dueDate != null) 'dueDate': dueDate.toIso8601String(),
         'file': {
           'url': fileUrl,
-          'type': type,
+          'type': resolvedFileType,
           'originalName': title,
           'size': ?fileSize,
         },

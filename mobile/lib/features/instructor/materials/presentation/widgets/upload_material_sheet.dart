@@ -154,12 +154,22 @@ class _UploadMaterialSheetState extends State<UploadMaterialSheet> {
 
     // 2. Save material metadata
     final isAssignment = _materialType == 'assignment';
+    String inferredType = _materialType == 'video' ? 'video' : 'document';
+    if (_pickedFile != null) {
+      final ext = _pickedFile!.name.split('.').last.toLowerCase();
+      if (['png', 'jpg', 'jpeg', 'webp'].contains(ext)) {
+        inferredType = 'image';
+      } else if (['pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'zip'].contains(ext)) {
+        inferredType = ext;
+      }
+    }
+
     final success = await provider.uploadMaterial(
       title: title,
       courseId: _selectedCourseId!,
       fileUrl: finalFileUrl,
       description: _descController.text.trim(),
-      type: _materialType == 'video' ? 'video' : 'document',
+      type: inferredType,
       category: isAssignment ? 'assignment' : (_materialType == 'video' ? 'reference' : 'lecture'),
       allowSubmissions: isAssignment,
       totalMarks: isAssignment ? int.tryParse(_marksController.text.trim()) : null,

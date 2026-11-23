@@ -14,8 +14,10 @@ export async function GET(req, { params }) {
     try {
         const { id } = await params;
         const session = await getServerSession(authOptions);
+        const userRole = session?.user?.role?.toLowerCase();
+        const ALLOWED_ROLES = ["admin", "super_admin", "instructor", "teacher", "staff"];
 
-        if (!session || !["admin", "super_admin", "instructor"].includes(session.user.role)) {
+        if (!session || !ALLOWED_ROLES.includes(userRole)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -27,7 +29,8 @@ export async function GET(req, { params }) {
             return NextResponse.json({ error: "Assignment not found" }, { status: 404 });
         }
 
-        if (session.user.role !== 'super_admin' && String(assignment.institute) !== String(session.user.institute?.id)) {
+        const callerInstId = session.user.institute?.id || session.user.instituteId || session.user.institute?._id || (typeof session.user.institute === 'string' ? session.user.institute : null);
+        if (userRole !== 'super_admin' && callerInstId && String(assignment.institute) !== String(callerInstId)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
@@ -59,8 +62,10 @@ export async function PATCH(req, { params }) {
     try {
         const { id } = await params;
         const session = await getServerSession(authOptions);
+        const userRole = session?.user?.role?.toLowerCase();
+        const ALLOWED_ROLES = ["admin", "super_admin", "instructor", "teacher", "staff"];
 
-        if (!session || !["admin", "super_admin", "instructor"].includes(session.user.role)) {
+        if (!session || !ALLOWED_ROLES.includes(userRole)) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
@@ -71,7 +76,8 @@ export async function PATCH(req, { params }) {
             return NextResponse.json({ error: "Assignment not found" }, { status: 404 });
         }
 
-        if (session.user.role !== 'super_admin' && String(assignment.institute) !== String(session.user.institute?.id)) {
+        const callerInstId = session.user.institute?.id || session.user.instituteId || session.user.institute?._id || (typeof session.user.institute === 'string' ? session.user.institute : null);
+        if (userRole !== 'super_admin' && callerInstId && String(assignment.institute) !== String(callerInstId)) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

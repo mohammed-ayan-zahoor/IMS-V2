@@ -145,8 +145,29 @@ export class CourseService {
             }).distinct('course');
             allCourseIds = [...new Set([...allCourseIds, ...batchCourses.filter(Boolean).map(id => id.toString())])];
 
-            // Instructors should ONLY see their assigned courses/classes
-            query._id = { $in: allCourseIds.map(id => new mongoose.Types.ObjectId(id)) };
+            // Also check Timetable schedule assignments (crucial for school subject teachers)
+            try {
+                const Timetable = mongoose.models.Timetable || (await import('@/models/Timetable')).default;
+                const timetableBatchIds = await Timetable.find({
+                    'schedule.assignments.instructor': new mongoose.Types.ObjectId(instructorId),
+                    deletedAt: null
+                }).distinct('batch');
+                if (timetableBatchIds.length > 0) {
+                    const timetableCourses = await Batch.find({
+                        _id: { $in: timetableBatchIds },
+                        deletedAt: null
+                    }).distinct('course');
+                    allCourseIds = [...new Set([...allCourseIds, ...timetableCourses.filter(Boolean).map(id => id.toString())])];
+                }
+            } catch (ttErr) {
+                console.error("[courseService] Timetable lookup error:", ttErr);
+            }
+
+            // Instructors should ONLY see their assigned courses/classes if explicit assignments exist;
+            // Otherwise, fallback to showing institute courses so unassigned teachers are not blocked from giving homework.
+            if (allCourseIds.length > 0) {
+                query._id = { $in: allCourseIds.map(id => new mongoose.Types.ObjectId(id)) };
+            }
         }
 
         return await Course.find(query)
