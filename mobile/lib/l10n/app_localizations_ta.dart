@@ -450,7 +450,8 @@ class AppLocalizationsTa extends AppLocalizations {
   String get newPassword => 'புதிய கடவுச்சொல்';
 
   @override
-  String get enterNewPassword => 'புதிய கடவுச்சொல்லை உள்ளிடவும் (குறைந்தது 8 எழுத்துக்கள்)';
+  String get enterNewPassword =>
+      'புதிய கடவுச்சொல்லை உள்ளிடவும் (குறைந்தது 8 எழுத்துக்கள்)';
 
   @override
   String get confirmNewPassword => 'புதிய கடவுச்சொல்லை உறுதிப்படுத்தவும்';

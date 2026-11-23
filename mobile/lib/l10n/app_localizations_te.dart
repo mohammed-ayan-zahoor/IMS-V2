@@ -450,7 +450,8 @@ class AppLocalizationsTe extends AppLocalizations {
   String get newPassword => 'కొత్త పాస్‌వర్డ్';
 
   @override
-  String get enterNewPassword => 'కొత్త పాస్‌వర్డ్‌ను నమోదు చేయండి (కనీసం 8 అక్షరాలు)';
+  String get enterNewPassword =>
+      'కొత్త పాస్‌వర్డ్‌ను నమోదు చేయండి (కనీసం 8 అక్షరాలు)';
 
   @override
   String get confirmNewPassword => 'కొత్త పాస్‌వర్డ్‌ను నిర్ధారించండి';

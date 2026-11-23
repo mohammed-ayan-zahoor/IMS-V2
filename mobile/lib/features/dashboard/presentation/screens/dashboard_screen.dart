@@ -49,15 +49,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final dash = Provider.of<DashboardProvider>(context, listen: false);
 
     // Resolve support phone from multiple layers: dashboard data, auth institute, or user object
-    final String? phone = (dash.data?.supportPhone?.isNotEmpty == true)
-        ? dash.data?.supportPhone
-        : (auth.institute?['supportPhone']?.toString().isNotEmpty == true)
-            ? auth.institute?['supportPhone']?.toString()
-            : (auth.institute?['contactPhone']?.toString().isNotEmpty == true)
-                ? auth.institute?['contactPhone']?.toString()
-                : (auth.user?['institute']?['supportPhone']?.toString().isNotEmpty == true)
-                    ? auth.user?['institute']?['supportPhone']?.toString()
-                    : null;
+    String? phone = dash.dashboardData?.supportPhone;
+    if (phone == null || phone.isEmpty) {
+      phone = auth.institute?['supportPhone']?.toString();
+    }
+    if (phone == null || phone.isEmpty) {
+      phone = auth.institute?['contactPhone']?.toString();
+    }
+    if (phone == null || phone.isEmpty) {
+      phone = auth.user?['institute']?['supportPhone']?.toString();
+    }
+    if (phone != null && phone.isEmpty) {
+      phone = null;
+    }
 
     final instituteName = auth.instituteName ?? 'Institute Support';
 
@@ -148,7 +152,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   child: ElevatedButton.icon(
                     onPressed: () async {
                       Navigator.pop(ctx);
-                      final cleaned = phone.replaceAll(RegExp(r'[^\d+]'), '');
+                      final cleaned = phone != null ? phone.replaceAll(RegExp(r'[^\d+]'), '') : '';
                       final Uri uri = Uri(scheme: 'tel', path: cleaned);
                       try {
                         if (await canLaunchUrl(uri)) {

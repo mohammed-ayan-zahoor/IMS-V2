@@ -4,7 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { connectDB } from "@/lib/mongodb";
 import User from "@/models/User";
 import AuditLog from "@/models/AuditLog";
-import rateLimit from "@/lib/rateLimit";
+import rateLimit, { resetRateLimit, getRateLimitStatus } from "@/lib/rateLimit";
 import bcrypt from "bcryptjs";
 
 export async function POST(req) {
@@ -16,19 +16,13 @@ export async function POST(req) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // Rate limiting: 5 attempts per 15 minutes per user
+        // Check if user is currently blocked from previous failed attempts
         const rateLimitKey = `change-password:${session.user.id}`;
-        try {
-            await rateLimit(rateLimitKey, {
-                points: 1,
-                maxPoints: 5,
-                duration: 900,     // 15-minute window
-                blockDuration: 900 // Block for 15 minutes if exceeded
-            });
-        } catch (limitErr) {
-            const waitMins = Math.max(1, Math.ceil((limitErr.resetIn || 900) / 60));
+        const limitStatus = getRateLimitStatus(rateLimitKey);
+        if (limitStatus && limitStatus.blockedUntil > Date.now()) {
+            const waitMins = Math.max(1, Math.ceil((limitStatus.blockedUntil - Date.now()) / 60000));
             return NextResponse.json({
-                error: `Too many password change attempts. Please wait ${waitMins} minute(s) before trying again.`
+                error: `Too many failed password attempts. Account locked for ${waitMins} minute(s).`
             }, { status: 429 });
         }
 
@@ -65,8 +59,26 @@ export async function POST(req) {
         const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
 
         if (!isMatch) {
+            // Count ONLY failed attempts towards rate limit
+            try {
+                await rateLimit(rateLimitKey, {
+                    points: 1,
+                    maxPoints: 5,      // 5 failed attempts allowed
+                    duration: 900,     // 15-minute window
+                    blockDuration: 900 // Lock for 15 minutes after 5 fails
+                });
+            } catch (limitErr) {
+                const waitMins = Math.max(1, Math.ceil((limitErr.resetIn || 900) / 60));
+                return NextResponse.json({
+                    error: `Too many failed attempts. Account locked for ${waitMins} minute(s).`
+                }, { status: 429 });
+            }
+
             return NextResponse.json({ error: "Incorrect current password" }, { status: 400 });
         }
+
+        // Success: Reset failure count immediately
+        resetRateLimit(rateLimitKey);
 
         // Hash new password
         const salt = await bcrypt.genSalt(10);

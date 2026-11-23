@@ -462,7 +462,8 @@ class AppLocalizationsKn extends AppLocalizations {
   String get updatePasswordButton => 'ಪಾಸ್‌ವರ್ಡ್ ನವೀಕರಿಸಿ';
 
   @override
-  String get fillAllFields => 'ದಯವಿಟ್ಟು ಎಲ್ಲಾ ಪಾಸ್‌ವರ್ಡ್ ಕ್ಷೇತ್ರಗಳನ್ನು ಭರ್ತಿ ಮಾಡಿ.';
+  String get fillAllFields =>
+      'ದಯವಿಟ್ಟು ಎಲ್ಲಾ ಪಾಸ್‌ವರ್ಡ್ ಕ್ಷೇತ್ರಗಳನ್ನು ಭರ್ತಿ ಮಾಡಿ.';
 
   @override
   String get passwordMinLength =>

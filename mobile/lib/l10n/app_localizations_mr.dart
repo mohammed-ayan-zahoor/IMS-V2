@@ -435,8 +435,7 @@ class AppLocalizationsMr extends AppLocalizations {
   String get changePassword => 'पासवर्ड बदला';
 
   @override
-  String get changePasswordSubtitle =>
-      'किमान 8 वर्णांचा मजबूत पासवर्ड निवडा';
+  String get changePasswordSubtitle => 'किमान 8 वर्णांचा मजबूत पासवर्ड निवडा';
 
   @override
   String get currentPassword => 'सध्याचा पासवर्ड';
@@ -463,8 +462,7 @@ class AppLocalizationsMr extends AppLocalizations {
   String get fillAllFields => 'कृपया सर्व पासवर्ड फील्ड भरा.';
 
   @override
-  String get passwordMinLength =>
-      'नवीन पासवर्ड किमान 8 वर्णांचा असावा.';
+  String get passwordMinLength => 'नवीन पासवर्ड किमान 8 वर्णांचा असावा.';
 
   @override
   String get passwordMustDiffer =>
