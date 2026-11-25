@@ -333,6 +333,15 @@ export class StudentService {
             }
         }
 
+        let sessObjId = null;
+        if (sessionId) {
+            try {
+                sessObjId = new mongoose.Types.ObjectId(sessionId);
+            } catch (e) {
+                sessObjId = sessionId;
+            }
+        }
+
         // Strict Session Isolation for Schools and Colleges
         // Note: Defaulting to strict isolation if type is unknown for safety
         if (targetInstituteType === 'SCHOOL' || targetInstituteType === 'COLLEGE' || !targetInstituteType) {
@@ -351,17 +360,15 @@ export class StudentService {
                     }
                 }
 
-                let sessObjId = null;
-                try {
-                    sessObjId = new mongoose.Types.ObjectId(sessionId);
-                } catch (e) {
-                    sessObjId = sessionId;
-                }
-
-                // Find all student IDs enrolled in batches for this session
+                // Find all student IDs enrolled in batches for this session (gracefully handling null/missing session)
                 const sessionBatches = await Batch.find({
                     ...(instituteId ? { institute: instituteId } : {}),
-                    session: sessObjId,
+                    $or: [
+                        { session: sessObjId },
+                        { session: sessionId },
+                        { session: null },
+                        { session: { $exists: false } }
+                    ],
                     deletedAt: null
                 }).select('enrolledStudents.student');
                 const sessionEnrolledIds = sessionBatches.flatMap(b => (b.enrolledStudents || []).map(e => e.student));
@@ -372,7 +379,9 @@ export class StudentService {
                         { activeSessions: sessObjId },
                         { activeSession: sessObjId },
                         { activeSessions: sessionId },
-                        { activeSession: sessionId }
+                        { activeSession: sessionId },
+                        { activeSession: null },
+                        { activeSession: { $exists: false } }
                     ]
                 };
             }
@@ -504,6 +513,11 @@ export class StudentService {
                 }
                 if (courseDoc?.name) {
                     matchConditions.push({ admissionStd: courseDoc.name });
+                    matchConditions.push({ admissionStd: new RegExp(`^${escapeRegExp(courseDoc.name)}$`, 'i') });
+                }
+                if (courseDoc?.code) {
+                    matchConditions.push({ admissionStd: courseDoc.code });
+                    matchConditions.push({ admissionStd: new RegExp(`^${escapeRegExp(courseDoc.code)}$`, 'i') });
                 }
                 const directQuery = {
                     deletedAt: null,
@@ -520,33 +534,57 @@ export class StudentService {
                 directStudentIds = directStudents.map(s => s._id);
 
                 // Auto-sync: If there are direct students not enrolled in any section for this course, enroll them into the primary section
-                if (!semester && batches.length > 0 && directStudentIds.length > 0) {
-                    const defaultBatch = batches[0];
-                    const allEnrolledInBatches = new Set(batches.flatMap(b => b.enrolledStudents.map(e => e.student.toString())));
-                    const unenrolled = directStudentIds.filter(id => !allEnrolledInBatches.has(id.toString()));
-
-                    if (unenrolled.length > 0) {
+                if (!semester && directStudentIds.length > 0) {
+                    let defaultBatch = batches[0];
+                    if (!defaultBatch && (targetInstituteType === 'SCHOOL' || !targetInstituteType)) {
                         try {
-                            const newEnrollments = unenrolled.map(id => ({
-                                student: id,
-                                enrolledAt: new Date(),
-                                status: 'active'
-                            }));
-                            await Batch.findByIdAndUpdate(defaultBatch._id, {
-                                $addToSet: { enrolledStudents: { $each: newEnrollments } }
-                            });
-                            // If filtering by specific batch, include newly synced students in studentIds
-                            unenrolled.forEach(id => studentIds.push(id));
-
-                            // Sync active session if student was missing it
-                            if (sessionId) {
-                                await User.updateMany(
-                                    { _id: { $in: unenrolled }, activeSession: null },
-                                    { $set: { activeSession: sessionId }, $addToSet: { activeSessions: sessionId } }
-                                );
+                            const CourseModel = (await import('@/models/Course')).default;
+                            const fullCourseDoc = await CourseModel.findById(targetCourseId).lean();
+                            if (fullCourseDoc) {
+                                defaultBatch = await Batch.create({
+                                    name: 'Section A',
+                                    course: targetCourseId,
+                                    session: sessObjId || sessionId || null,
+                                    institute: instituteId || fullCourseDoc.institute,
+                                    capacity: 40,
+                                    enrolledStudents: [],
+                                    schedule: { startDate: new Date() },
+                                    createdBy: actorId || fullCourseDoc.createdBy || fullCourseDoc.institute
+                                });
+                                batches.push(defaultBatch);
                             }
-                        } catch (syncErr) {
-                            console.warn("[STUDENT_BATCH_SYNC] Auto-sync enrollments failed:", syncErr);
+                        } catch (batchCreateErr) {
+                            console.warn("[STUDENT_BATCH_SYNC] Auto-creating Section A failed:", batchCreateErr);
+                        }
+                    }
+
+                    if (defaultBatch) {
+                        const allEnrolledInBatches = new Set(batches.flatMap(b => (b.enrolledStudents || []).map(e => e.student.toString())));
+                        const unenrolled = directStudentIds.filter(id => !allEnrolledInBatches.has(id.toString()));
+
+                        if (unenrolled.length > 0) {
+                            try {
+                                const newEnrollments = unenrolled.map(id => ({
+                                    student: id,
+                                    enrolledAt: new Date(),
+                                    status: 'active'
+                                }));
+                                await Batch.findByIdAndUpdate(defaultBatch._id, {
+                                    $addToSet: { enrolledStudents: { $each: newEnrollments } }
+                                });
+                                // If filtering by specific batch, include newly synced students in studentIds
+                                unenrolled.forEach(id => studentIds.push(id));
+
+                                // Sync active session if student was missing it
+                                if (sessionId) {
+                                    await User.updateMany(
+                                        { _id: { $in: unenrolled }, activeSession: null },
+                                        { $set: { activeSession: sessObjId || sessionId }, $addToSet: { activeSessions: sessObjId || sessionId } }
+                                    );
+                                }
+                            } catch (syncErr) {
+                                console.warn("[STUDENT_BATCH_SYNC] Auto-sync enrollments failed:", syncErr);
+                            }
                         }
                     }
                 }
@@ -717,7 +755,12 @@ export class StudentService {
             deletedAt: null
         };
         if (sessionId) {
-            batchQueryForPage.session = sessionId;
+            batchQueryForPage.$or = [
+                { session: sessionId },
+                ...(sessObjId ? [{ session: sessObjId }] : []),
+                { session: null },
+                { session: { $exists: false } }
+            ];
         }
         const enrolledBatches = await Batch.find(batchQueryForPage)
             .select('_id name semester session course courseBundle enrolledStudents')
@@ -738,6 +781,31 @@ export class StudentService {
                 }
             });
         });
+
+        // Resolve course details for students who have admissionStd but no batch enrollment
+        const unenrolledStdIds = students
+            .filter(s => (studentBatchMap[s._id.toString()] || []).length === 0 && s.admissionStd)
+            .map(s => s.admissionStd);
+
+        const courseLookupMap = new Map();
+        if (unenrolledStdIds.length > 0) {
+            try {
+                const CourseModel = (await import('@/models/Course')).default;
+                const validObjIds = unenrolledStdIds.filter(id => mongoose.isValidObjectId(id)).map(id => new mongoose.Types.ObjectId(id));
+                const coursesFound = await CourseModel.find({
+                    $or: [
+                        { _id: { $in: validObjIds } },
+                        { name: { $in: unenrolledStdIds } }
+                    ]
+                }).select('_id name code').lean();
+                coursesFound.forEach(c => {
+                    courseLookupMap.set(c._id.toString(), c);
+                    courseLookupMap.set(c.name, c);
+                });
+            } catch (courseErr) {
+                console.warn("[STUDENT_COURSE_LOOKUP] Failed to resolve admissionStd courses:", courseErr);
+            }
+        }
 
         // Format students with name field for UI
         const formattedStudents = students.map(student => {
@@ -768,6 +836,18 @@ export class StudentService {
                     code: b.courseBundle.code
                 } : null
             }));
+
+            // If student has admissionStd but no batch, attach admissionStdDoc
+            if (studentBatches.length === 0 && student.admissionStd) {
+                const matchedCourse = courseLookupMap.get(student.admissionStd.toString());
+                studentObj.admissionStdDoc = matchedCourse ? {
+                    _id: matchedCourse._id,
+                    name: matchedCourse.name,
+                    code: matchedCourse.code
+                } : {
+                    name: student.admissionStd
+                };
+            }
             
             return studentObj;
         });

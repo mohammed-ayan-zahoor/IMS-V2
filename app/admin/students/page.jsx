@@ -1559,6 +1559,17 @@ const getInitialFormData = (selectedSessionId = "") => ({
                                                                     </span>
                                                                 ))}
                                                             </div>
+                                                        ) : (student.admissionStdDoc || student.admissionStd) ? (
+                                                            <span className="text-xs font-medium text-slate-700 flex items-center gap-1.5 flex-wrap">
+                                                                <span>
+                                                                    {student.admissionStdDoc?.name || 
+                                                                     courses.find(c => c._id === student.admissionStd || c.name === student.admissionStd)?.name || 
+                                                                     student.admissionStd}
+                                                                </span>
+                                                                <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                                                                    Unassigned Section
+                                                                </span>
+                                                            </span>
                                                         ) : (
                                                             <span className="text-xs font-medium text-slate-400">—</span>
                                                         )}
@@ -1941,7 +1952,18 @@ const getInitialFormData = (selectedSessionId = "") => ({
                             <Select
                                 label={isCollege ? "Degree Program / Course" : isVocational ? "Course / Trade / Package" : "Admission Standard"}
                                 value={formData.admissionStd}
-                                onChange={(val) => setFormData({ ...formData, admissionStd: val, admissionBatch: "" })}
+                                onChange={(val) => {
+                                    const matchingBatches = batches.filter(b => {
+                                        const isBundleVal = val?.startsWith("bundle_");
+                                        if (isBundleVal) {
+                                            const bundleId = val.replace("bundle_", "");
+                                            return b.courseBundle?._id === bundleId || b.courseBundle === bundleId;
+                                        }
+                                        return b.course?._id === val || b.course === val;
+                                    }).filter(b => formData.sessionId ? (b.session?._id === formData.sessionId || b.session === formData.sessionId || !b.session) : true);
+                                    const defaultBatchId = matchingBatches.length > 0 ? matchingBatches[0]._id : "";
+                                    setFormData({ ...formData, admissionStd: val, admissionBatch: defaultBatchId });
+                                }}
                                 options={[
                                     { label: isCollege ? "Select Degree Program" : isVocational ? "Select Course or Package" : "Select Standard", value: "" },
                                     ...(isVocational && courseBundles.length > 0 ? [

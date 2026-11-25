@@ -661,6 +661,7 @@ export async function POST(req) {
 
                 isActive: true,
                 createdBy: session.user.id,
+                admissionStd: targetBatchDoc?.course?._id?.toString() || targetBatchDoc?.course?.toString() || undefined,
                 activeSession: isVocational ? null : (sessionId || null),
                 promotionHistory: (!isVocational && sessionId) ? [{ 
                     session: sessionId, 
@@ -769,8 +770,8 @@ export async function POST(req) {
                     const batch = await Batch.findById(batchId).populate('course');
                     
                     if (batch) {
-                        // 1. Add students to Batch enrolledStudents list
-                        await Batch.findByIdAndUpdate(batchId, {
+                        // 1. Add students to Batch enrolledStudents list and heal session if missing
+                        const batchUpdateOps = {
                             $addToSet: {
                                 enrolledStudents: {
                                     $each: studentIds.map(id => ({
@@ -780,7 +781,11 @@ export async function POST(req) {
                                     }))
                                 }
                             }
-                        });
+                        };
+                        if (!batch.session && sessionId) {
+                            batchUpdateOps.$set = { session: sessionId };
+                        }
+                        await Batch.findByIdAndUpdate(batchId, batchUpdateOps);
                         console.log(`[IMPORT] Enrolled ${studentIds.length} students in Batch ID: ${batchId}`);
 
                         // 2. Auto-initialize fee records using the Class/Course Base Fee amount or itemized components
