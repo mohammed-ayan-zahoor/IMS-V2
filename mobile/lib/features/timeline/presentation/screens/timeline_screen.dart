@@ -5,20 +5,33 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:student_app/features/timeline/presentation/providers/timeline_provider.dart';
 import 'package:student_app/features/timeline/data/models/timeline_model.dart';
+import 'package:student_app/features/timeline/presentation/widgets/log_timeline_event_sheet.dart';
 
 class TimelineScreen extends StatefulWidget {
-  const TimelineScreen({super.key});
+  final String? studentId;
+  final String? studentName;
+  final String? enrollmentNumber;
+
+  const TimelineScreen({
+    super.key,
+    this.studentId,
+    this.studentName,
+    this.enrollmentNumber,
+  });
 
   @override
   State<TimelineScreen> createState() => _TimelineScreenState();
 }
 
 class _TimelineScreenState extends State<TimelineScreen> {
+  bool get _isTeacherMode => widget.studentId != null;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<TimelineProvider>(context, listen: false).loadTimeline(refresh: true);
+      Provider.of<TimelineProvider>(context, listen: false)
+          .loadTimeline(refresh: true, studentId: widget.studentId);
     });
   }
 
@@ -73,16 +86,47 @@ class _TimelineScreenState extends State<TimelineScreen> {
           icon: const Icon(Icons.arrow_back, color: Color(0xFF002045)),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
-          AppLocalizations.of(context)?.academicTimeline ?? 'Academic Timeline',
-          style: GoogleFonts.hankenGrotesk(
-            color: const Color(0xFF0D1C2E),
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _isTeacherMode
+                  ? '${widget.studentName ?? 'Student'}\'s Timeline'
+                  : (AppLocalizations.of(context)?.academicTimeline ?? 'Academic Timeline'),
+              style: GoogleFonts.hankenGrotesk(
+                color: const Color(0xFF0D1C2E),
+                fontWeight: FontWeight.bold,
+                fontSize: 18,
+              ),
+            ),
+            if (_isTeacherMode && widget.enrollmentNumber != null && widget.enrollmentNumber!.isNotEmpty)
+              Text(
+                'Roll: ${widget.enrollmentNumber}',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFF545F72),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+          ],
         ),
         centerTitle: false,
       ),
+      floatingActionButton: _isTeacherMode
+          ? FloatingActionButton.extended(
+              backgroundColor: const Color(0xFF002045),
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: Text(
+                'Log Event',
+                style: GoogleFonts.inter(fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              onPressed: () => LogTimelineEventSheet.show(
+                context,
+                studentId: widget.studentId!,
+                studentName: widget.studentName,
+              ),
+            )
+          : null,
       body: Consumer<TimelineProvider>(
         builder: (context, provider, _) {
           if (provider.isLoading) {
@@ -108,21 +152,28 @@ class _TimelineScreenState extends State<TimelineScreen> {
                       color: const Color(0xFF0D1C2E),
                     ),
                   ),
+                  if (_isTeacherMode) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'Tap "Log Event" below to add an achievement or remark.',
+                      style: GoogleFonts.inter(fontSize: 13, color: const Color(0xFF545F72)),
+                    ),
+                  ],
                 ],
               ),
             );
           }
 
           return RefreshIndicator(
-            onRefresh: () => provider.loadTimeline(refresh: true),
+            onRefresh: () => provider.loadTimeline(refresh: true, studentId: widget.studentId),
             child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0),
+              padding: const EdgeInsets.fromLTRB(16.0, 24.0, 16.0, 96.0),
               physics: const AlwaysScrollableScrollPhysics(),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Student Timeline',
+                    _isTeacherMode ? (widget.studentName ?? 'Student Timeline') : 'Student Timeline',
                     style: GoogleFonts.hankenGrotesk(
                       color: const Color(0xFF002045),
                       fontSize: 28,
@@ -131,7 +182,9 @@ class _TimelineScreenState extends State<TimelineScreen> {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    'A record of your achievements, milestones, and notable moments.',
+                    _isTeacherMode
+                        ? 'Achievements, academic milestones, and teacher remarks.'
+                        : 'A record of your achievements, milestones, and notable moments.',
                     style: GoogleFonts.inter(
                       color: const Color(0xFF545F72),
                       fontSize: 14,
@@ -285,22 +338,45 @@ class _TimelineScreenState extends State<TimelineScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  // Category Badge
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: categoryBgColor,
-                                      borderRadius: BorderRadius.circular(100),
-                                    ),
-                                    child: Text(
-                                      event.category.toUpperCase(),
-                                      style: GoogleFonts.inter(
-                                        color: categoryColor,
-                                        fontSize: 9,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 0.8,
+                                  // Category & Status Row
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: categoryBgColor,
+                                          borderRadius: BorderRadius.circular(100),
+                                        ),
+                                        child: Text(
+                                          event.category.toUpperCase(),
+                                          style: GoogleFonts.inter(
+                                            color: categoryColor,
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.bold,
+                                            letterSpacing: 0.8,
+                                          ),
+                                        ),
                                       ),
-                                    ),
+                                      if (event.status == 'pending') ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFFEF3C7),
+                                            borderRadius: BorderRadius.circular(100),
+                                          ),
+                                          child: Text(
+                                            'PENDING APPROVAL',
+                                            style: GoogleFonts.inter(
+                                              color: const Color(0xFF92400E),
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                              letterSpacing: 0.5,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
                                   ),
                                   const SizedBox(height: 8),
 
@@ -324,6 +400,38 @@ class _TimelineScreenState extends State<TimelineScreen> {
                                       height: 1.4,
                                     ),
                                   ),
+                                  if (_isTeacherMode && event.status == 'pending') ...[
+                                    const SizedBox(height: 10),
+                                    Align(
+                                      alignment: Alignment.centerRight,
+                                      child: TextButton.icon(
+                                        onPressed: () async {
+                                          final messenger = ScaffoldMessenger.of(context);
+                                          final ok = await context.read<TimelineProvider>().approveEvent(
+                                                studentId: widget.studentId!,
+                                                eventId: event.id,
+                                              );
+                                          if (mounted) {
+                                            messenger.showSnackBar(
+                                              SnackBar(
+                                                content: Text(ok ? 'Event approved!' : 'Failed to approve event'),
+                                                backgroundColor: ok ? const Color(0xFF16A34A) : const Color(0xFFDC2626),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                        icon: const Icon(Icons.check_circle_outline, size: 16, color: Color(0xFF16A34A)),
+                                        label: Text(
+                                          'Approve',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                            color: const Color(0xFF16A34A),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),

@@ -30,6 +30,8 @@ class ApiEndpoints {
   static const String syllabus = '/student/syllabus';
   static const String documents = '/student/documents';
   static const String timeline = '/student/timeline';
+  static String studentTimeline(String studentId) => '/students/$studentId/timeline';
+  static String studentTimelineEvent(String studentId, String eventId) => '/students/$studentId/timeline/$eventId';
   static const String sessions = '/student/sessions';
   static const String studentLibrary = '/student/library';
   static const String studentSubscriptionStatus = '/student/subscription/status';

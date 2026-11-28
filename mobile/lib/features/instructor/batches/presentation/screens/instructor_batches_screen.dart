@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:student_app/core/providers/academic_session_provider.dart';
 import 'package:student_app/features/instructor/batches/presentation/providers/instructor_batches_provider.dart';
+import 'package:student_app/features/instructor/batches/presentation/widgets/batch_roster_sheet.dart';
 import 'package:student_app/features/instructor/syllabus/presentation/screens/instructor_syllabus_screen.dart';
 import 'package:student_app/l10n/app_localizations.dart';
 
@@ -325,6 +326,28 @@ class _InstructorBatchesScreenState extends State<InstructorBatchesScreen> {
                                             icon: const Icon(Icons.auto_stories_outlined, size: 15, color: Color(0xFF002045)),
                                             label: Text(
                                               'Syllabus',
+                                              style: GoogleFonts.inter(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.bold,
+                                                color: const Color(0xFF002045),
+                                              ),
+                                            ),
+                                            style: OutlinedButton.styleFrom(
+                                              side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                              padding: const EdgeInsets.symmetric(vertical: 10),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: OutlinedButton.icon(
+                                            onPressed: () => BatchRosterSheet.show(context, batch: batch),
+                                            icon: const Icon(Icons.people_alt_outlined, size: 15, color: Color(0xFF002045)),
+                                            label: Text(
+                                              'Students',
                                               style: GoogleFonts.inter(
                                                 fontSize: 12,
                                                 fontWeight: FontWeight.bold,

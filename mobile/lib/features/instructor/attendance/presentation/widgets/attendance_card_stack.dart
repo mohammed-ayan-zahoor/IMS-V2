@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:student_app/features/instructor/attendance/presentation/providers/instructor_attendance_provider.dart';
+import 'package:student_app/features/timeline/presentation/screens/timeline_screen.dart';
 import 'package:student_app/l10n/app_localizations.dart';
 
 class AttendanceCardStack extends StatefulWidget {
@@ -191,44 +192,66 @@ class _AttendanceCardStackState extends State<AttendanceCardStack> {
                         children: [
                           Row(
                             children: [
-                              CircleAvatar(
-                                radius: 18,
-                                backgroundColor: const Color(0xFF002045),
-                                child: Text(
-                                  student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
-                                  style: GoogleFonts.hankenGrotesk(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: Colors.white,
+                              Expanded(
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(6),
+                                  onTap: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (_) => TimelineScreen(
+                                          studentId: student.id,
+                                          studentName: student.name,
+                                          enrollmentNumber: student.enrollmentNumber,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                  child: Row(
+                                    children: [
+                                      CircleAvatar(
+                                        radius: 18,
+                                        backgroundColor: const Color(0xFF002045),
+                                        child: Text(
+                                          student.name.isNotEmpty ? student.name[0].toUpperCase() : 'S',
+                                          style: GoogleFonts.hankenGrotesk(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 10),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              student.name,
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: GoogleFonts.hankenGrotesk(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.bold,
+                                                color: const Color(0xFF0D1C2E),
+                                              ),
+                                            ),
+                                            if (student.enrollmentNumber.isNotEmpty)
+                                              Text(
+                                                'Roll: ${student.enrollmentNumber} · Tap for Timeline',
+                                                style: GoogleFonts.inter(
+                                                  fontSize: 11,
+                                                  color: const Color(0xFF545F72),
+                                                ),
+                                              ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      student.name,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: GoogleFonts.hankenGrotesk(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                        color: const Color(0xFF0D1C2E),
-                                      ),
-                                    ),
-                                    if (student.enrollmentNumber.isNotEmpty)
-                                      Text(
-                                        'Roll: ${student.enrollmentNumber}',
-                                        style: GoogleFonts.inter(
-                                          fontSize: 11,
-                                          color: const Color(0xFF545F72),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
+                              const SizedBox(width: 8),
                               _buildStatusBadge(currentStatus, l10n),
                             ],
                           ),
